@@ -1,0 +1,394 @@
+---
+interface Props {
+  /** Optional transparent WebM (with alpha) used as the mist overlay. */
+  mistVideoSrc?: string;
+}
+
+const { mistVideoSrc } = Astro.props;
+
+// Exact placements converted from the 1920 × 1080 SVG artboard.
+const components = [
+  { name: 'Pickup Blue 02', src: '/hero/Pickup_Blue_02.webp', x: 75.6097, y: 53.2775, w: 9.4792, h: 25, transform: 'matrix(.799, .602, -.602, .799, 0, 0)' },
+  { name: 'Pickup Blue 01', src: '/hero/Pickup_Blue_01.webp', x: 81.786, y: 97.4119, w: 9.4792, h: 25, transform: 'matrix(.883, -.469, .469, .883, 0, 0)' },
+  { name: 'Trap Tile 01', src: '/hero/TrapTiles_01_RGB copy.webp', x: 31.6773, y: 86.3437, w: 6.8229, h: 12.1296, transform: 'matrix(.995, .105, -.105, .995, 0, 0)' },
+  { name: 'Trap Tile 02', src: '/hero/TrapTiles_02_RGB.webp', x: 9.0528, y: 64.2195, w: 6.8229, h: 12.1296, transform: 'rotate(-12deg)' },
+  { name: 'Trap Tile 04', src: '/hero/TrapTiles_04_RGB.webp', x: 37.7632, y: 47.8198, w: 6.8229, h: 12.1296, transform: 'rotate(9deg)' },
+  { name: 'Meeple', src: '/hero/Meeple_01.webp', x: 29.1667, y: 61.0185, w: 3.8021, h: 6.5741, transform: 'none' },
+  { name: 'Large Monster', src: '/hero/Monster_L.webp', x: -4.6354, y: 53.7037, w: 11.5625, h: 13.8889, transform: 'none' },
+  { name: 'Medium Monster', src: '/hero/Monster_M.webp', x: 5.6951, y: 3.1855, w: 8.8021, h: 12.4074, transform: 'matrix(.848, .53, -.53, .848, 0, 0)' },
+  { name: 'Small Monster', src: '/hero/Monster_S.webp', x: 59.375, y: 53.7037, w: 8.125, h: 10.2778, transform: 'none' },
+  { name: 'Pickup Red', src: '/hero/Pickup_Red.webp', x: 21.9501, y: 4.8244, w: 10.5208, h: 10, transform: 'rotate(-13deg)' },
+  { name: 'Shelter Tile', src: '/hero/Shelter_Tile.webp', x: 62.5, y: 85.6481, w: 17.3958, h: 28.0556, transform: 'none' },
+  { name: 'Food Token', src: '/hero/TokenFood.webp', x: 14.7253, y: 55.6912, w: 4.0625, h: 7.3148, transform: 'matrix(.616, -.788, .788, .616, 0, 0)' },
+  { name: 'Oil Token', src: '/hero/TokenOil.webp', x: 19.8664, y: 57.0926, w: 4.0625, h: 7.3148, transform: 'rotate(-21deg)' },
+  { name: 'Sacrifice Token', src: '/hero/TokenSacr.webp', x: 21.9271, y: 47.3148, w: 4.1667, h: 7.4074, transform: 'none' },
+  { name: 'Wood Token', src: '/hero/TokenWood.webp', x: 5.5208, y: 44.1667, w: 4.1667, h: 7.3148, transform: 'none' },
+];
+---
+
+<section class="hero" data-hero aria-label="The Last Shelter">
+  <!-- The artboard is "cover"-sized so the decorative table background and
+       components always fill the screen edge-to-edge (their edges may crop,
+       which is fine — purely decorative, not real UI). -->
+  <div class="artboard">
+    <div class="table-plane" aria-hidden="true">
+      <div class="table-plane-inner">
+        <img class="table-background" src="/hero/bg-table.webp" alt="" />
+        <div class="table-components">
+          {components.map((component) => (
+            <div
+              class="component-placement"
+              style={`--x:${component.x}%; --y:${component.y}%; --w:${component.w}%; --h:${component.h}%; --placement:${component.transform};`}
+            >
+              <img class="table-component" src={component.src} alt={component.name} draggable="false" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <!-- Supply an alpha-enabled WebM through mistVideoSrc when the mist asset is ready. -->
+    <div class="mist-video-wrapper" aria-hidden="true">
+      {mistVideoSrc && <video class="mist-video" autoplay muted loop playsinline src={mistVideoSrc}></video>}
+    </div>
+  </div>
+
+  <!-- hero-ui is a direct child of .hero (the real, never-cropped viewport
+       box), NOT of .artboard — so the logo/text/menu can never end up
+       off-screen or hidden behind browser chrome, regardless of window
+       aspect ratio. Positions/sizes use clamp() with vw/vh so they scale
+       and reflow continuously with the window width instead of jumping at
+       a single breakpoint. -->
+  <div class="hero-ui" aria-label="The Last Shelter game information">
+    <img class="game-logo" src="/hero/LogoTheLastShelter.webp" alt="The Last Shelter: Whispers of the Mist" />
+    <p class="game-copy">When a mysterious fog engulfed the Mazandaran coast, lurking monsters emerged to prey on the living. You must gather resources, build the Last Shelter, and use fire to survive.</p>
+  </div>
+
+  <!-- Studio logo + menu button live together in one flex column, so the
+       button is always pinned directly under the logo (not guessing at a
+       fixed pixel gap that breaks if the logo's own height changes). This
+       whole cluster is position:fixed, so it'll stay visible down the
+       entire page once scenes 2-5 exist below the hero. -->
+  <img class="studio-logo" src="/hero/LogoLuckyLionGames_001.webp" alt="Lucky Lion Games" />
+  <button
+    type="button"
+    class="menu-toggle"
+    data-menu-toggle
+    aria-haspopup="true"
+    aria-expanded="false"
+    aria-controls="site-menu"
+  >
+    <img src="/icons/menu-icon.png" alt="" />
+    <span class="sr-only">Open menu</span>
+  </button>
+
+  <nav id="site-menu" class="site-menu" data-site-menu aria-label="Site navigation" aria-hidden="true">
+    <ul>
+      <li><span class="menu-link is-disabled">Games<small>Coming soon</small></span></li>
+      <li><span class="menu-link is-disabled">Blog<small>Coming soon</small></span></li>
+      <li class="menu-item-contact">
+        <button type="button" class="menu-link" data-contact-toggle aria-expanded="false">Contact Us</button>
+        <div class="contact-reveal" data-contact-reveal hidden>
+          <span class="contact-email">info@luckylion.games</span>
+          <div class="contact-actions">
+            <button type="button" data-copy-email>Copy email</button>
+            <a href="mailto:info@luckylion.games">Open email app</a>
+          </div>
+        </div>
+      </li>
+    </ul>
+  </nav>
+</section>
+
+<style>
+  /* Safety net: nothing should overflow the viewport anymore (see .artboard
+     below), but keep this so no other element on the page can reopen a
+     side-scrollbar either. Also reset the browser's default 8px body margin,
+     which was adding to the page's scrollable height. */
+  :global(html), :global(body) {
+    overflow-x: hidden;
+    margin: 0;
+  }
+
+  /* Everything the section needs, defined here directly instead of via
+     Tailwind classes — those weren't being applied in this project (that's
+     why height and background were both failing earlier). */
+  .hero {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background: #121817;
+    height: 100dvh;
+  }
+
+  .artboard {
+    position: absolute; inset: 50% auto auto 50%;
+    /* max() = "cover": background + tabletop components always fill the
+       screen edge-to-edge (their edges may crop, which is fine — purely
+       decorative). The UI layer (logo/text/menu) is NOT inside this box
+       anymore — see .hero-ui below — so it can never be cropped with it. */
+    width: max(100%, calc(100dvh * 16 / 9));
+    height: max(100%, calc(100dvw * 9 / 16));
+    aspect-ratio: 16 / 9;
+    transform: translate(-50%, -50%);
+  }
+  .table-plane, .mist-video-wrapper { position: absolute; inset: 0; }
+  .table-plane { z-index: 1; overflow: hidden; }
+  .mist-video-wrapper { will-change: transform; }
+  /* The actual parallax scale/translate lives on this inner wrapper instead. */
+  .table-plane-inner { position: absolute; inset: 0; transform: scale(1.065); will-change: transform; }
+  .table-background { display: block; width: 100%; height: 100%; object-fit: fill; }
+  .table-components { position: absolute; inset: 0; }
+
+  .component-placement {
+    position: absolute; left: var(--x); top: var(--y); width: var(--w); height: var(--h);
+    transform: var(--placement); transform-origin: 0 0;
+  }
+  .table-component {
+    display: block; width: 100%; height: 100%; object-fit: contain;
+    cursor: pointer; user-select: none; will-change: transform;
+    filter: drop-shadow(0 -5px 2px rgb(0 0 0 / .5)) drop-shadow(0 15px 150px rgb(0 0 0 / .1));
+  }
+
+  .mist-video-wrapper { z-index: 2; pointer-events: none; overflow: hidden; }
+  .mist-video { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+  /* hero-ui sits directly on .hero (the real viewport box), not on
+     .artboard — so its own inset never depends on the cover-cropped
+     background. A fluid clamp()-based edge gap keeps everything a safe
+     distance from the real screen edges at any window size.
+
+     To move things further from/closer to the edges, change the numbers
+     inside clamp(min, preferred, max) below — e.g. clamp(1.5rem, 5vw, 3.5rem)
+     means "never closer than 1.5rem to the edge, never further than 3.5rem,
+     scaling with 5% of the viewport width in between". */
+  .hero-ui {
+    position: absolute; inset: 0; z-index: 3; pointer-events: none; color: #d8dfe5;
+  }
+  .game-logo {
+    position: absolute; left: clamp(1.5rem, 5vw, 3.5rem); top: 50%;
+    width: clamp(9rem, 31vw, 32rem); height: auto;
+    transform: translateY(-50%);
+    filter: drop-shadow(0 5px 15px rgb(0 0 0 / .5));
+  }
+  /* Sits directly under the logo (same left edge) instead of the opposite
+     corner. Change `font-family` here to switch the typeface, and
+     `text-align` to change how the lines of text line up (currently
+     right-aligned, per your request). */
+  .game-copy {
+    position: absolute; right: clamp(1.5rem, 5vw, 3.5rem); top: 50%;
+    transform: translateY(-50%);
+    margin: 0; width: min(38vw, 34rem); max-width: calc(100% - 2 * clamp(1.5rem, 5vw, 3.5rem));
+    overflow-wrap: anywhere; text-wrap: pretty;
+    font-family: var(--font-body); font-size: clamp(.85rem, 1.55vw, 1.875rem); line-height: 1.35; text-align: right;
+    text-shadow: 0 5px 8px #000, 0 0 20px rgb(0 0 0 / .5);
+  }
+  @media (max-width: 640px) {
+    .hero-ui {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; gap: clamp(1rem, 4vh, 1.75rem);
+      padding: 0 clamp(1.25rem, 8vw, 2.5rem);
+    }
+    .game-logo {
+      position: static; width: min(78vw, 26rem); transform: none;
+    }
+    .game-copy {
+      position: static; width: min(90vw, 30rem); max-width: none; transform: none;
+      text-align: center;
+      font-size: clamp(1rem, 4vw, 1.375rem);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) { .table-plane-inner, .mist-video-wrapper, .hero-ui, .table-component { transition: none !important; } }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+
+  /* Studio logo + menu button, stacked together so the button is always
+     directly under the logo regardless of the logo's own height — no
+     manual pixel math to keep them from overlapping. */
+  .studio-logo {
+    position: absolute;
+    top: clamp(1.5rem, 5vh, 3rem);
+    right: clamp(1.5rem, 5vw, 3.5rem);
+    z-index: 20; display: block; width: clamp(3.5rem, 6.5vw, 8.25rem); height: auto;
+    filter: drop-shadow(0 3px 9px rgb(0 0 0 / .65));
+  }
+  @media (max-width: 640px) {
+    .studio-logo { width: clamp(4.5rem, 16vw, 6.5rem); }
+  }
+
+  .menu-toggle {
+    position: fixed;
+    top: clamp(1.5rem, 5vh, 3rem);
+    left: clamp(1.5rem, 5vw, 3.5rem);
+    z-index: 50;
+    width: clamp(2.75rem, 6vw, 3.5rem);
+    height: clamp(2.75rem, 6vw, 3.5rem);
+    padding: .6rem;
+    border-radius: 50%;
+    border: 1px solid rgb(255 255 255 / .35);
+    background: rgb(18 24 23 / .55);
+    backdrop-filter: blur(6px);
+    display: grid; place-items: center;
+    cursor: pointer;
+    transition: background .2s ease, transform .2s ease, border-color .2s ease;
+  }
+  .menu-toggle:hover { background: rgb(18 24 23 / .85); border-color: rgb(255 255 255 / .6); transform: scale(1.06); }
+  /* Same icon the whole time — just spins 180° open→closed instead of
+     swapping to a different glyph, so it never looks like it "changed". */
+  .menu-toggle img {
+    display: block; width: 100%; height: 100%; object-fit: contain;
+    transition: transform .35s ease;
+  }
+  .menu-toggle[aria-expanded="true"] img { transform: rotate(180deg); }
+
+  .site-menu {
+    position: fixed; inset: 0; z-index: 40;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: clamp(1.5rem, 4vh, 2.5rem);
+    /* Translucent on purpose — the hero should stay visible, softened,
+       behind the menu instead of being fully blocked out. */
+    background: rgb(10 14 13 / .62);
+    backdrop-filter: blur(14px);
+    visibility: hidden; opacity: 0;
+    transition: opacity .3s ease, visibility 0s linear .3s;
+  }
+  .site-menu.is-open {
+    visibility: visible; opacity: 1;
+    transition: opacity .3s ease;
+  }
+  .site-menu ul {
+    list-style: none; margin: 0; padding: 0;
+    display: flex; flex-direction: column; align-items: center;
+    gap: clamp(1.1rem, 3.5vh, 2rem);
+  }
+  .menu-link {
+    display: flex; flex-direction: column; align-items: center; gap: .3rem;
+    font-family: var(--font-title); font-size: clamp(1.35rem, 4.2vw, 2.1rem); color: #f2f5f4;
+    text-decoration: none; letter-spacing: .01em;
+    background: none; border: 0; padding: 0; cursor: pointer;
+  }
+  a.menu-link:hover, button.menu-link:hover { color: #fff; }
+  .menu-link.is-disabled { color: rgb(255 255 255 / .35); cursor: default; }
+  .menu-link small {
+    font-family: var(--font-subtitle); font-size: .65em; letter-spacing: .04em;
+    color: rgb(255 255 255 / .45);
+  }
+
+  /* Contact Us: reveals the address + copy/open actions instead of jumping
+     straight into mailto: (which only ever suits people whose default
+     mail app is set up, e.g. Outlook). */
+  .menu-item-contact { display: flex; flex-direction: column; align-items: center; gap: .85rem; }
+  .contact-reveal {
+    display: flex; flex-direction: column; align-items: center; gap: .6rem;
+  }
+  .contact-reveal[hidden] { display: none; }
+  .contact-email {
+    font-size: clamp(.95rem, 2.4vw, 1.15rem); color: rgb(255 255 255 / .85);
+    letter-spacing: .02em; user-select: all;
+  }
+  .contact-actions { display: flex; gap: .75rem; }
+  .contact-actions button, .contact-actions a {
+    font-size: .8rem; color: #d8dfe5; text-decoration: none;
+    border: 1px solid rgb(255 255 255 / .35); border-radius: 999px;
+    padding: .4rem .9rem; background: transparent; cursor: pointer;
+    transition: border-color .2s ease, color .2s ease;
+  }
+  .contact-actions button:hover, .contact-actions a:hover { border-color: #fff; color: #fff; }
+</style>
+
+<script>
+  import { gsap } from 'gsap';
+
+  const hero = document.querySelector<HTMLElement>('[data-hero]');
+  const motionAllowed = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (hero && motionAllowed) {
+    const plane = hero.querySelector<HTMLElement>('.table-plane-inner')!;
+    const mist = hero.querySelector<HTMLElement>('.mist-video-wrapper')!;
+    const quickMove = (element: HTMLElement) => ({
+      x: gsap.quickTo(element, 'x', { duration: .65, ease: 'power3.out' }),
+      y: gsap.quickTo(element, 'y', { duration: .65, ease: 'power3.out' }),
+    });
+    const planeMove = quickMove(plane);
+    const mistMove = quickMove(mist);
+
+    hero.addEventListener('pointermove', (event) => {
+      const x = event.clientX - innerWidth / 1.1;
+      const y = event.clientY - innerHeight / 1.1;
+      // Background and all tabletop components deliberately move as one plane.
+      planeMove.x(-x * .01); planeMove.y(-y * .0);
+      mistMove.x(-x * .08); mistMove.y(-y * 1);
+    });
+
+    hero.querySelectorAll<HTMLElement>('.table-component').forEach((component) => {
+      const glideX = gsap.quickTo(component, 'x', { duration: .5, ease: 'power2.out' });
+      const glideY = gsap.quickTo(component, 'y', { duration: .5, ease: 'power2.out' });
+      const turn = gsap.quickTo(component, 'rotation', { duration: .75, ease: 'power2.out' });
+
+      component.addEventListener('pointermove', (event) => {
+        const bounds = component.getBoundingClientRect();
+        const x = (event.clientX - bounds.left) / bounds.width - .5;
+        const y = (event.clientY - bounds.top) / bounds.height - .5;
+        // ±0.5 pointer offset maps to a maximum ±18px glide; values persist after exit.
+        glideX(x * 75); glideY(y * 75); turn(x * 25.9);
+      });
+    });
+  }
+
+  // Menu toggle: independent of the parallax/reduced-motion logic above so
+  // it always works, regardless of the user's motion preference.
+  const menuToggle = document.querySelector<HTMLButtonElement>('[data-menu-toggle]');
+  const siteMenu = document.querySelector<HTMLElement>('[data-site-menu]');
+
+  const openMenu = () => {
+    siteMenu?.classList.add('is-open');
+    siteMenu?.setAttribute('aria-hidden', 'false');
+    menuToggle?.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+  };
+  const closeMenu = () => {
+    siteMenu?.classList.remove('is-open');
+    siteMenu?.setAttribute('aria-hidden', 'true');
+    menuToggle?.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  };
+
+  menuToggle?.addEventListener('click', () => {
+    siteMenu?.classList.contains('is-open') ? closeMenu() : openMenu();
+  });
+  // Clicking the dark backdrop itself (not a link/button inside it) closes the menu too.
+  siteMenu?.addEventListener('click', (event) => {
+    if (event.target === siteMenu) closeMenu();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeMenu();
+  });
+
+  // Contact Us: reveal the address + actions instead of jumping straight
+  // into mailto:, since that only works well for people with a default
+  // mail app configured (e.g. not everyone uses Outlook).
+  const contactToggle = document.querySelector<HTMLButtonElement>('[data-contact-toggle]');
+  const contactReveal = document.querySelector<HTMLElement>('[data-contact-reveal]');
+  const copyEmailButton = document.querySelector<HTMLButtonElement>('[data-copy-email]');
+
+  contactToggle?.addEventListener('click', () => {
+    const isOpen = !contactReveal?.hidden;
+    if (contactReveal) contactReveal.hidden = isOpen;
+    contactToggle.setAttribute('aria-expanded', String(!isOpen));
+  });
+
+  copyEmailButton?.addEventListener('click', async () => {
+    const email = document.querySelector('.contact-email')?.textContent?.trim() ?? '';
+    const originalLabel = copyEmailButton.textContent;
+    try {
+      await navigator.clipboard.writeText(email);
+      copyEmailButton.textContent = 'Copied!';
+    } catch {
+      copyEmailButton.textContent = 'Copy failed';
+    }
+    setTimeout(() => { copyEmailButton.textContent = originalLabel; }, 1800);
+  });
+</script>
