@@ -1,4 +1,6 @@
 ---
+import Layout from '../layouts/Layout.astro';
+
 interface Props {
   /** Optional transparent WebM (with alpha) used as the mist overlay. */
   mistVideoSrc?: string;
@@ -26,6 +28,7 @@ const components = [
 ];
 ---
 
+<Layout>
 <section class="hero" data-hero aria-label="The Last Shelter">
   <!-- The artboard is "cover"-sized so the decorative table background and
        components always fill the screen edge-to-edge (their edges may crop,
@@ -99,6 +102,7 @@ const components = [
     </ul>
   </nav>
 </section>
+</Layout>
 
 <style>
   /* Safety net: nothing should overflow the viewport anymore (see .artboard
@@ -183,7 +187,11 @@ const components = [
     font-family: var(--font-body); font-size: clamp(.85rem, 1.55vw, 1.875rem); line-height: 1.35; text-align: right;
     text-shadow: 0 5px 8px #000, 0 0 20px rgb(0 0 0 / .5);
   }
-  @media (max-width: 640px) {
+  /* Triggers on EITHER condition: a narrow window (max-width) OR a tall/
+     portrait-ish aspect ratio (max-aspect-ratio, width:height ≤ 3:4) — so
+     the stacked mobile layout also kicks in on tall narrow windows/tablets
+     that happen to be wider than 640px but are still clearly "portrait". */
+  @media (max-width: 640px), (max-aspect-ratio: 3 / 4) {
     .hero-ui {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       height: 100%; gap: clamp(1rem, 4vh, 1.75rem);
@@ -215,7 +223,7 @@ const components = [
     z-index: 20; display: block; width: clamp(3.5rem, 6.5vw, 8.25rem); height: auto;
     filter: drop-shadow(0 3px 9px rgb(0 0 0 / .65));
   }
-  @media (max-width: 640px) {
+  @media (max-width: 640px), (max-aspect-ratio: 3 / 4) {
     .studio-logo { width: clamp(4.5rem, 16vw, 6.5rem); }
   }
 
