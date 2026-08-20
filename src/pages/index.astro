@@ -29,7 +29,13 @@ const components = [
 ---
 
 <Layout>
-<section class="hero" data-hero aria-label="The Last Shelter">
+<!-- Hero and Scene 2 are stacked exactly on top of each other inside this
+     stage (both position:absolute, filling it) and the whole stage gets
+     pinned by ScrollTrigger — so scrolling doesn't move Scene 2 "up from
+     below"; it stays put in place while hero fades out and Scene 2 fades
+     in on top of it, in the same spot. See the script at the bottom. -->
+<div class="pin-stage" data-pin-stage>
+<section class="hero" id="hero" data-hero aria-label="The Last Shelter">
   <!-- The artboard is "cover"-sized so the decorative table background and
        components always fill the screen edge-to-edge (their edges may crop,
        which is fine — purely decorative, not real UI). -->
@@ -67,41 +73,46 @@ const components = [
     <p class="game-copy">When a mysterious fog engulfed the Mazandaran coast, lurking monsters emerged to prey on the living. You must gather resources, build the Last Shelter, and use fire to survive.</p>
   </div>
 
-  <!-- Studio logo + menu button live together in one flex column, so the
-       button is always pinned directly under the logo (not guessing at a
-       fixed pixel gap that breaks if the logo's own height changes). This
-       whole cluster is position:fixed, so it'll stay visible down the
-       entire page once scenes 2-5 exist below the hero. -->
-  <img class="studio-logo" src="/hero/LogoLuckyLionGames_001.webp" alt="Lucky Lion Games" />
-  <button
-    type="button"
-    class="menu-toggle"
-    data-menu-toggle
-    aria-haspopup="true"
-    aria-expanded="false"
-    aria-controls="site-menu"
-  >
-    <img src="/icons/menu-icon.png" alt="" />
-    <span class="sr-only">Open menu</span>
-  </button>
 
-  <nav id="site-menu" class="site-menu" data-site-menu aria-label="Site navigation" aria-hidden="true">
-    <ul>
-      <li><span class="menu-link is-disabled">Games<small>Coming soon</small></span></li>
-      <li><span class="menu-link is-disabled">Blog<small>Coming soon</small></span></li>
-      <li class="menu-item-contact">
-        <button type="button" class="menu-link" data-contact-toggle aria-expanded="false">Contact Us</button>
-        <div class="contact-reveal" data-contact-reveal hidden>
-          <span class="contact-email">info@luckylion.games</span>
-          <div class="contact-actions">
-            <button type="button" data-copy-email>Copy email</button>
-            <a href="mailto:info@luckylion.games">Open email app</a>
-          </div>
-        </div>
-      </li>
-    </ul>
-  </nav>
 </section>
+
+<!-- SCENE 2: floating box. Two frame sequences drawn on a <canvas> instead
+     of playing a <video>, so scroll position and mouse position can control
+     the exact frame with no lag/buffering — see the script below. -->
+<section class="scene2" id="scene2" data-scene2 aria-label="The Last Shelter overview">
+  <!-- Same cover-sizing formula as .artboard in the hero, so the box's
+       scale/position exactly matches where it "was" in the hero — this is
+       what makes the crossfade feel like the same object, not a resize. -->
+  <div class="scene2-artboard">
+    <canvas class="scene2-canvas" data-scene2-canvas></canvas>
+  </div>
+  <div class="scene2-info" data-scene2-info>
+    <div class="icon-orbit"><img class="info-icon" data-icon src="/scene2/icons/players.webp" alt="1-5 Players" /></div>
+    <div class="icon-orbit"><img class="info-icon" data-icon src="/scene2/icons/time.webp" alt="90 Minutes" /></div>
+    <div class="icon-orbit"><img class="info-icon" data-icon src="/scene2/icons/age.webp" alt="Ages 14+" /></div>
+  </div>
+</section>
+<!-- Thematic fog wash that swells during the hero->Scene 2 crossfade and
+     clears once Scene 2 is fully in — ties into the game's mist theme,
+     and conveniently helps mask the crossfade seam between the hero photo
+     and the rendered box. Pure CSS gradients, no asset needed. -->
+<div class="transition-mist" data-transition-mist aria-hidden="true">
+  <div class="transition-mist__layer transition-mist__layer--a"></div>
+  <div class="transition-mist__layer transition-mist__layer--b"></div>
+</div>
+</div>
+
+<!-- Studio logo + menu button + nav used to be duplicated here, but that's
+     now what SiteChrome.astro (rendered once from Layout.astro) is for —
+     see that file's header comment for why living there instead of here
+     fixes the same z-index/stacking problem this old comment used to
+     describe. Keeping a second copy here made `[data-menu-toggle]` /
+     `[data-site-menu]` ambiguous: the page's own click listener bound to
+     whichever copy `document.querySelector` found first, while the OTHER
+     copy (SiteChrome's, painted on top since it renders later in the DOM)
+     was the one actually visible and clickable — so the menu button
+     silently did nothing. Don't re-add this markup here; add it to
+     SiteChrome.astro instead so every page stays in sync automatically. -->
 </Layout>
 
 <style>
@@ -117,12 +128,16 @@ const components = [
   /* Everything the section needs, defined here directly instead of via
      Tailwind classes — those weren't being applied in this project (that's
      why height and background were both failing earlier). */
-  .hero {
+  .pin-stage {
     position: relative;
+    height: 100dvh;
+    overflow: hidden; /* clips oversized children like .transition-mist (-15% inset) so they can't add scrollable page height */
+  }
+  .hero {
+    position: absolute; inset: 0;
     isolation: isolate;
     overflow: hidden;
     background: #121817;
-    height: 100dvh;
   }
 
   .artboard {
@@ -208,127 +223,156 @@ const components = [
   }
   @media (prefers-reduced-motion: reduce) { .table-plane-inner, .mist-video-wrapper, .hero-ui, .table-component { transition: none !important; } }
 
-  .sr-only {
-    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  /* Studio logo / menu button / site nav styling now lives in
+     SiteChrome.astro (see that file's <style>) — removed the duplicate
+     that used to live here. See the comment above `</Layout>` for why. */
+
+  /* SCENE 2 ------------------------------------------------------------ */
+  .scene2 {
+    /* Stacked exactly on top of .hero inside .pin-stage. The box (frame 0
+       of the intro sequence) is visible from page load — since the hero
+       background no longer has its own baked-in box, this canvas IS the
+       box, sitting in place the whole time. Scrolling doesn't fade this
+       layer in; it fades the hero's OTHER decorative pieces OUT from
+       underneath/around it instead, and plays the box through its intro
+       motion. pointer-events:none is a hard safety net: this layer can
+       NEVER intercept clicks/scroll until JS explicitly adds
+       .is-interactive to it (during phase 2, once rotation is live). */
+    position: absolute; inset: 0; z-index: 10;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .scene2.is-interactive { pointer-events: auto; }
+
+  /* Fog wash — sits above both the hero and Scene 2, fully transparent by
+     default. Its opacity is driven from the script (a bell curve across
+     the crossfade). Oversized (-15% inset) and blurred so it can drift
+     without ever showing a hard edge. Two layers drifting at slightly
+     different speeds/directions read as soft, alive fog rather than a
+     static image. */
+  .transition-mist {
+    position: absolute; inset: -15%;
+    z-index: 15;
+    pointer-events: none;
+    opacity: 0;
+    mix-blend-mode: screen;
+    filter: blur(28px);
+    will-change: opacity;
+  }
+  .transition-mist__layer {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 55% 38% at 22% 58%, rgb(233 238 234 / .6), transparent 70%),
+      radial-gradient(ellipse 48% 34% at 78% 42%, rgb(214 224 217 / .5), transparent 70%),
+      radial-gradient(ellipse 65% 42% at 50% 78%, rgb(223 231 224 / .45), transparent 70%);
+  }
+  .transition-mist__layer--a { animation: mist-drift-a 14s ease-in-out infinite; }
+  .transition-mist__layer--b { animation: mist-drift-b 19s ease-in-out infinite reverse; opacity: .7; }
+  @keyframes mist-drift-a {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(3%, -2%) scale(1.06); }
+  }
+  @keyframes mist-drift-b {
+    0%, 100% { transform: translate(0, 0) scale(1.04); }
+    50% { transform: translate(-4%, 2%) scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .transition-mist__layer--a, .transition-mist__layer--b { animation: none; }
   }
 
-  /* Studio logo + menu button, stacked together so the button is always
-     directly under the logo regardless of the logo's own height — no
-     manual pixel math to keep them from overlapping. */
-  .studio-logo {
-    position: absolute;
-    top: clamp(1.5rem, 5vh, 3rem);
-    right: clamp(1.5rem, 5vw, 3.5rem);
-    z-index: 20; display: block; width: clamp(3.5rem, 6.5vw, 8.25rem); height: auto;
-    filter: drop-shadow(0 3px 9px rgb(0 0 0 / .65));
+  /* Identical formula to .artboard in the hero — same cover-fit box, same
+     scale, same crop behavior — so the box reads as the same object in
+     the same place, not a smaller/differently-scaled re-render.
+     If it's still not pixel-perfect against the hero, nudge it here —
+     these three variables are the ONLY place you should need to touch:
+       --fix-scale: multiplies the whole box size (1 = no change,
+                    1.01 = 1% bigger, 0.99 = 1% smaller)
+       --fix-x / --fix-y: nudges position in pixels (positive = right/down) */
+  .scene2-artboard {
+    --fix-scale: 1;
+    --fix-x: 0px;
+    --fix-y: 0px;
+    position: absolute; inset: 50% auto auto 50%;
+    width: max(100%, calc(100dvh * 16 / 9));
+    height: max(100%, calc(100dvw * 9 / 16));
+    aspect-ratio: 16 / 9;
+    transform: translate(-50%, -50%) translate(var(--fix-x), var(--fix-y)) scale(var(--fix-scale));
+    z-index: 1;
+  }
+  .scene2-canvas {
+    display: block; width: 100%; height: 100%;
+    filter: drop-shadow(0 30px 60px rgb(0 0 0 / .55));
+  }
+  /* Each icon sweeps horizontally past this anchor point (roughly in
+     front of the box) — .icon-orbit is a zero-size point that the script
+     moves with x (left-to-right sweep); .info-icon is just statically
+     centered on its own anchor via the translate below, so GSAP's x on
+     the *parent* never conflicts with this transform. */
+  .scene2-info {
+    position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  }
+  /* Where the icons appear — the empty space to the LEFT of the box, not
+     across/over it. Nudge --anchor-left/--anchor-top to line this up with
+     your art (a value further right moves it closer to the box). */
+  .icon-orbit {
+    --anchor-top: 38%;
+    --anchor-left: 21%;
+    position: absolute; top: var(--anchor-top); left: var(--anchor-left);
+  }
+  .info-icon {
+    position: absolute; top: 0; left: 0; transform: translate(-50%, -50%);
+    width: clamp(6.75rem, 13.5vw, 11.25rem); height: auto;
+    opacity: 0; /* the script drives opacity/scale as it enters/exits */
   }
   @media (max-width: 640px), (max-aspect-ratio: 3 / 4) {
-    .studio-logo { width: clamp(4.5rem, 16vw, 6.5rem); }
+    .info-icon { width: clamp(4.875rem, 22.5vw, 7.5rem); }
   }
-
-  .menu-toggle {
-    position: fixed;
-    top: clamp(1.5rem, 5vh, 3rem);
-    left: clamp(1.5rem, 5vw, 3.5rem);
-    z-index: 50;
-    width: clamp(2.75rem, 6vw, 3.5rem);
-    height: clamp(2.75rem, 6vw, 3.5rem);
-    padding: .6rem;
-    border-radius: 50%;
-    border: 1px solid rgb(255 255 255 / .35);
-    background: rgb(18 24 23 / .55);
-    backdrop-filter: blur(6px);
-    display: grid; place-items: center;
-    cursor: pointer;
-    transition: background .2s ease, transform .2s ease, border-color .2s ease;
-  }
-  .menu-toggle:hover { background: rgb(18 24 23 / .85); border-color: rgb(255 255 255 / .6); transform: scale(1.06); }
-  /* Same icon the whole time — just spins 180° open→closed instead of
-     swapping to a different glyph, so it never looks like it "changed". */
-  .menu-toggle img {
-    display: block; width: 100%; height: 100%; object-fit: contain;
-    transition: transform .35s ease;
-  }
-  .menu-toggle[aria-expanded="true"] img { transform: rotate(180deg); }
-
-  .site-menu {
-    position: fixed; inset: 0; z-index: 40;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: clamp(1.5rem, 4vh, 2.5rem);
-    /* Translucent on purpose — the hero should stay visible, softened,
-       behind the menu instead of being fully blocked out. */
-    background: rgb(10 14 13 / .62);
-    backdrop-filter: blur(14px);
-    visibility: hidden; opacity: 0;
-    transition: opacity .3s ease, visibility 0s linear .3s;
-  }
-  .site-menu.is-open {
-    visibility: visible; opacity: 1;
-    transition: opacity .3s ease;
-  }
-  .site-menu ul {
-    list-style: none; margin: 0; padding: 0;
-    display: flex; flex-direction: column; align-items: center;
-    gap: clamp(1.1rem, 3.5vh, 2rem);
-  }
-  .menu-link {
-    display: flex; flex-direction: column; align-items: center; gap: .3rem;
-    font-family: var(--font-title); font-size: clamp(1.35rem, 4.2vw, 2.1rem); color: #f2f5f4;
-    text-decoration: none; letter-spacing: .01em;
-    background: none; border: 0; padding: 0; cursor: pointer;
-  }
-  a.menu-link:hover, button.menu-link:hover { color: #fff; }
-  .menu-link.is-disabled { color: rgb(255 255 255 / .35); cursor: default; }
-  .menu-link small {
-    font-family: var(--font-subtitle); font-size: .65em; letter-spacing: .04em;
-    color: rgb(255 255 255 / .45);
-  }
-
-  /* Contact Us: reveals the address + copy/open actions instead of jumping
-     straight into mailto: (which only ever suits people whose default
-     mail app is set up, e.g. Outlook). */
-  .menu-item-contact { display: flex; flex-direction: column; align-items: center; gap: .85rem; }
-  .contact-reveal {
-    display: flex; flex-direction: column; align-items: center; gap: .6rem;
-  }
-  .contact-reveal[hidden] { display: none; }
-  .contact-email {
-    font-size: clamp(.95rem, 2.4vw, 1.15rem); color: rgb(255 255 255 / .85);
-    letter-spacing: .02em; user-select: all;
-  }
-  .contact-actions { display: flex; gap: .75rem; }
-  .contact-actions button, .contact-actions a {
-    font-size: .8rem; color: #d8dfe5; text-decoration: none;
-    border: 1px solid rgb(255 255 255 / .35); border-radius: 999px;
-    padding: .4rem .9rem; background: transparent; cursor: pointer;
-    transition: border-color .2s ease, color .2s ease;
-  }
-  .contact-actions button:hover, .contact-actions a:hover { border-color: #fff; color: #fff; }
 </style>
 
 <script>
   import { gsap } from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+  gsap.registerPlugin(ScrollTrigger);
+  // Dev-mode safety net: if Vite/Astro hot-reloads this script (e.g. after
+  // saving a file), old ScrollTrigger instances — and the pin-spacer DOM
+  // they inserted — can be left behind, which corrupts pinning and freezes
+  // scroll until a full page reload. Clearing any previous instances first
+  // makes re-running this script idempotent.
+  ScrollTrigger.getAll().forEach((instance) => instance.kill());
 
   const hero = document.querySelector<HTMLElement>('[data-hero]');
   const motionAllowed = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Hoisted so Scene 2's script (further down) can neutralize the hero's
+  // mouse parallax once scrolling begins — otherwise the hero box can be
+  // sitting offset from center (wherever the mouse was) while Scene 2's
+  // frame 1 always renders at dead-center, causing a visible mismatch.
+  let plane: HTMLElement | null = null;
+  let mist: HTMLElement | null = null;
+  let heroParallaxActive = true;
 
   if (hero && motionAllowed) {
-    const plane = hero.querySelector<HTMLElement>('.table-plane-inner')!;
-    const mist = hero.querySelector<HTMLElement>('.mist-video-wrapper')!;
+    plane = hero.querySelector<HTMLElement>('.table-plane-inner')!;
+    mist = hero.querySelector<HTMLElement>('.mist-video-wrapper')!;
+    // The box (Scene 2's canvas) sits on the same table plane, so it needs
+    // the exact same parallax movement — otherwise it visually "floats"
+    // detached from the table while everything else shifts with the mouse.
+    const box = document.querySelector<HTMLElement>('.scene2-artboard');
     const quickMove = (element: HTMLElement) => ({
       x: gsap.quickTo(element, 'x', { duration: .65, ease: 'power3.out' }),
       y: gsap.quickTo(element, 'y', { duration: .65, ease: 'power3.out' }),
     });
     const planeMove = quickMove(plane);
     const mistMove = quickMove(mist);
+    const boxMove = box ? quickMove(box) : null;
 
     hero.addEventListener('pointermove', (event) => {
+      if (!heroParallaxActive) return;
       const x = event.clientX - innerWidth / 1.1;
       const y = event.clientY - innerHeight / 1.1;
       // Background and all tabletop components deliberately move as one plane.
       planeMove.x(-x * .01); planeMove.y(-y * .0);
       mistMove.x(-x * .08); mistMove.y(-y * 1);
+      boxMove?.x(-x * .01); boxMove?.y(-y * .0); // same multiplier as the plane, so it stays locked to the table
     });
 
     hero.querySelectorAll<HTMLElement>('.table-component').forEach((component) => {
@@ -346,57 +390,284 @@ const components = [
     });
   }
 
-  // Menu toggle: independent of the parallax/reduced-motion logic above so
-  // it always works, regardless of the user's motion preference.
-  const menuToggle = document.querySelector<HTMLButtonElement>('[data-menu-toggle]');
-  const siteMenu = document.querySelector<HTMLElement>('[data-site-menu]');
-
-  const openMenu = () => {
-    siteMenu?.classList.add('is-open');
-    siteMenu?.setAttribute('aria-hidden', 'false');
-    menuToggle?.setAttribute('aria-expanded', 'true');
-    document.body.style.overflow = 'hidden';
-  };
-  const closeMenu = () => {
-    siteMenu?.classList.remove('is-open');
-    siteMenu?.setAttribute('aria-hidden', 'true');
-    menuToggle?.setAttribute('aria-expanded', 'false');
-    document.body.style.overflow = '';
-  };
-
-  menuToggle?.addEventListener('click', () => {
-    siteMenu?.classList.contains('is-open') ? closeMenu() : openMenu();
-  });
-  // Clicking the dark backdrop itself (not a link/button inside it) closes the menu too.
-  siteMenu?.addEventListener('click', (event) => {
-    if (event.target === siteMenu) closeMenu();
-  });
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeMenu();
+  // Studio logo doubles as Home — smooth-scroll to the hero instead of an
+  // instant jump (also plays nicer with ScrollTrigger's pinned sections
+  // below than a bare anchor jump would).
+  document.querySelector<HTMLAnchorElement>('[data-scroll-home]')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    document.getElementById('hero')?.scrollIntoView({ behavior: 'smooth' });
   });
 
-  // Contact Us: reveal the address + actions instead of jumping straight
-  // into mailto:, since that only works well for people with a default
-  // mail app configured (e.g. not everyone uses Outlook).
-  const contactToggle = document.querySelector<HTMLButtonElement>('[data-contact-toggle]');
-  const contactReveal = document.querySelector<HTMLElement>('[data-contact-reveal]');
-  const copyEmailButton = document.querySelector<HTMLButtonElement>('[data-copy-email]');
+  // Menu toggle + Contact Us reveal: now handled once by SiteChrome.astro's
+  // own <script>, since that's the only place the markup lives. A second
+  // copy here used to bind to whichever `[data-menu-toggle]` element
+  // querySelector found first, which wasn't necessarily the one on screen —
+  // see the comment above `</Layout>` for the full story.
 
-  contactToggle?.addEventListener('click', () => {
-    const isOpen = !contactReveal?.hidden;
-    if (contactReveal) contactReveal.hidden = isOpen;
-    contactToggle.setAttribute('aria-expanded', String(!isOpen));
-  });
+  // SCENE 2 --------------------------------------------------------------
+  // Two frame sequences, drawn to a <canvas> so scroll/mouse position can
+  // pick an exact frame with no video-buffering lag:
+  //   intro-####.webp  (60 frames) — scrubbed by SCROLL as the person
+  //     enters the section (the box turns from its hero-corner angle to
+  //     floating, front-facing, center).
+  //   rotate-####.webp (85 frames) — scrubbed by MOUSE X once the intro
+  //     has finished, simulating the person "turning" the box by hand.
+  // Change INTRO_FRAMES / ROTATE_FRAMES below if your actual export has a
+  // different frame count than what I counted from your preview videos.
+  const INTRO_FRAMES = 60;
+  const ROTATE_FRAMES = 85;
+  const pad4 = (n: number) => String(n).padStart(4, '0');
+  // intro files are numbered intro-0001.webp ... intro-0060.webp (1-based)
+  const introSrc = (loopIndex: number) => `/scene2/box/intro-${pad4(loopIndex + 1)}.webp`;
+  // rotate files are numbered rotate-0000.webp ... rotate-0084.webp (0-based)
+  const rotateSrc = (loopIndex: number) => `/scene2/box/rotate-${pad4(loopIndex)}.webp`;
 
-  copyEmailButton?.addEventListener('click', async () => {
-    const email = document.querySelector('.contact-email')?.textContent?.trim() ?? '';
-    const originalLabel = copyEmailButton.textContent;
-    try {
-      await navigator.clipboard.writeText(email);
-      copyEmailButton.textContent = 'Copied!';
-    } catch {
-      copyEmailButton.textContent = 'Copy failed';
+  function preloadSequence(count: number, srcFor: (loopIndex: number) => string) {
+    const images: HTMLImageElement[] = new Array(count);
+    const loaded = Array.from({ length: count }, (_, i) => {
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = srcFor(i);
+      images[i] = img;
+      return new Promise<void>((resolve) => {
+        img.onload = () => resolve();
+        img.onerror = () => resolve(); // don't block the whole sequence on one missing frame
+      });
+    });
+    return { images, ready: Promise.all(loaded) };
+  }
+
+  const stage = document.querySelector<HTMLElement>('[data-pin-stage]');
+  const scene2 = document.querySelector<HTMLElement>('[data-scene2]');
+  const canvas = document.querySelector<HTMLCanvasElement>('[data-scene2-canvas]');
+  const ctx = canvas?.getContext('2d') ?? null;
+
+  function drawFrame(img: HTMLImageElement | undefined) {
+    if (!ctx || !canvas || !img || !img.complete || !img.naturalWidth) return;
+    if (canvas.width !== img.naturalWidth) canvas.width = img.naturalWidth;
+    if (canvas.height !== img.naturalHeight) canvas.height = img.naturalHeight;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+  }
+
+  if (!stage || !scene2 || !canvas || !ctx) {
+    console.warn('[Scene 2] Skipped: missing element(s)', { stage, scene2, canvas, ctx });
+  } else {
+    const intro = preloadSequence(INTRO_FRAMES, introSrc);
+    const rotate = preloadSequence(ROTATE_FRAMES, rotateSrc);
+    intro.ready.then(() => drawFrame(intro.images[0])); // paint frame 1 as soon as it's ready — stays active regardless of SCENE2_ENABLED below, since this canvas is now the only thing drawing the box at all (it's no longer baked into the hero background image)
+
+    // Shelved for now so the chatbot work can be deployed without also
+    // shipping the still-in-progress intro/rotate behavior. The hero
+    // shows exactly as it does today — box static on frame 0, nothing
+    // fades, no scroll pin, no mouse rotation — and every line below
+    // stays completely intact, just inert. Flip this back to `true`
+    // whenever we're ready to pick Scene 2 back up; nothing else needs
+    // to change.
+    const SCENE2_ENABLED = false;
+    if (SCENE2_ENABLED) {
+
+    // Only the decorative pieces scattered on the table (+ the hero's own
+    // ambient mist video, if present) fade out — NOT the base table
+    // surface, which stays visible the whole time as the ground the box
+    // sits on.
+    const heroBg = gsap.utils.toArray<HTMLElement>('.table-components, .mist-video-wrapper');
+    const heroText = document.querySelector<HTMLElement>('.hero-ui');
+    const transitionMist = document.querySelector<HTMLElement>('[data-transition-mist]');
+    gsap.set(transitionMist, { opacity: 0 }); // OFF for now — revisit once it's meant to run across every scene
+
+    if (!motionAllowed) {
+      // Reduced motion: skip straight to the end state — Scene 2 fully
+      // visible with the box resolved and the info icons already in place.
+      gsap.set(heroBg, { opacity: 0 });
+      gsap.set(heroText, { opacity: 0 });
+      scene2.classList.add('is-interactive');
+      gsap.set('.info-icon', { opacity: 1, y: 0 });
+      intro.ready.then(() => drawFrame(intro.images[INTRO_FRAMES - 1]));
+    } else {
+      // Total pinned scroll distance for all of Scene 2 (intro + rotate +
+      // icons). Tune to taste — icon pacing no longer depends on this
+      // being any particular size (see ICON_STEP_PX below).
+      const PIN_DISTANCE = '+=1000%';
+
+      let targetFrame = Math.floor((ROTATE_FRAMES - 1) / 2);
+      let currentFrame = targetFrame;
+      let rotateActive = false;
+
+      // The box itself is ALREADY visible (sitting on frame 0) from page
+      // load. Scrolling doesn't crossfade a whole new layer in anymore —
+      // it just fades the hero's decorative pieces out and plays the box
+      // through its intro motion. Still one authored, fixed-duration
+      // timeline (not scrubbed 1:1 to scroll) — scroll only triggers it.
+      const introState = { fade: 0, frame: 0 };
+      const introTL = gsap.timeline({ paused: true })
+        .to(introState, {
+          fade: 1, duration: 0.9, ease: 'power2.inOut',
+          onUpdate: () => {
+            gsap.set(heroBg, { opacity: 1 - introState.fade });
+            gsap.set(heroText, { opacity: 1 - gsap.utils.clamp(0, 1, (introState.fade - 0.15) / 0.85) });
+          },
+        })
+        .to(introState, {
+          frame: INTRO_FRAMES - 1, duration: 1.1, ease: 'power1.inOut',
+          onUpdate: () => drawFrame(intro.images[Math.round(introState.frame)]),
+        }, '-=0.15');
+
+      let introEntered = false;
+
+      scene2.addEventListener('pointermove', (event) => {
+        const pct = gsap.utils.clamp(0, 1, event.clientX / window.innerWidth);
+        targetFrame = Math.round(pct * (ROTATE_FRAMES - 1));
+      });
+
+      gsap.ticker.add(() => {
+        if (!rotateActive) return;
+        currentFrame += (targetFrame - currentFrame) * 0.08; // smoothed follow, not a hard snap
+        drawFrame(rotate.images[Math.round(currentFrame)]);
+      });
+
+      const icons = gsap.utils.toArray<HTMLElement>('.icon-orbit');
+      const iconImgs = gsap.utils.toArray<HTMLElement>('.info-icon');
+      // Small travel, and always the SAME side (further left, off-screen)
+      // — icons enter from the left, settle in the empty space beside the
+      // box.
+      const iconTravel = () => Math.min(window.innerWidth * 0.2, 240);
+      // Exit continues the same left-to-right motion (rather than
+      // retreating back offscreen-left) and dissolves partway toward the
+      // box, instead of reversing direction.
+      const iconExitDrift = () => iconTravel() * 0.55;
+
+      // Each icon is TWO independent triggers, not one timed sequence:
+      // scrolling into its zone plays the entrance, and it then just sits
+      // there — however long the user takes — until scrolling into the
+      // NEXT zone plays its exit. So `steps` alternates
+      // [enter0, exit0, enter1, exit1, enter2, exit2] — 6 total triggers
+      // across phase 2's scroll range, each a fixed-duration, eased
+      // timeline (scroll only triggers it, doesn't scrub it), matching
+      // the "scroll triggers a polished animation" feel of oryzo.ai.
+      const steps: gsap.core.Timeline[] = [];
+      icons.forEach((orbit, i) => {
+        gsap.set(orbit, { x: -iconTravel(), zIndex: 20 });
+        gsap.set(iconImgs[i], { opacity: 0 });
+        steps.push(
+          gsap.timeline({ paused: true })
+            .fromTo(orbit, { x: () => -iconTravel() }, { x: 0, duration: 0.85, ease: 'power2.out' })
+            .fromTo(iconImgs[i], { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.55, ease: 'sine.out' }, '<'),
+        );
+        steps.push(
+          gsap.timeline({ paused: true })
+            .to(orbit, { x: () => iconExitDrift(), duration: 0.9, ease: 'power1.in' })
+            .to(iconImgs[i], { opacity: 0, scale: 0.9, duration: 0.7, ease: 'sine.in' }, '<'),
+        );
+      });
+      let activeIconStep = -1;
+      let phase2EnteredAt: number | null = null;
+      let phase2StartScrollY: number | null = null;
+      let lastIconStepAt = 0;
+      const ICON_START_DELAY = 500; // ms — real time to wait after the intro fully settles before the first icon is allowed to trigger
+      const ICON_STEP_PX = 180; // scroll px it takes to be "eligible" to trigger the next icon step — independent of the (large) PIN_DISTANCE
+      const MIN_ICON_STEP_INTERVAL = 900; // ms — even with a big/fast scroll, steps can't advance faster than this, so every icon gets seen
+
+      // Advances (or reverses) exactly ONE step toward `desiredStep`, never
+      // more — a big or fast scroll just means later calls keep advancing
+      // one at a time (rate-limited below) instead of jumping straight to
+      // the target and skipping everything in between unseen.
+      function setIconStep(desiredStep: number) {
+        desiredStep = Math.min(steps.length - 1, Math.max(0, desiredStep));
+        if (desiredStep === activeIconStep) return;
+        const now = performance.now();
+        if (now - lastIconStepAt < MIN_ICON_STEP_INTERVAL) return; // too soon — a later tick will pick this back up
+        const dir = desiredStep > activeIconStep ? 1 : -1;
+        const next = activeIconStep + dir;
+        if (dir > 0) steps[next].play();
+        else steps[next].reverse();
+        activeIconStep = next;
+        lastIconStepAt = now;
+      }
+
+      function resetIconSteps() {
+        phase2EnteredAt = null;
+        phase2StartScrollY = null;
+        lastIconStepAt = 0;
+        if (activeIconStep === -1) return;
+        steps.forEach((tl) => tl.progress(0).pause());
+        activeIconStep = -1;
+      }
+
+      // Both the intro and the icons are trigger-based, fixed-duration
+      // timelines now (not continuously scrubbed to scroll position), so
+      // we apply the raw scroll progress directly — no extra smoothing
+      // layer needed, since that was just adding lag on top of triggers
+      // that are already eased internally.
+      let introDone = false;
+      introTL.eventCallback('onComplete', () => { introDone = true; });
+      introTL.eventCallback('onReverseComplete', () => { introDone = false; });
+
+      function applyProgress(p: number) {
+        // Only touch the hero's mouse parallax once we're ACTUALLY
+        // transitioning away from it — at rest at the very top (p=0)
+        // it must keep working normally.
+        heroParallaxActive = p <= 0.001;
+        if (!heroParallaxActive) {
+          if (plane) gsap.set(plane, { x: 0, y: 0 });
+          if (mist) gsap.set(mist, { x: 0, y: 0 });
+        }
+
+        // The intro timeline is triggered once by crossing this
+        // threshold — not scrubbed — and reversed the same way once
+        // scrolled all the way back to the hero.
+        const shouldBeEntered = p > 0.001;
+        if (shouldBeEntered !== introEntered) {
+          introEntered = shouldBeEntered;
+          if (introEntered) introTL.play();
+          else introTL.reverse();
+        }
+
+        if (!introDone) {
+          // Still mid-intro (or back at the hero) — icons wait, rotation
+          // is off. Gated on the timeline's OWN completion, not on scroll
+          // distance, so the ~2.7s intro always plays out in full instead
+          // of being cut short by a scroll threshold racing ahead of it.
+          rotateActive = false;
+          scene2.classList.remove('is-interactive');
+          resetIconSteps(); // all parked, waiting for phase 2
+        } else {
+          // Phase 2: hero fully gone, Scene 2 fully in. Mouse drives the
+          // rotate sequence continuously (via the ticker above), totally
+          // independent of scroll.
+          rotateActive = true;
+          scene2.classList.add('is-interactive'); // only NOW can it receive pointermove/clicks
+
+          if (phase2EnteredAt === null) phase2EnteredAt = performance.now();
+          if (phase2StartScrollY === null) phase2StartScrollY = window.scrollY;
+
+          // Give the intro a beat to fully settle before the first icon
+          // is allowed to start. Purely time-based, so it's the same
+          // pause regardless of how fast the pin is scrolled.
+          if (performance.now() - phase2EnteredAt >= ICON_START_DELAY) {
+            // Real scroll PIXELS since entering phase 2, divided into
+            // small fixed-size steps — decoupled from PIN_DISTANCE (which
+            // can be huge) so a normal scroll gesture or two is enough to
+            // move to the next icon, not a large fraction of the pin.
+            const pxIntoPhase2 = Math.max(0, window.scrollY - phase2StartScrollY);
+            const step = Math.min(steps.length - 1, Math.floor(pxIntoPhase2 / ICON_STEP_PX));
+            setIconStep(step);
+          }
+        }
+      }
+
+      ScrollTrigger.create({
+        trigger: stage,
+        start: 'top top',
+        end: PIN_DISTANCE,
+        pin: true,
+        scrub: true,
+        markers: true, // TEMPORARY again — testing whether pin still works
+        onUpdate(self) {
+          applyProgress(self.progress);
+        },
+      });
     }
-    setTimeout(() => { copyEmailButton.textContent = originalLabel; }, 1800);
-  });
+    } // end SCENE2_ENABLED
+  }
 </script>

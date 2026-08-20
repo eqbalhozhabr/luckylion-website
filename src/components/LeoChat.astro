@@ -1,0 +1,78 @@
+<!--
+  Leo — the floating rules-assistant chat widget, powered by n8n's own
+  @n8n/chat package talking directly to the "TLS Rulebook - Chatbot"
+  workflow's Chat Trigger webhook.
+
+  BEFORE THIS WORKS, two things on the n8n side:
+  1. Paste your Production URL below (WEBHOOK_URL). Get it from n8n:
+     open the "When chat message received" node -> copy the Production URL.
+  2. On that same node, add your site's domain to "Allowed Origins (CORS)"
+     (e.g. https://www.luckylion.games) — otherwise the browser blocks it.
+-->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" />
+
+<script type="module">
+  import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
+
+  // 👇 PASTE YOUR PRODUCTION WEBHOOK URL HERE
+  const WEBHOOK_URL = 'https://n8n.luckylion.games/webhook/cab9aaba-4d04-4dec-82d6-a1ad7daccad3/chat';
+
+  createChat({
+    webhookUrl: WEBHOOK_URL,
+    mode: 'window',
+    showWelcomeScreen: false,
+    // The n8n workflow's Chat Trigger has streaming responses turned on
+    // (it sends newline-delimited {"type":"begin"|"item"|"end",...} chunks
+    // instead of one JSON blob). Without this flag @n8n/chat doesn't parse
+    // that format — it just dumps the raw stream text into the bubble,
+    // which is the "{"type":"begin"...}" garbage you were seeing.
+    enableStreaming: true,
+    initialMessages: [
+      "Hey, I'm Leo 🦁 — ask me anything about The Last Shelter's rules!",
+    ],
+    i18n: {
+      en: {
+        title: 'Leo',
+        subtitle: 'Rules assistant · Lucky Lion Games',
+        footer: '',
+        getStarted: 'New Conversation',
+        inputPlaceholder: 'e.g. How does the Trading action work?',
+        closeButtonTooltip: 'Close',
+      },
+    },
+  });
+</script>
+
+<style is:global>
+  /* Re-themed to match the site (dark, mossy background + warm torch-amber
+     accent) instead of the widget's default purple. Full variable list:
+     https://www.npmjs.com/package/@n8n/chat */
+  :root {
+    --chat--color-primary: #e0a94f;
+    --chat--color-primary-shade-50: #cf9640;
+    --chat--color-secondary: #7fae86;
+    --chat--color-white: #f5f3ee;
+    --chat--color-light: #1a1f1e;
+    --chat--color-dark: #121817;
+    --chat--color-typing: #e0a94f;
+
+    --chat--spacing: 1rem;
+    --chat--border-radius: 0.75rem;
+    --chat--font-family: var(--font-body, 'Inter', sans-serif);
+
+    --chat--header--background: #121817;
+    --chat--header--color: #f5f3ee;
+    --chat--header--border-bottom: 1px solid rgb(255 255 255 / 0.08);
+
+    --chat--message--bot--background: #1a1f1e;
+    --chat--message--bot--color: #f5f3ee;
+    --chat--message--user--background: #e0a94f;
+    --chat--message--user--color: #121817;
+
+    --chat--toggle--background: #e0a94f;
+    --chat--toggle--hover--background: #cf9640;
+    --chat--toggle--active--background: #cf9640;
+    --chat--toggle--color: #121817;
+    --chat--toggle--size: 60px;
+  }
+</style>

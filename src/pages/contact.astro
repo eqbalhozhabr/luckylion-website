@@ -1,0 +1,253 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+// لیست کامپوننت‌های پراکنده اطراف شیت (می‌توانی اسم و عکس‌ها را بعداً تغییر دهی)
+const components = [
+  { name: 'Meeple Blue', src: '/hero/Meeple_01.webp', x: 15.5, y: 35.2, w: 3.8, h: 6.5, transform: 'rotate(15deg)' },
+  { name: 'Wood Token', src: '/hero/TokenWood.webp', x: 75.2, y: 65.1, w: 4.1, h: 7.3, transform: 'rotate(-25deg)' },
+  { name: 'Hero Token', src: '/hero/TokenFood.webp', x: 82.5, y: 45.8, w: 4.0, h: 7.3, transform: 'none' },
+];
+---
+
+<Layout>
+<section class="hero" data-contact-section aria-label="Contact The Last Shelter">
+
+  <div class="artboard">
+    <div class="table-plane" aria-hidden="true">
+      <div class="table-plane-inner">
+
+        <!-- ویدیوی تعاملی بک‌گراند که شامل میز، شیت کاراکتر و انیمیشن تایل پناهگاه است -->
+        <video
+          id="interactive-bg"
+          class="table-background"
+          src="/contact/contact-animation.webm"
+          muted
+          playsinline
+          preload="auto"
+        ></video>
+
+        <!-- منطقه کلیکِ روی شیت کاراکتر — دکمه‌ی واقعی، نه دیو، تا با کیبورد هم قابل‌استفاده باشه -->
+        <button
+          type="button"
+          class="click-trigger"
+          data-click-trigger
+          aria-label="Interact with character sheet"
+        ></button>
+
+        <div class="table-components">
+          {components.map((component) => (
+            <div
+              class="component-placement"
+              style={`--x:${component.x}%; --y:${component.y}%; --w:${component.w}%; --h:${component.h}%; --placement:${component.transform};`}
+            >
+              <img class="table-component" src={component.src} alt={component.name} draggable="false" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- لایه ثابت UI شامل متن‌های صفحه تماس -->
+  <div class="contact-ui" aria-label="Contact Information">
+    <div class="contact-text-box">
+      <h1>Contact Us</h1>
+      <p>Your feedback is our priority. Whether you have questions about the mechanics, rules, or just want to share your survival stories, we are always here to listen.</p>
+      <div class="contact-email-block">
+        <span class="contact-email">info@luckylion.games</span>
+        <div class="contact-actions">
+          <button type="button" data-copy-email>Copy email</button>
+          <a href="mailto:info@luckylion.games">Open email app</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- لوگوی استودیو و دکمه منو دیگه اینجا نیست — از Layout میان (SiteChrome.astro)
+       تا دقیقاً همون چیزی باشه که توی صفحه‌ی اصلی هم هست، بدون تکرار و بدون
+       ریسکِ دوباره‌ایجاد‌شدنِ باگِ ناپدید‌شدن. -->
+
+</section>
+</Layout>
+
+<style>
+  :global(html), :global(body) { overflow-x: hidden; margin: 0; }
+  .hero { position: relative; isolation: isolate; overflow: hidden; background: #121817; height: 100dvh; }
+
+  .artboard {
+    position: absolute; inset: 50% auto auto 50%;
+    width: max(100%, calc(100dvh * 16 / 9));
+    height: max(100%, calc(100dvw * 9 / 16));
+    aspect-ratio: 16 / 9; transform: translate(-50%, -50%);
+  }
+  .table-plane { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
+  .table-plane-inner { position: absolute; inset: 0; transform: scale(1.065); will-change: transform; }
+
+  .table-background { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .table-components { position: absolute; inset: 0; pointer-events: none; }
+
+  /* تنظیمات ناحیه کلیک نامرئی روی شیت کاراکتر */
+  .click-trigger {
+    position: absolute;
+    /* این درصدها را بعد از آماده شدن ویدیو تغییر بده تا دقیقاً روی شیت کاراکتر قرار بگیرد */
+    left: 35%; top: 20%; width: 30%; height: 60%;
+    cursor: pointer;
+    z-index: 10;
+    /* بی‌استایل کردنِ ظاهرِ پیش‌فرضِ دکمه، چون فقط یه ناحیه‌ی نامرئیِ کلیک‌پذیره */
+    background: none; border: 0; padding: 0; -webkit-tap-highlight-color: transparent;
+  }
+  .click-trigger:focus-visible {
+    outline: 2px solid rgb(255 255 255 / .8); outline-offset: 4px; border-radius: .5rem;
+  }
+
+  .component-placement {
+    position: absolute; left: var(--x); top: var(--y); width: var(--w); height: var(--h);
+    transform: var(--placement); transform-origin: 0 0; pointer-events: auto;
+  }
+  .table-component {
+    display: block; width: 100%; height: 100%; object-fit: contain; cursor: pointer; user-select: none; will-change: transform;
+    filter: drop-shadow(0 -5px 2px rgb(0 0 0 / .5)) drop-shadow(0 15px 150px rgb(0 0 0 / .1));
+  }
+
+  /* استایل‌های متن Contact Us */
+  .contact-ui {
+    position: absolute; inset: 0; z-index: 3; pointer-events: none; color: #d8dfe5;
+    display: flex; align-items: flex-end; justify-content: flex-end;
+    padding: clamp(1.5rem, 5vw, 3.5rem);
+  }
+  .contact-text-box {
+    width: min(35vw, 30rem);
+    text-align: right;
+    text-shadow: 0 5px 8px #000, 0 0 20px rgb(0 0 0 / .7);
+  }
+  .contact-text-box h1 {
+    font-family: var(--font-title); font-size: clamp(2rem, 4vw, 3.5rem); margin: 0 0 0.5rem 0; color: #fff;
+  }
+  .contact-text-box p {
+    font-family: var(--font-body); font-size: clamp(0.9rem, 1.2vw, 1.25rem); line-height: 1.5; margin: 0;
+  }
+
+  /* ایمیل + دکمه‌های کپی/باز کردن — همون چیزی که قبلاً توی منو بود، حالا اینجا */
+  .contact-email-block {
+    margin-top: clamp(1.25rem, 3vh, 2rem);
+    display: flex; flex-direction: column; align-items: flex-end; gap: .6rem;
+    pointer-events: auto;
+  }
+  .contact-email {
+    font-size: clamp(.95rem, 1.4vw, 1.15rem); color: rgb(255 255 255 / .9); letter-spacing: .02em; user-select: all;
+  }
+  .contact-actions { display: flex; gap: .75rem; }
+  .contact-actions button, .contact-actions a {
+    font-size: .8rem; color: #d8dfe5; text-decoration: none;
+    border: 1px solid rgb(255 255 255 / .35); border-radius: 999px; padding: .4rem .9rem;
+    background: rgb(18 24 23 / .35); backdrop-filter: blur(6px); cursor: pointer;
+    transition: border-color .2s ease, color .2s ease;
+  }
+  .contact-actions button:hover, .contact-actions a:hover { border-color: #fff; color: #fff; }
+
+  @media (max-width: 640px), (max-aspect-ratio: 3 / 4) {
+    .contact-ui { align-items: center; justify-content: center; text-align: center; }
+    .contact-text-box { width: 90vw; text-align: center; }
+    .contact-email-block { align-items: center; }
+  }
+
+  @media (prefers-reduced-motion: reduce) { .table-plane-inner, .table-component { transition: none !important; } }
+</style>
+
+<script>
+  import { gsap } from 'gsap';
+
+  const section = document.querySelector<HTMLElement>('[data-contact-section]');
+  const motionAllowed = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (section && motionAllowed) {
+    const plane = section.querySelector<HTMLElement>('.table-plane-inner')!;
+    const planeMove = {
+      x: gsap.quickTo(plane, 'x', { duration: .65, ease: 'power3.out' }),
+      y: gsap.quickTo(plane, 'y', { duration: .65, ease: 'power3.out' }),
+    };
+
+    section.addEventListener('pointermove', (event) => {
+      const x = event.clientX - innerWidth / 2;
+      const y = event.clientY - innerHeight / 2;
+      planeMove.x(-x * .015); planeMove.y(-y * .015);
+    });
+
+    // هاورِ نرم و فیزیکی کامپوننت‌های پراکنده
+    section.querySelectorAll<HTMLElement>('.table-component').forEach((component) => {
+      const glideX = gsap.quickTo(component, 'x', { duration: .5, ease: 'power2.out' });
+      const glideY = gsap.quickTo(component, 'y', { duration: .5, ease: 'power2.out' });
+      const turn = gsap.quickTo(component, 'rotation', { duration: .75, ease: 'power2.out' });
+
+      component.addEventListener('pointermove', (event) => {
+        const bounds = component.getBoundingClientRect();
+        const x = (event.clientX - bounds.left) / bounds.width - .5;
+        const y = (event.clientY - bounds.top) / bounds.height - .5;
+        glideX(x * 75); glideY(y * 75); turn(x * 25);
+      });
+    });
+  }
+
+  // ----------------------------------------------------
+  // منطق ویدیوی تعاملی (Video State Machine)
+  // این بخش از motionAllowed مستقل نگه داشته شده: اگه ویدیو واقعاً محتوا
+  // (نه فقط دکوراسیون) رو نشون می‌ده، کاربرِ prefers-reduced-motion هم باید
+  // بتونه بین مراحل جابه‌جا بشه — فقط با یه جهش‌ِ آنی به‌جای پخشِ روون.
+  // ----------------------------------------------------
+  // دکمه‌ی «Copy email» — کپی کردن آدرس ایمیل به کلیپ‌بورد
+  const copyEmailButton = document.querySelector<HTMLButtonElement>('[data-copy-email]');
+  copyEmailButton?.addEventListener('click', async () => {
+    const email = document.querySelector('.contact-email')?.textContent?.trim() ?? '';
+    const originalLabel = copyEmailButton.textContent;
+    try {
+      await navigator.clipboard.writeText(email);
+      copyEmailButton.textContent = 'Copied!';
+    } catch {
+      copyEmailButton.textContent = 'Copy failed';
+    }
+    setTimeout(() => { copyEmailButton.textContent = originalLabel; }, 1800);
+  });
+
+  const video = document.getElementById('interactive-bg') as HTMLVideoElement;
+  const trigger = document.querySelector<HTMLButtonElement>('[data-click-trigger]');
+
+  // اینجا ثانیه‌های توقف ویدیو را بر اساس رندر نهایی‌ات وارد کن.
+  // به عنوان مثال: مرحله 1 (پریدن روی شیت در ثانیه 2.5 تمام می‌شود)، مرحله 2 (چرخیدن در ثانیه 5.0) و...
+  const stopTimes = [0, 2.5, 5.0, 7.5];
+  let currentStep = 0;
+  let isPlayingToCue = false;
+
+  if (video && trigger) {
+    trigger.addEventListener('click', () => {
+      if (isPlayingToCue) return; // جلوگیری از کلیک رگباری کاربر تا زمانی که انیمیشن قبلی تمام نشده
+
+      currentStep = (currentStep + 1) % stopTimes.length;
+
+      // وقتی چرخه تمام شد و می‌خواهیم به حالت اول (0) برگردیم، ویدیو را درجا به ثانیه صفر می‌بریم.
+      // با این فرض که انتهای رندر تو (ثانیه 7.5) از نظر بصری دقیقاً شبیه فریم اول (ثانیه 0) است.
+      // (اگه این فرض درست نباشه و یه پرشِ بصریِ ناخوشایند دیده بشه، بگو تا یه راه‌حلِ نرم‌تر
+      //  — مثلاً پخشِ معکوس یا یه کراس‌فیدِ کوتاه — جایگزینش کنیم.)
+      if (currentStep === 0 || !motionAllowed) {
+        video.currentTime = stopTimes[currentStep];
+        return;
+      }
+
+      video.play();
+      isPlayingToCue = true;
+    });
+
+    // چک کردن مداوم زمان ویدیو برای متوقف کردن آن در ایستگاه تعیین شده
+    video.addEventListener('timeupdate', () => {
+      if (!isPlayingToCue) return;
+
+      const targetTime = stopTimes[currentStep];
+
+      // وقتی ویدیو به ثانیه مورد نظر رسید، متوقف می‌شود
+      if (video.currentTime >= targetTime) {
+        video.pause();
+        video.currentTime = targetTime; // قفل کردن دقیق روی فریم هدف
+        isPlayingToCue = false;
+      }
+    });
+  }
+</script>
