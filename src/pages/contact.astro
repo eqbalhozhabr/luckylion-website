@@ -1,11 +1,13 @@
 ---
 import Layout from '../layouts/Layout.astro';
 
-// لیست کامپوننت‌های پراکنده اطراف شیت (می‌توانی اسم و عکس‌ها را بعداً تغییر دهی)
+// همون آبجکت‌های متحرکِ صفحه‌ی هیرو (index.astro) — عکس/اندازه/چرخش دقیقاً از
+// اونجا کپی شده، فقط x/y عوض شده تا از بالا به پایینِ سمتِ چپِ تصویر بچینتشون.
 const components = [
-  { name: 'Meeple Blue', src: '/hero/Meeple_01.webp', x: 15.5, y: 35.2, w: 3.8, h: 6.5, transform: 'rotate(15deg)' },
-  { name: 'Wood Token', src: '/hero/TokenWood.webp', x: 75.2, y: 65.1, w: 4.1, h: 7.3, transform: 'rotate(-25deg)' },
-  { name: 'Hero Token', src: '/hero/TokenFood.webp', x: 82.5, y: 45.8, w: 4.0, h: 7.3, transform: 'none' },
+  { name: 'Large Monster', src: '/hero/Monster_L.webp', x: 1, y: 8, w: 11.5625, h: 13.8889, transform: 'none' },
+  { name: 'Medium Monster', src: '/hero/Monster_M.webp', x: 6, y: 32, w: 8.8021, h: 12.4074, transform: 'matrix(.848, .53, -.53, .848, 0, 0)' },
+  { name: 'Small Monster', src: '/hero/Monster_S.webp', x: 3, y: 56, w: 8.125, h: 10.2778, transform: 'none' },
+  { name: 'Meeple', src: '/hero/Meeple_01.webp', x: 9, y: 79, w: 3.8021, h: 6.5741, transform: 'none' },
 ];
 ---
 
@@ -26,12 +28,16 @@ const components = [
           preload="auto"
         ></video>
 
-        <!-- منطقه کلیکِ روی شیت کاراکتر — دکمه‌ی واقعی، نه دیو، تا با کیبورد هم قابل‌استفاده باشه -->
+        <!-- منطقه کلیکِ روی شیت کاراکتر — فقط تزئینیه (چیزی رو باز/جایگزین نمی‌کنه)
+             برای همین با tabindex="-1" از چرخه‌ی Tab کیبورد بیرونش گذاشتیم؛ وگرنه
+             هر بار کاربر Tab می‌زد یه کادرِ فوکوسِ سفید دورش ظاهر می‌شد. با موس/لمس
+             هنوز کاملاً قابل‌کلیکه. -->
         <button
           type="button"
           class="click-trigger"
           data-click-trigger
-          aria-label="Interact with character sheet"
+          tabindex="-1"
+          aria-hidden="true"
         ></button>
 
         <div class="table-components">
@@ -96,9 +102,6 @@ const components = [
     /* بی‌استایل کردنِ ظاهرِ پیش‌فرضِ دکمه، چون فقط یه ناحیه‌ی نامرئیِ کلیک‌پذیره */
     background: none; border: 0; padding: 0; -webkit-tap-highlight-color: transparent;
   }
-  .click-trigger:focus-visible {
-    outline: 2px solid rgb(255 255 255 / .8); outline-offset: 4px; border-radius: .5rem;
-  }
 
   .component-placement {
     position: absolute; left: var(--x); top: var(--y); width: var(--w); height: var(--h);
@@ -112,7 +115,7 @@ const components = [
   /* استایل‌های متن Contact Us */
   .contact-ui {
     position: absolute; inset: 0; z-index: 3; pointer-events: none; color: #d8dfe5;
-    display: flex; align-items: flex-end; justify-content: flex-end;
+    display: flex; align-items: center; justify-content: flex-end;
     padding: clamp(1.5rem, 5vw, 3.5rem);
   }
   .contact-text-box {
@@ -162,15 +165,12 @@ const components = [
 
   if (section && motionAllowed) {
     const plane = section.querySelector<HTMLElement>('.table-plane-inner')!;
-    const planeMove = {
-      x: gsap.quickTo(plane, 'x', { duration: .65, ease: 'power3.out' }),
-      y: gsap.quickTo(plane, 'y', { duration: .65, ease: 'power3.out' }),
-    };
+    const planeMoveX = gsap.quickTo(plane, 'x', { duration: .65, ease: 'power3.out' });
 
+    // مثلِ صفحه‌ی اصلی، حرکتِ بک‌گراند فقط در جهتِ X هست، نه X و Y با هم.
     section.addEventListener('pointermove', (event) => {
       const x = event.clientX - innerWidth / 2;
-      const y = event.clientY - innerHeight / 2;
-      planeMove.x(-x * .015); planeMove.y(-y * .015);
+      planeMoveX(-x * .015);
     });
 
     // هاورِ نرم و فیزیکی کامپوننت‌های پراکنده
@@ -211,9 +211,11 @@ const components = [
   const video = document.getElementById('interactive-bg') as HTMLVideoElement;
   const trigger = document.querySelector<HTMLButtonElement>('[data-click-trigger]');
 
-  // اینجا ثانیه‌های توقف ویدیو را بر اساس رندر نهایی‌ات وارد کن.
-  // به عنوان مثال: مرحله 1 (پریدن روی شیت در ثانیه 2.5 تمام می‌شود)، مرحله 2 (چرخیدن در ثانیه 5.0) و...
-  const stopTimes = [0, 2.5, 5.0, 7.5];
+  // ۶۰ فریمِ رندرشده @ 24fps → کلِ ویدیو ۲.۵ ثانیه‌ست. نقاطِ توقف طبق فریم‌های
+  // خودت (۰، ۲۰، ۴۰، ۶۰) به ثانیه تبدیل شدن، نه هاردکد — اگه framerate یا
+  // فریم‌های توقف عوض شد، فقط همین دو عدد رو عوض کن.
+  const FPS = 24;
+  const stopTimes = [0, 20, 40, 60].map((frame) => frame / FPS);
   let currentStep = 0;
   let isPlayingToCue = false;
 
@@ -224,7 +226,7 @@ const components = [
       currentStep = (currentStep + 1) % stopTimes.length;
 
       // وقتی چرخه تمام شد و می‌خواهیم به حالت اول (0) برگردیم، ویدیو را درجا به ثانیه صفر می‌بریم.
-      // با این فرض که انتهای رندر تو (ثانیه 7.5) از نظر بصری دقیقاً شبیه فریم اول (ثانیه 0) است.
+      // با این فرض که انتهای رندر تو (فریم 60 / ثانیه 2.5) از نظر بصری دقیقاً شبیه فریم اول (ثانیه 0) است.
       // (اگه این فرض درست نباشه و یه پرشِ بصریِ ناخوشایند دیده بشه، بگو تا یه راه‌حلِ نرم‌تر
       //  — مثلاً پخشِ معکوس یا یه کراس‌فیدِ کوتاه — جایگزینش کنیم.)
       if (currentStep === 0 || !motionAllowed) {
@@ -234,20 +236,31 @@ const components = [
 
       video.play();
       isPlayingToCue = true;
+      requestAnimationFrame(checkCue);
     });
 
-    // چک کردن مداوم زمان ویدیو برای متوقف کردن آن در ایستگاه تعیین شده
-    video.addEventListener('timeupdate', () => {
+    // چرا هم rAF هم 'timeupdate': رویدادِ 'timeupdate' تنها چند بار در ثانیه
+    // صدا زده می‌شه، پس می‌تونه چند فریم از نقطه‌ی هدف رد بشه و بعد یهو به عقب
+    // بپره — همون «پرشِ فریمی» که موقعِ توقف در فریم ۲۰/۴۰ دیده می‌شد. با
+    // requestAnimationFrame هر فریمِ واقعیِ نمایش رو چک می‌کنیم و عملاً هیچ‌وقت
+    // از هدف رد نمی‌شیم. ولی rAF وقتی تب/پنجره در پس‌زمینه یا مخفیه ممکنه
+    // مرورگر اجراش نکنه — برای همون 'timeupdate' هم به‌عنوان یه شبکه‌ی ایمنی
+    // نگه داشته شده تا اون حالت هم، حتی با کمی افتِ دقت، ویدیو رو درست متوقف کنه.
+    function checkCue() {
       if (!isPlayingToCue) return;
 
       const targetTime = stopTimes[currentStep];
 
-      // وقتی ویدیو به ثانیه مورد نظر رسید، متوقف می‌شود
       if (video.currentTime >= targetTime) {
         video.pause();
         video.currentTime = targetTime; // قفل کردن دقیق روی فریم هدف
         isPlayingToCue = false;
+        return;
       }
-    });
+
+      requestAnimationFrame(checkCue);
+    }
+
+    video.addEventListener('timeupdate', checkCue);
   }
 </script>
