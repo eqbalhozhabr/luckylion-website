@@ -1,13 +1,22 @@
 ---
 import Layout from '../layouts/Layout.astro';
 
-// همون آبجکت‌های متحرکِ صفحه‌ی هیرو (index.astro) — عکس/اندازه/چرخش دقیقاً از
-// اونجا کپی شده، فقط x/y عوض شده تا از بالا به پایینِ سمتِ چپِ تصویر بچینتشون.
+// آبجکت‌های متحرکِ صفحه‌ی هیرو (index.astro) — عکس/اندازه/چرخش از اونجا کپی
+// شده. جانمایی (x/y) طبق دایره‌های قرمزی که رو اسکرین‌شات کشیدی تنظیم شده؛
+// یه حدسِ اول‌به‌آخره، اگه جایی دقیق نبود بگو تا میلی‌متری اصلاحش کنم.
+// نکته: «Meeple Blue» و «Meeple» هر دو از یه فایل (Meeple_01.webp) میان — عکسِ
+// جدای «آبی» نداریم، پس این دوتا دقیقاً یه شکل رو نشون می‌دن.
 const components = [
-  { name: 'Large Monster', src: '/hero/Monster_L.webp', x: 1, y: 8, w: 11.5625, h: 13.8889, transform: 'none' },
-  { name: 'Medium Monster', src: '/hero/Monster_M.webp', x: 6, y: 32, w: 8.8021, h: 12.4074, transform: 'matrix(.848, .53, -.53, .848, 0, 0)' },
-  { name: 'Small Monster', src: '/hero/Monster_S.webp', x: 3, y: 56, w: 8.125, h: 10.2778, transform: 'none' },
-  { name: 'Meeple', src: '/hero/Meeple_01.webp', x: 9, y: 79, w: 3.8021, h: 6.5741, transform: 'none' },
+  { name: 'Large Monster', src: '/hero/Monster_L.webp', x: 18, y: 13, w: 11.5625, h: 13.8889, transform: 'none' },
+  { name: 'Medium Monster', src: '/hero/Monster_M.webp', x: 7, y: 41, w: 8.8021, h: 12.4074, transform: 'matrix(.848, .53, -.53, .848, 0, 0)' },
+  { name: 'Small Monster', src: '/hero/Monster_S.webp', x: 21, y: 72, w: 8.125, h: 10.2778, transform: 'none' },
+  // این دو تا مهره فقط اینجا (نه توی صفحه‌ی هیرو) ۲۰٪ بزرگ‌تر از اصلشون‌ان و
+  // چرخششون هم عمداً باهم فرق داره، وگرنه چون دقیقاً یه عکسِ یکسانن، کنارِ هم
+  // مثلِ یه کپی/آینه به‌نظر می‌رسیدن.
+  { name: 'Meeple', src: '/hero/Meeple_01.webp', x: 8, y: 86, w: 4.5625, h: 7.8889, transform: 'rotate(-18deg)' },
+  { name: 'Wood Token', src: '/hero/TokenWood.webp', x: 85, y: 75, w: 4.1667, h: 7.3148, transform: 'none' },
+  { name: 'Food Token', src: '/hero/TokenFood.webp', x: 89, y: 74, w: 4.0625, h: 7.3148, transform: 'matrix(.616, -.788, .788, .616, 0, 0)' },
+  { name: 'Meeple Blue', src: '/hero/Meeple_01.webp', x: 81, y: 86, w: 4.56, h: 7.8, transform: 'rotate(32deg)' },
 ];
 ---
 
@@ -115,12 +124,12 @@ const components = [
   /* استایل‌های متن Contact Us */
   .contact-ui {
     position: absolute; inset: 0; z-index: 3; pointer-events: none; color: #d8dfe5;
-    display: flex; align-items: center; justify-content: flex-end;
+    display: flex; align-items: center; justify-content: flex-start;
     padding: clamp(1.5rem, 5vw, 3.5rem);
   }
   .contact-text-box {
     width: min(35vw, 30rem);
-    text-align: right;
+    text-align: left;
     text-shadow: 0 5px 8px #000, 0 0 20px rgb(0 0 0 / .7);
   }
   .contact-text-box h1 {
@@ -133,7 +142,7 @@ const components = [
   /* ایمیل + دکمه‌های کپی/باز کردن — همون چیزی که قبلاً توی منو بود، حالا اینجا */
   .contact-email-block {
     margin-top: clamp(1.25rem, 3vh, 2rem);
-    display: flex; flex-direction: column; align-items: flex-end; gap: .6rem;
+    display: flex; flex-direction: column; align-items: flex-start; gap: .6rem;
     pointer-events: auto;
   }
   .contact-email {
@@ -217,50 +226,56 @@ const components = [
   const FPS = 24;
   const stopTimes = [0, 20, 40, 60].map((frame) => frame / FPS);
   let currentStep = 0;
-  let isPlayingToCue = false;
+  let isAnimating = false; // جلوگیری از کلیک رگباری تا وقتی حرکتِ قبلی تمام نشده
+  let activeIntervalId: ReturnType<typeof setInterval> | null = null;
 
   if (video && trigger) {
-    trigger.addEventListener('click', () => {
-      if (isPlayingToCue) return; // جلوگیری از کلیک رگباری کاربر تا زمانی که انیمیشن قبلی تمام نشده
+    // هم مرحله‌های رفت (جلو) و هم برگشت به شروع، هر دو با همین یه تابع انجام
+    // می‌شن — دیگه اصلاً از video.play() استفاده نمی‌کنیم. قبلاً رفتِ جلو با
+    // .play() native پخش می‌شد و یه رویدادِ جدا (rAF/'timeupdate') باید سروقت
+    // متوجهِ رسیدن به هدف می‌شد و .pause() می‌کرد؛ هر بار که اون تشخیص یه
+    // لحظه دیر می‌رسید (یه تیکِ ازدست‌رفته، یه لحظه‌ی شلوغیِ مرورگر)، پخشِ
+    // native خودش به‌تنهایی تا انتهای واقعیِ ویدیو ادامه پیدا می‌کرد — همون
+    // «با یه کلیک کل ویدیو پخش می‌شه» که گاهی پیش می‌اومد. حالا هیچ پخشِ
+    // native‌ای در کار نیست: خودمون هر ۱/۲۴ ثانیه currentTime رو دستی قدم‌به‌قدم
+    // (جلو یا عقب) جابه‌جا می‌کنیم و دقیقاً سرِ هدف می‌ایستیم — نه زودتر، نه دیرتر.
+    function animateTo(targetTime: number) {
+      isAnimating = true;
+      const direction = targetTime >= video.currentTime ? 1 : -1;
+      let lastTs = performance.now();
 
-      currentStep = (currentStep + 1) % stopTimes.length;
+      if (activeIntervalId !== null) clearInterval(activeIntervalId);
+      activeIntervalId = setInterval(() => {
+        const now = performance.now();
+        const dt = (now - lastTs) / 1000;
+        lastTs = now;
 
-      // وقتی چرخه تمام شد و می‌خواهیم به حالت اول (0) برگردیم، ویدیو را درجا به ثانیه صفر می‌بریم.
-      // با این فرض که انتهای رندر تو (فریم 60 / ثانیه 2.5) از نظر بصری دقیقاً شبیه فریم اول (ثانیه 0) است.
-      // (اگه این فرض درست نباشه و یه پرشِ بصریِ ناخوشایند دیده بشه، بگو تا یه راه‌حلِ نرم‌تر
-      //  — مثلاً پخشِ معکوس یا یه کراس‌فیدِ کوتاه — جایگزینش کنیم.)
-      if (currentStep === 0 || !motionAllowed) {
-        video.currentTime = stopTimes[currentStep];
-        return;
-      }
+        const next = video.currentTime + direction * dt;
+        const reached = direction > 0 ? next >= targetTime : next <= targetTime;
 
-      video.play();
-      isPlayingToCue = true;
-      requestAnimationFrame(checkCue);
-    });
-
-    // چرا هم rAF هم 'timeupdate': رویدادِ 'timeupdate' تنها چند بار در ثانیه
-    // صدا زده می‌شه، پس می‌تونه چند فریم از نقطه‌ی هدف رد بشه و بعد یهو به عقب
-    // بپره — همون «پرشِ فریمی» که موقعِ توقف در فریم ۲۰/۴۰ دیده می‌شد. با
-    // requestAnimationFrame هر فریمِ واقعیِ نمایش رو چک می‌کنیم و عملاً هیچ‌وقت
-    // از هدف رد نمی‌شیم. ولی rAF وقتی تب/پنجره در پس‌زمینه یا مخفیه ممکنه
-    // مرورگر اجراش نکنه — برای همون 'timeupdate' هم به‌عنوان یه شبکه‌ی ایمنی
-    // نگه داشته شده تا اون حالت هم، حتی با کمی افتِ دقت، ویدیو رو درست متوقف کنه.
-    function checkCue() {
-      if (!isPlayingToCue) return;
-
-      const targetTime = stopTimes[currentStep];
-
-      if (video.currentTime >= targetTime) {
-        video.pause();
-        video.currentTime = targetTime; // قفل کردن دقیق روی فریم هدف
-        isPlayingToCue = false;
-        return;
-      }
-
-      requestAnimationFrame(checkCue);
+        if (reached) {
+          video.currentTime = targetTime; // قفل کردن دقیق روی فریمِ هدف
+          isAnimating = false;
+          if (activeIntervalId !== null) clearInterval(activeIntervalId);
+          activeIntervalId = null;
+          return;
+        }
+        video.currentTime = next;
+      }, 1000 / FPS);
     }
 
-    video.addEventListener('timeupdate', checkCue);
+    trigger.addEventListener('click', () => {
+      if (isAnimating) return; // جلوگیری از کلیک رگباری کاربر تا زمانی که انیمیشن قبلی تمام نشده
+
+      currentStep = (currentStep + 1) % stopTimes.length;
+      const targetTime = stopTimes[currentStep];
+
+      if (!motionAllowed) {
+        video.currentTime = targetTime;
+        return;
+      }
+
+      animateTo(targetTime);
+    });
   }
 </script>
