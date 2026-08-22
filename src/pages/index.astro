@@ -453,9 +453,20 @@ const components = [
   if (!stage || !scene2 || !canvas || !ctx) {
     console.warn('[Scene 2] Skipped: missing element(s)', { stage, scene2, canvas, ctx });
   } else {
-    const intro = preloadSequence(INTRO_FRAMES, introSrc);
-    const rotate = preloadSequence(ROTATE_FRAMES, rotateSrc);
-    intro.ready.then(() => drawFrame(intro.images[0])); // paint frame 1 as soon as it's ready — stays active regardless of SCENE2_ENABLED below, since this canvas is now the only thing drawing the box at all (it's no longer baked into the hero background image)
+    // FIX (2026-08-22): this used to call preloadSequence() for BOTH full
+    // sequences (60 intro + 85 rotate = 145 webp frames, ~244MB total)
+    // right here, completely unguarded by SCENE2_ENABLED below — so every
+    // visitor to the homepage (including on the live site) downloaded all
+    // 244MB just to paint one static frame. Confirmed via the Network tab.
+    // Now only the ONE frame actually needed for that static image loads
+    // eagerly; the other 144 frames only load once SCENE2_ENABLED is
+    // switched back on (moved into that block below). Doesn't touch the
+    // hero at all — same visual result (box static on frame 0), ~150x less
+    // data.
+    const firstFrame = new Image();
+    firstFrame.decoding = 'async';
+    firstFrame.onload = () => drawFrame(firstFrame);
+    firstFrame.src = introSrc(0);
 
     // Shelved for now so the chatbot work can be deployed without also
     // shipping the still-in-progress intro/rotate behavior. The hero
@@ -466,6 +477,11 @@ const components = [
     // to change.
     const SCENE2_ENABLED = false;
     if (SCENE2_ENABLED) {
+    // Both full frame sequences (~244MB) only load once Scene 2 is
+    // actually switched on — see the firstFrame comment above.
+    const intro = preloadSequence(INTRO_FRAMES, introSrc);
+    const rotate = preloadSequence(ROTATE_FRAMES, rotateSrc);
+    intro.ready.then(() => drawFrame(intro.images[0]));
 
     // Only the decorative pieces scattered on the table (+ the hero's own
     // ambient mist video, if present) fade out — NOT the base table
