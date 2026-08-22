@@ -112,9 +112,27 @@
      <script> ساخته می‌شن (حباب‌های پیام، نقطه‌های تایپینگ) — Astro فقط به
      تگ‌هایی که خودش موقعِ build می‌بینه data-astro-cid می‌ده، پس این‌ها باید
      global بمونن وگرنه هیچ‌وقت match نمی‌شن. */
-  .leo-msg { max-width: 82%; padding: .55rem .8rem; border-radius: .9rem; font-size: .88rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word; font-family: var(--leo-font); }
+  .leo-msg { max-width: 82%; padding: .55rem .8rem; border-radius: .9rem; font-size: .88rem; line-height: 1.45; word-break: break-word; font-family: var(--leo-font); }
   .leo-msg.is-bot { align-self: flex-start; background: var(--leo-bot-bubble); color: var(--leo-text); border-bottom-left-radius: .25rem; }
-  .leo-msg.is-user { align-self: flex-end; background: var(--leo-user-bubble); color: var(--leo-user-text); border-bottom-right-radius: .25rem; }
+  .leo-msg.is-user { align-self: flex-end; background: var(--leo-user-bubble); color: var(--leo-user-text); border-bottom-right-radius: .25rem; white-space: pre-wrap; }
+
+  /* پیامِ ربات از Markdown به HTML رندر می‌شه (رجوع کن به renderBotHtml توی
+     <script>)، پس اینجا استایلِ خودِ تگ‌های واقعی (p/ul/ol/strong/code/…) رو
+     می‌ذاریم؛ پیامِ کاربر بالا (white-space: pre-wrap) به‌صورتِ متنِ خام می‌مونه. */
+  .leo-msg.is-bot > *:first-child { margin-top: 0; }
+  .leo-msg.is-bot > *:last-child { margin-bottom: 0; }
+  .leo-msg.is-bot p { margin: .5em 0; }
+  .leo-msg.is-bot ul, .leo-msg.is-bot ol { margin: .4em 0; padding-inline-start: 1.3em; }
+  .leo-msg.is-bot li { margin: .2em 0; }
+  .leo-msg.is-bot strong { font-weight: 700; }
+  .leo-msg.is-bot em { font-style: italic; }
+  .leo-msg.is-bot code { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size: .85em; background: rgb(0 0 0 / .08); padding: .1em .3em; border-radius: .3em; }
+  .leo-msg.is-bot pre { background: rgb(0 0 0 / .08); padding: .5em .6em; border-radius: .5em; overflow-x: auto; margin: .5em 0; }
+  .leo-msg.is-bot pre code { background: none; padding: 0; }
+  .leo-msg.is-bot a { color: inherit; text-decoration: underline; }
+  .leo-msg.is-bot blockquote { margin: .5em 0; padding-inline-start: .7em; border-inline-start: 2px solid rgb(23 23 22 / .25); color: var(--leo-text-dim); }
+  .leo-msg.is-bot h1, .leo-msg.is-bot h2, .leo-msg.is-bot h3, .leo-msg.is-bot h4, .leo-msg.is-bot h5, .leo-msg.is-bot h6 { margin: .6em 0 .3em; font-size: 1em; font-weight: 700; }
+  .leo-msg.is-bot hr { border: 0; border-top: 1px solid var(--leo-border); margin: .6em 0; }
 
   /* نقطه‌های تایپینگ — سایز طبق اسکرین‌اسِتِ خودت (شعاعِ ۳.۰۸، فاصله‌یِ مرکز به مرکز ~۸.۳) */
   .leo-typing { align-self: flex-start; display: flex; align-items: center; gap: 2.2px; padding: .6rem .8rem; }
@@ -231,6 +249,63 @@
 </style>
 
 <script>
+  import { marked } from 'marked';
+
+  marked.setOptions({ gfm: true, breaks: true });
+
+  // ---------------------------------------------------------------
+  // رندرِ Markdown → HTML برای پیامِ ربات
+  // ---------------------------------------------------------------
+  // قبلاً پیامِ ربات با textContent چاپ می‌شد، پس علائمِ Markdown خودِ مدل
+  // (**bold**، ### heading، لیست‌ها) خام روی صفحه می‌موند. اینجا با marked
+  // به HTML واقعی تبدیل می‌شه؛ چون این HTML از خروجیِ یه مدلِ زبانی میاد (نه
+  // چیزی که خودمون نوشته باشیم)، یه لایه‌ی sanitize دستی (whitelist تگ/اتریبیوت)
+  // هم روش می‌کشیم — دفاع در عمق، حتی اگه بک‌اند قابل‌اعتماد باشه.
+  const ALLOWED_TAGS = new Set([
+    'P', 'BR', 'STRONG', 'EM', 'B', 'I', 'CODE', 'PRE',
+    'UL', 'OL', 'LI', 'A', 'BLOCKQUOTE', 'HR',
+    'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
+  ]);
+
+  function sanitizeHtml(html: string): string {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const walk = (node: Element) => {
+      for (const child of [...node.children]) {
+        walk(child); // اول فرزندها رو پاک‌سازی کن، بعد خودِ این تگ رو تصمیم بگیر
+        if (!ALLOWED_TAGS.has(child.tagName)) {
+          if (child.tagName === 'SCRIPT' || child.tagName === 'STYLE') {
+            child.remove();
+            continue;
+          }
+          // تگِ غیرمجاز (مثلاً img/table/div) رو باز کن، فقط محتواش بمونه
+          const parent = child.parentNode!;
+          while (child.firstChild) parent.insertBefore(child.firstChild, child);
+          parent.removeChild(child);
+          continue;
+        }
+        for (const attr of [...child.attributes]) {
+          if (child.tagName === 'A' && attr.name === 'href') {
+            if (!/^https?:\/\//i.test(attr.value)) child.removeAttribute('href');
+          } else {
+            child.removeAttribute(attr.name);
+          }
+        }
+        if (child.tagName === 'A') {
+          child.setAttribute('target', '_blank');
+          child.setAttribute('rel', 'noopener noreferrer');
+        }
+      }
+    };
+    walk(doc.body);
+    return doc.body.innerHTML;
+  }
+
+  function renderBotHtml(markdown: string): string {
+    if (!markdown) return '';
+    const raw = marked.parse(markdown, { async: false }) as string;
+    return sanitizeHtml(raw);
+  }
+
   // 👇 PASTE YOUR PRODUCTION WEBHOOK URL HERE
   const WEBHOOK_URL = 'https://n8n.luckylion.games/webhook/cab9aaba-4d04-4dec-82d6-a1ad7daccad3/chat';
 
@@ -322,7 +397,11 @@
     function addMessage(text: string, sender: 'bot' | 'user', persist = true) {
       const bubble = document.createElement('div');
       bubble.className = `leo-msg is-${sender}`;
-      bubble.textContent = text;
+      if (sender === 'bot') {
+        bubble.innerHTML = renderBotHtml(text);
+      } else {
+        bubble.textContent = text; // پیامِ کاربر خامه، Markdown پارس نمی‌شه
+      }
       messagesEl!.appendChild(bubble);
       messagesEl!.scrollTop = messagesEl!.scrollHeight;
       if (persist) saveToHistory(text, sender);
@@ -429,7 +508,9 @@
                 botBubble = addMessage('', 'bot', false); // بعد از تکمیلِ استریم، متنِ کامل یک‌جا ذخیره می‌شه
               }
               botText += event.content;
-              botBubble!.textContent = botText;
+              // هر chunk کلِ متنِ تاکنون‌جمع‌شده رو دوباره از Markdown رندر می‌کنه —
+              // چون سینتکسِ Markdown (مثلاً **) ممکنه وسطِ استریم نصفه بیاد و کامل نشه.
+              botBubble!.innerHTML = renderBotHtml(botText);
               messagesEl!.scrollTop = messagesEl!.scrollHeight;
             } else if (event.type === 'error') {
               if (!hasReceivedChunk) typingEl.remove();
