@@ -1,78 +1,433 @@
 <!--
-  Leo — the floating rules-assistant chat widget, powered by n8n's own
-  @n8n/chat package talking directly to the "TLS Rulebook - Chatbot"
-  workflow's Chat Trigger webhook.
+  Leo — the floating rules-assistant chat widget.
 
-  BEFORE THIS WORKS, two things on the n8n side:
-  1. Paste your Production URL below (WEBHOOK_URL). Get it from n8n:
-     open the "When chat message received" node -> copy the Production URL.
-  2. On that same node, add your site's domain to "Allowed Origins (CORS)"
-     (e.g. https://www.luckylion.games) — otherwise the browser blocks it.
+  این نسخه دیگه از کتابخونه‌ی آماده‌ی @n8n/chat استفاده نمی‌کنه — کاملاً خودمون
+  ساختیمش (HTML/CSS/JS)، چون چیزهایی که خواسته شده بود (مورفِ شکلِ دکمه به
+  پنجره، چشمِ متحرکِ شیر، اندازه‌ی دقیقِ نقطه‌های تایپینگ) از حدِ شخصی‌سازیِ
+  رنگیِ اون کتابخونه فراتر بود. n8n فقط به‌عنوانِ بک‌اند (webhook) استفاده
+  می‌شه؛ درخواست/پاسخ دقیقاً همون قراردادِ خودِ n8n Chat Trigger رو پیاده
+  می‌کنه (از باندلِ اصلی reverse-engineer شده: action:"sendMessage"/
+  "loadPreviousSession"، استریمِ NDJSON با type:"begin"|"item"|"end").
+
+  رنگ‌ها همه با CSS custom property (--leo-*) تعریف شدن، دقیقاً چون گفتید
+  رنگ‌بندیِ نهایی هنوز مشخص نیست — فقط مقادیرِ زیر رو (توی :root) عوض کنید.
+
+  BEFORE THIS WORKS: WEBHOOK_URL زیر باید Production URL خودِ n8n باشه
+  (نودِ "When chat message received" → Production URL) و دامنه‌ی سایت باید
+  توی "Allowed Origins (CORS)" همون نود اضافه شده باشه.
 -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" />
+<div class="leo-widget" data-leo-widget>
+  <div class="leo-shell" data-leo-shell>
+    <div class="leo-tail" aria-hidden="true"></div>
 
-<script type="module">
-  import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
+    <!-- حالتِ بسته: فقط آیکون -->
+    <button
+      type="button"
+      class="leo-toggle-face"
+      data-leo-toggle
+      aria-haspopup="dialog"
+      aria-expanded="false"
+      aria-controls="leo-panel"
+      aria-label="Open chat with Leo"
+    >
+      <svg class="leo-icon-closed" viewBox="0 0 63.67 69" aria-hidden="true">
+        <path d="M53.26,30.79v1.94s-.09,1.09-.09,1.09c-.56,6-3.59,11.42-8.45,15.12l-2.24-5.34c3.71-3.42,5.51-8.08,5.19-13-.46-6.91-5.51-12.62-11.89-14.22-6.99-1.76-14.02,1.29-17.56,7.17-3.71,6.16-2.86,13.94,2.01,19.1l-2.41,5.43c-5.36-4.75-8-11.36-7.33-18.37,1.09-11.35,10.85-19.71,22.05-19.33,11.15.37,20.14,9.26,20.72,20.42Z" />
+        <path d="M33.45,52.31h-4.6c-1.94-.27-3.73-.64-5.61-1.36l2.25-5.12c3.75,1.37,7.73,1.32,11.45-.16l1.95,5.26c-1.83.66-3.52,1.04-5.43,1.38Z" />
+      </svg>
+    </button>
 
+    <!-- حالتِ باز: پنل کامل -->
+    <div class="leo-panel" id="leo-panel" role="dialog" aria-modal="false" aria-label="Chat with Leo" data-leo-panel inert>
+      <header class="leo-header">
+        <button type="button" class="leo-close" data-leo-close aria-label="Close chat">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6L18 18M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+        </button>
+
+        <svg class="leo-face" viewBox="150 45 115 120" data-leo-face aria-hidden="true">
+          <path d="M157.86,111.78l-.03-5.01.26-2.8c1.45-15.48,9.25-29.48,21.8-39.03l5.77,13.78c-9.57,8.83-14.22,20.85-13.38,33.55,1.18,17.83,14.22,32.56,30.67,36.7,18.03,4.54,36.19-3.33,45.32-18.5,9.57-15.9,7.37-35.97-5.18-49.29l6.22-14.02c13.83,12.25,20.64,29.31,18.91,47.41-2.8,29.29-28,50.87-56.91,49.9-28.76-.96-51.98-23.89-53.46-52.7Z" />
+          <path d="M209.01,56.24l11.88-.03c5,.72,9.64,1.67,14.48,3.53l-5.8,13.21c-9.68-3.55-19.95-3.39-29.54.42l-5.03-13.58c4.73-1.7,9.07-2.69,14.01-3.56Z" />
+          <circle class="leo-eye" data-leo-eye data-base-cx="226.34" data-base-cy="107.97" cx="226.34" cy="107.97" r="5.51" />
+          <circle class="leo-eye" data-leo-eye data-base-cx="200" data-base-cy="107.97" cx="200" cy="107.97" r="5.51" />
+        </svg>
+
+        <div class="leo-heading">
+          <p class="leo-name">Leo</p>
+          <p class="leo-subtitle">Rules assistant · Lucky Lion Games</p>
+        </div>
+      </header>
+
+      <div class="leo-messages" data-leo-messages aria-live="polite"></div>
+
+      <form class="leo-input-row" data-leo-form>
+        <textarea
+          data-leo-input
+          rows="1"
+          placeholder="e.g. How does the Trading action work?"
+          aria-label="Message"
+        ></textarea>
+        <button type="submit" class="leo-send" data-leo-send aria-label="Send message">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12L20 4L14 20L11 13L4 12Z" fill="currentColor" /></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style is:global>
+  :root {
+    /* رنگ‌بندیِ فعلی — فقط همین بلوک رو عوض کنید تا کلِ ویجت رنگِ جدید بگیره */
+    --leo-shape-fill: #1a1f1e;
+    --leo-shape-stroke: rgb(255 255 255 / 0.12);
+    --leo-icon-color: #e0a94f;
+    --leo-eye-color: #121817;
+    --leo-accent: #e0a94f;
+    --leo-accent-hover: #cf9640;
+    --leo-text: #f5f3ee;
+    --leo-text-dim: rgb(245 243 238 / 0.6);
+    --leo-bot-bubble: #232a29;
+    --leo-user-bubble: #e0a94f;
+    --leo-user-text: #121817;
+    --leo-border: rgb(255 255 255 / 0.08);
+    --leo-font: var(--font-body, 'Inter', sans-serif);
+  }
+</style>
+
+<style>
+  .leo-widget {
+    position: fixed; right: clamp(1rem, 3vw, 1.75rem); bottom: clamp(1rem, 3vw, 1.75rem);
+    z-index: 60; font-family: var(--leo-font);
+  }
+
+  /* --- shell: همون کانتینری که از دکمه به پنل «مورف» می‌شه ------------ */
+  .leo-shell {
+    position: relative;
+    width: 62px; height: 67px;
+    border-radius: 46% 44% 42% 44% / 48% 46% 44% 46%;
+    background: var(--leo-shape-fill);
+    border: 1.5px solid var(--leo-shape-stroke);
+    box-shadow: 0 10px 30px rgb(0 0 0 / .35);
+    overflow: hidden;
+    transition: width .38s cubic-bezier(.32,.72,.35,1), height .38s cubic-bezier(.32,.72,.35,1),
+                border-radius .38s cubic-bezier(.32,.72,.35,1), box-shadow .38s ease;
+  }
+  .leo-shell.is-open {
+    width: min(392px, calc(100vw - 2rem));
+    height: min(640px, calc(100vh - 7rem));
+    border-radius: 26px;
+    box-shadow: 0 24px 60px rgb(0 0 0 / .45);
+  }
+
+  /* دنباله‌ی کوچیکِ حباب — پایین-راست، توی هر دو حالت با همون تناسب می‌مونه */
+  .leo-tail {
+    position: absolute; right: 6px; bottom: 2px; width: 14px; height: 10px;
+    background: var(--leo-shape-fill);
+    border-right: 1.5px solid var(--leo-shape-stroke);
+    border-bottom: 1.5px solid var(--leo-shape-stroke);
+    clip-path: polygon(0 0, 100% 40%, 40% 100%);
+    transition: right .38s ease, bottom .38s ease, width .38s ease, height .38s ease, opacity .2s ease;
+  }
+  .leo-shell.is-open .leo-tail { right: 22px; bottom: -4px; width: 26px; height: 20px; opacity: 0; }
+
+  /* --- دکمه‌ی بسته (آیکون) --------------------------------------------- */
+  .leo-toggle-face {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    background: none; border: 0; padding: 14px; cursor: pointer;
+    transition: opacity .2s ease, transform .2s ease, visibility 0s linear 0s;
+  }
+  .leo-toggle-face:hover { transform: scale(1.06); }
+  .leo-icon-closed path { fill: var(--leo-icon-color); }
+  .leo-shell.is-open .leo-toggle-face { opacity: 0; pointer-events: none; transition: opacity .18s ease; visibility: hidden; }
+
+  /* --- پنل باز ------------------------------------------------------- */
+  .leo-panel {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    opacity: 0; pointer-events: none;
+    transition: opacity .22s ease .1s;
+  }
+  .leo-shell.is-open .leo-panel { opacity: 1; pointer-events: auto; }
+
+  .leo-header {
+    position: relative; flex: none;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    padding: 1.1rem 1rem .6rem;
+    border-bottom: 1px solid var(--leo-border);
+  }
+  .leo-close {
+    position: absolute; top: .6rem; left: .6rem; width: 30px; height: 30px;
+    display: grid; place-items: center; border-radius: 50%;
+    background: none; border: 0; color: var(--leo-text-dim); cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  .leo-close:hover { background: rgb(255 255 255 / .08); color: var(--leo-text); }
+  .leo-close svg { width: 16px; height: 16px; }
+
+  .leo-face { width: 64px; height: auto; margin-bottom: .35rem; }
+  .leo-face path { fill: var(--leo-icon-color); }
+  .leo-eye { fill: var(--leo-eye-color); transition: cx .06s linear, cy .06s linear; }
+
+  .leo-name { margin: 0; font-family: var(--font-title, inherit); font-size: 1.15rem; color: var(--leo-text); letter-spacing: .02em; }
+  .leo-subtitle { margin: .15rem 0 0; font-size: .75rem; color: var(--leo-text-dim); }
+
+  .leo-messages {
+    flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: .6rem;
+    scrollbar-width: thin;
+  }
+  .leo-msg { max-width: 82%; padding: .55rem .8rem; border-radius: .9rem; font-size: .88rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+  .leo-msg.is-bot { align-self: flex-start; background: var(--leo-bot-bubble); color: var(--leo-text); border-bottom-left-radius: .25rem; }
+  .leo-msg.is-user { align-self: flex-end; background: var(--leo-user-bubble); color: var(--leo-user-text); border-bottom-right-radius: .25rem; }
+
+  /* نقطه‌های تایپینگ — سایز طبق اسکرین‌اسِتِ خودت (شعاعِ ۳، فاصله‌یِ ~۸) */
+  .leo-typing { align-self: flex-start; display: flex; align-items: center; gap: 4px; padding: .6rem .8rem; }
+  .leo-typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--leo-accent); animation: leo-bounce 1.1s ease-in-out infinite; }
+  .leo-typing span:nth-child(2) { animation-delay: .15s; }
+  .leo-typing span:nth-child(3) { animation-delay: .3s; }
+  @keyframes leo-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-4px); opacity: 1; } }
+
+  .leo-input-row { flex: none; display: flex; align-items: flex-end; gap: .5rem; padding: .75rem; border-top: 1px solid var(--leo-border); }
+  .leo-input-row textarea {
+    flex: 1; resize: none; max-height: 6rem; padding: .6rem .8rem; border-radius: .9rem;
+    background: rgb(255 255 255 / .06); border: 1px solid var(--leo-border); color: var(--leo-text);
+    font: inherit; font-size: .88rem; line-height: 1.4;
+  }
+  .leo-input-row textarea:focus { outline: none; border-color: var(--leo-accent); }
+  .leo-input-row textarea::placeholder { color: var(--leo-text-dim); }
+  .leo-send {
+    flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--leo-accent); border: 0; color: var(--leo-user-text, #121817); cursor: pointer;
+    transition: background .15s ease, transform .15s ease;
+  }
+  .leo-send:hover { background: var(--leo-accent-hover); transform: scale(1.05); }
+  .leo-send svg { width: 17px; height: 17px; }
+
+  @media (max-width: 480px) {
+    .leo-shell.is-open { width: calc(100vw - 1.5rem); height: calc(100vh - 6rem); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .leo-shell, .leo-tail, .leo-panel, .leo-toggle-face { transition: none !important; }
+  }
+</style>
+
+<script>
   // 👇 PASTE YOUR PRODUCTION WEBHOOK URL HERE
   const WEBHOOK_URL = 'https://n8n.luckylion.games/webhook/cab9aaba-4d04-4dec-82d6-a1ad7daccad3/chat';
 
-  createChat({
-    webhookUrl: WEBHOOK_URL,
-    mode: 'window',
-    showWelcomeScreen: false,
-    // The n8n workflow's Chat Trigger has streaming responses turned on
-    // (it sends newline-delimited {"type":"begin"|"item"|"end",...} chunks
-    // instead of one JSON blob). Without this flag @n8n/chat doesn't parse
-    // that format — it just dumps the raw stream text into the bubble,
-    // which is the "{"type":"begin"...}" garbage you were seeing.
-    enableStreaming: true,
-    initialMessages: [
-      "Hey, I'm Leo 🦁 — ask me anything about The Last Shelter's rules!",
-    ],
-    i18n: {
-      en: {
-        title: 'Leo',
-        subtitle: 'Rules assistant · Lucky Lion Games',
-        footer: '',
-        getStarted: 'New Conversation',
-        inputPlaceholder: 'e.g. How does the Trading action work?',
-        closeButtonTooltip: 'Close',
-      },
-    },
-  });
-</script>
+  const SESSION_KEY = 'leo-chat/sessionId'; // یه کلیدِ localStorage مشترک روی کلِ سایت
+  // پیام‌های خوش‌آمد فقط برای یه سشنِ کاملاً تازه (بدون تاریخچه) نشون داده می‌شن.
+  const GREETING = "Hey, I'm Leo 🦁 — ask me anything about The Last Shelter's rules!";
 
-<style is:global>
-  /* Re-themed to match the site (dark, mossy background + warm torch-amber
-     accent) instead of the widget's default purple. Full variable list:
-     https://www.npmjs.com/package/@n8n/chat */
-  :root {
-    --chat--color-primary: #e0a94f;
-    --chat--color-primary-shade-50: #cf9640;
-    --chat--color-secondary: #7fae86;
-    --chat--color-white: #f5f3ee;
-    --chat--color-light: #1a1f1e;
-    --chat--color-dark: #121817;
-    --chat--color-typing: #e0a94f;
+  const widget = document.querySelector<HTMLElement>('[data-leo-widget]');
+  const shell = document.querySelector<HTMLElement>('[data-leo-shell]');
+  const toggle = document.querySelector<HTMLButtonElement>('[data-leo-toggle]');
+  const closeBtn = document.querySelector<HTMLButtonElement>('[data-leo-close]');
+  const panel = document.querySelector<HTMLElement>('[data-leo-panel]');
+  const messagesEl = document.querySelector<HTMLElement>('[data-leo-messages]');
+  const form = document.querySelector<HTMLFormElement>('[data-leo-form]');
+  const input = document.querySelector<HTMLTextAreaElement>('[data-leo-input]');
+  const face = document.querySelector<SVGSVGElement>('[data-leo-face]');
+  const eyes = document.querySelectorAll<SVGCircleElement>('[data-leo-eye]');
 
-    --chat--spacing: 1rem;
-    --chat--border-radius: 0.75rem;
-    --chat--font-family: var(--font-body, 'Inter', sans-serif);
+  if (widget && shell && toggle && closeBtn && panel && messagesEl && form && input) {
+    // ---------------------------------------------------------------
+    // باز/بسته کردن (مورفِ شکل با CSS transition رویِ width/height/radius)
+    // ---------------------------------------------------------------
+    function openPanel() {
+      shell!.classList.add('is-open');
+      toggle!.setAttribute('aria-expanded', 'true');
+      panel!.removeAttribute('inert');
+      setTimeout(() => input!.focus(), 200);
+    }
+    function closePanel() {
+      shell!.classList.remove('is-open');
+      toggle!.setAttribute('aria-expanded', 'false');
+      panel!.setAttribute('inert', '');
+    }
+    toggle.addEventListener('click', () => {
+      shell!.classList.contains('is-open') ? closePanel() : openPanel();
+    });
+    closeBtn.addEventListener('click', closePanel);
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && shell!.classList.contains('is-open')) closePanel();
+    });
 
-    --chat--header--background: #121817;
-    --chat--header--color: #f5f3ee;
-    --chat--header--border-bottom: 1px solid rgb(255 255 255 / 0.08);
+    // ---------------------------------------------------------------
+    // چشم‌های شیر دنبالِ موس — فقط توی محدوده‌یِ صورت جابه‌جا می‌شن
+    // ---------------------------------------------------------------
+    if (face && eyes.length) {
+      const MAX_SHIFT = 2.2; // واحدِ SVG (viewBox خودِ صورت ۱۱۵ واحد عرضه، پس این خیلی کمه)
+      document.addEventListener('pointermove', (event) => {
+        const rect = face.getBoundingClientRect();
+        if (rect.width === 0) return;
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const dx = event.clientX - centerX;
+        const dy = event.clientY - centerY;
+        const dist = Math.hypot(dx, dy) || 1;
+        const shiftX = (dx / dist) * Math.min(MAX_SHIFT, (dist / rect.width) * MAX_SHIFT * 4);
+        const shiftY = (dy / dist) * Math.min(MAX_SHIFT, (dist / rect.height) * MAX_SHIFT * 4);
+        eyes.forEach((eye) => {
+          const baseCx = Number(eye.dataset.baseCx);
+          const baseCy = Number(eye.dataset.baseCy);
+          eye.setAttribute('cx', String(baseCx + shiftX));
+          eye.setAttribute('cy', String(baseCy + shiftY));
+        });
+      });
+    }
 
-    --chat--message--bot--background: #1a1f1e;
-    --chat--message--bot--color: #f5f3ee;
-    --chat--message--user--background: #e0a94f;
-    --chat--message--user--color: #121817;
+    // ---------------------------------------------------------------
+    // رندرِ پیام‌ها + ذخیره‌ی تاریخچه توی localStorage
+    // ---------------------------------------------------------------
+    // چرا localStorage به‌جای اکشنِ 'loadPreviousSession' خودِ n8n: اون اکشن
+    // برای این webhookِ سفارشی همیشه {data:[]} برمی‌گردوند (تست شد) — یعنی
+    // n8n تاریخچه‌ی قابل‌بازیابی برای این نوع embed نگه نمی‌داره. حافظه‌ی
+    // خودِ Agent (برای ادامه‌ی مکالمه) جدا و سالمه؛ فقط «نمایشِ» تاریخچه بعد
+    // از رفرش/تغییرِ صفحه نیاز به این ذخیره‌ی محلی داشت.
+    const HISTORY_KEY = 'leo-chat/history';
+    const MAX_HISTORY = 40;
 
-    --chat--toggle--background: #e0a94f;
-    --chat--toggle--hover--background: #cf9640;
-    --chat--toggle--active--background: #cf9640;
-    --chat--toggle--color: #121817;
-    --chat--toggle--size: 60px;
+    function saveToHistory(text: string, sender: 'bot' | 'user') {
+      let history: Array<{ text: string; sender: string }> = [];
+      try {
+        history = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]');
+      } catch {
+        history = [];
+      }
+      history.push({ text, sender });
+      if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    }
+
+    function addMessage(text: string, sender: 'bot' | 'user', persist = true) {
+      const bubble = document.createElement('div');
+      bubble.className = `leo-msg is-${sender}`;
+      bubble.textContent = text;
+      messagesEl!.appendChild(bubble);
+      messagesEl!.scrollTop = messagesEl!.scrollHeight;
+      if (persist) saveToHistory(text, sender);
+      return bubble;
+    }
+    function showTyping() {
+      const el = document.createElement('div');
+      el.className = 'leo-typing';
+      el.dataset.leoTyping = '';
+      el.innerHTML = '<span></span><span></span><span></span>';
+      messagesEl!.appendChild(el);
+      messagesEl!.scrollTop = messagesEl!.scrollHeight;
+      return el;
+    }
+
+    // ---------------------------------------------------------------
+    // سشن — همون کلیدِ localStorage روی هر صفحه‌ای از سایت مشترکه، پس رفتن
+    // از صفحه‌ی هیرو به کانتکت (یا برعکس) گفت‌وگو رو از نو شروع نمی‌کنه.
+    // ---------------------------------------------------------------
+    function getOrCreateSessionId(): string {
+      let id = localStorage.getItem(SESSION_KEY);
+      if (!id) {
+        id = crypto.randomUUID();
+        localStorage.setItem(SESSION_KEY, id);
+      }
+      return id;
+    }
+    const sessionId = getOrCreateSessionId();
+
+    function loadHistory() {
+      let history: Array<{ text: string; sender: 'bot' | 'user' }> = [];
+      try {
+        history = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]');
+      } catch {
+        history = [];
+      }
+      if (history.length === 0) {
+        addMessage(GREETING, 'bot'); // خوش‌آمد هم به تاریخچه ذخیره می‌شه، پس دفعه‌ی بعد دوباره تکرار نمی‌شه
+        return;
+      }
+      for (const { text, sender } of history) addMessage(text, sender, false); // false: دوباره ذخیره نکن، همین الان از همون ذخیره خونده شده
+    }
+    loadHistory();
+
+    // ---------------------------------------------------------------
+    // ارسالِ پیام — همون قراردادِ n8n Chat Trigger (NDJSON استریم)
+    // ---------------------------------------------------------------
+    let isSending = false;
+
+    input.addEventListener('input', () => {
+      input!.style.height = 'auto';
+      input!.style.height = `${Math.min(input!.scrollHeight, 96)}px`;
+    });
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        form!.requestSubmit();
+      }
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const text = input!.value.trim();
+      if (!text || isSending) return;
+
+      isSending = true;
+      input!.value = '';
+      input!.style.height = 'auto';
+      addMessage(text, 'user');
+      const typingEl = showTyping();
+
+      let botBubble: HTMLElement | null = null;
+      let botText = '';
+      let hasReceivedChunk = false;
+
+      try {
+        const res = await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'text/plain' },
+          body: JSON.stringify({ action: 'sendMessage', sessionId, chatInput: text }),
+        });
+        if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+
+        const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+        let buffer = '';
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += value;
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            let event: { type?: string; content?: string };
+            try {
+              event = JSON.parse(line);
+            } catch {
+              event = { type: 'item', content: line };
+            }
+            if (event.type === 'item' && typeof event.content === 'string') {
+              if (!hasReceivedChunk) {
+                hasReceivedChunk = true;
+                typingEl.remove();
+                botBubble = addMessage('', 'bot', false); // بعد از تکمیلِ استریم، متنِ کامل یک‌جا ذخیره می‌شه
+              }
+              botText += event.content;
+              botBubble!.textContent = botText;
+              messagesEl!.scrollTop = messagesEl!.scrollHeight;
+            } else if (event.type === 'error') {
+              if (!hasReceivedChunk) typingEl.remove();
+              addMessage(`⚠️ ${event.content ?? 'Something went wrong.'}`, 'bot');
+              hasReceivedChunk = true;
+            }
+          }
+        }
+        if (hasReceivedChunk && botText) {
+          saveToHistory(botText, 'bot');
+        } else if (!hasReceivedChunk) {
+          typingEl.remove();
+          addMessage("⚠️ I didn't get a response — please try again in a moment.", 'bot');
+        }
+      } catch {
+        typingEl.remove();
+        addMessage('⚠️ Could not reach the rules assistant. Please try again shortly.', 'bot');
+      } finally {
+        isSending = false;
+      }
+    });
   }
-</style>
+</script>
