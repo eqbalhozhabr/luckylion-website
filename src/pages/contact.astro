@@ -231,40 +231,49 @@ const components = [
 
   if (video && trigger) {
     // هم مرحله‌های رفت (جلو) و هم برگشت به شروع، هر دو با همین یه تابع انجام
-    // می‌شن — دیگه اصلاً از video.play() استفاده نمی‌کنیم. قبلاً رفتِ جلو با
-    // .play() native پخش می‌شد و یه رویدادِ جدا (rAF/'timeupdate') باید سروقت
-    // متوجهِ رسیدن به هدف می‌شد و .pause() می‌کرد؛ هر بار که اون تشخیص یه
-    // لحظه دیر می‌رسید (یه تیکِ ازدست‌رفته، یه لحظه‌ی شلوغیِ مرورگر)، پخشِ
-    // native خودش به‌تنهایی تا انتهای واقعیِ ویدیو ادامه پیدا می‌کرد — همون
-    // «با یه کلیک کل ویدیو پخش می‌شه» که گاهی پیش می‌اومد. حالا هیچ پخشِ
-    // native‌ای در کار نیست: خودمون هر ۱/۲۴ ثانیه currentTime رو دستی قدم‌به‌قدم
-    // (جلو یا عقب) جابه‌جا می‌کنیم و دقیقاً سرِ هدف می‌ایستیم — نه زودتر، نه دیرتر.
-    function animateTo(targetTime: number) {
+    // می‌شن — دیگه اصلاً از video.play() استفاده نمی‌کنیم؛ خودمون هر ۱/۲۴ ثانیه
+    // currentTime رو دستی جابه‌جا می‌کنیم، پس هیچ‌وقت از هدف رد نمی‌شه.
+    //
+    // duration جداگونه می‌گیره (به‌جای اینکه فقط با سرعتِ واقعیِ ۲۴fps پیش بره)
+    // چون مرحله‌ی برگشت (فریم ۶۰ ← ۰) کلِ طولِ ویدیو رو طی می‌کنه — اگه با
+    // سرعتِ واقعی (۲.۵ ثانیه‌یِ کامل) پخش بشه، دقیقاً همون «با یه کلیک کل
+    // ویدیو پخش می‌شه» که ازش شکایت داشتی رو ایجاد می‌کنه؛ چون واقعاً هم داره
+    // کل ویدیو رو (برعکس) پخش می‌کنه! برای همین این یکی مرحله رو یه جهشِ کوتاه
+    // و سریع (۰.۳۵ ثانیه) کردیم — حرکت دیده می‌شه، ولی حسِ «کل کلیپ داره از نو
+    // پخش می‌شه» رو نمی‌ده. مرحله‌های رفتِ جلو همون سرعتِ طبیعی‌شون رو دارن
+    // (که اصلاً طولانی نیستن: حداکثر ۰.۸۳ ثانیه).
+    function animateTo(targetTime: number, duration: number) {
       isAnimating = true;
-      const direction = targetTime >= video.currentTime ? 1 : -1;
-      let lastTs = performance.now();
+      const startTime = video.currentTime;
+      const distance = targetTime - startTime;
+      const startTs = performance.now();
 
       if (activeIntervalId !== null) clearInterval(activeIntervalId);
       activeIntervalId = setInterval(() => {
-        const now = performance.now();
-        const dt = (now - lastTs) / 1000;
-        lastTs = now;
+        const elapsed = (performance.now() - startTs) / 1000;
+        const progress = Math.min(elapsed / duration, 1);
 
-        const next = video.currentTime + direction * dt;
-        const reached = direction > 0 ? next >= targetTime : next <= targetTime;
-
-        if (reached) {
+        if (progress >= 1) {
           video.currentTime = targetTime; // قفل کردن دقیق روی فریمِ هدف
           isAnimating = false;
           if (activeIntervalId !== null) clearInterval(activeIntervalId);
           activeIntervalId = null;
           return;
         }
-        video.currentTime = next;
+        video.currentTime = startTime + distance * progress;
       }, 1000 / FPS);
     }
 
+    const REWIND_DURATION = 0.35; // ثانیه — جهشِ کوتاهِ برگشت به شروع
+
     trigger.addEventListener('click', () => {
+      // کلیکِ موس، صرف‌نظر از tabindex="-1"، خودش فوکوس رو روی دکمه نگه می‌داره؛
+      // چون این دکمه توی یه لایه‌ی aria-hidden="true" هست (.table-plane)،
+      // مرورگر یه اخطار می‌ده («Blocked aria-hidden on an element because its
+      // descendant retained focus»). چون این دکمه اصلاً قرار نیست فوکوس بمونه،
+      // بلافاصله بعدِ کلیک blur می‌کنیمش.
+      trigger.blur();
+
       if (isAnimating) return; // جلوگیری از کلیک رگباری کاربر تا زمانی که انیمیشن قبلی تمام نشده
 
       currentStep = (currentStep + 1) % stopTimes.length;
@@ -275,7 +284,8 @@ const components = [
         return;
       }
 
-      animateTo(targetTime);
+      const duration = currentStep === 0 ? REWIND_DURATION : Math.abs(targetTime - video.currentTime);
+      animateTo(targetTime, duration);
     });
   }
 </script>
