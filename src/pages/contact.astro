@@ -98,10 +98,13 @@ const components = [
   .table-plane { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
   .table-plane-inner { position: absolute; inset: 0; transform: scale(1.065); will-change: transform; }
 
-  /* .is-cutting: پوششِ برگشت-به-شروع (پایین‌تر توضیح داده شده) — یه کراس‌فیدِ
-     کوتاه، به‌جای اسکرابِ سریع از فریمِ ۶۰ تا ۰ که حسِ «یه دورِ تندِ عجیب» می‌داد. */
-  .table-background { display: block; width: 100%; height: 100%; object-fit: cover; transition: opacity .16s ease; }
-  .table-background.is-cutting { opacity: 0; }
+  /* .is-cutting: پوششِ برگشت-به-شروع (پایین‌تر توضیح داده شده) — یه فلشِ نور
+     کوتاه، نه یه fade به opacity:0. این ویدیو کلِ بک‌گراندِ صفحه‌ست، پس محو
+     کردنش تا opacity:0 رنگِ تیرهٔ .hero رو زیرش لخت می‌کنه — دقیقاً همون «کل
+     صفحه سیاه می‌شه» که دیده شد. با filter:brightness ویدیو همیشه دیدنی
+     می‌مونه (فقط لحظه‌ای روشن‌تر می‌شه)، پس هیچ‌وقت پسِ زمینه‌ی تیره لخت نمی‌شه. */
+  .table-background { display: block; width: 100%; height: 100%; object-fit: cover; transition: filter .16s ease; filter: brightness(1); }
+  .table-background.is-cutting { filter: brightness(2.4); }
   .table-components { position: absolute; inset: 0; pointer-events: none; }
 
   /* تنظیمات ناحیه کلیک نامرئی روی شیت کاراکتر */
@@ -264,10 +267,12 @@ const components = [
     // استفاده نمی‌کنیم — نه با سرعتِ واقعی (که می‌شد «کل ویدیو پخش می‌شه»، چون
     // واقعاً هم داشت کلِ کلیپ رو برعکس پخش می‌کرد) و نه سریع‌شده (که چون بازم
     // داشت از هر ۶۰ فریم رد می‌شد، فقط با سرعتِ بیشتر، حسِ «یه دورِ تندِ عجیب»
-    // می‌داد). به‌جاش یه ترفندِ استانداردِ ویدیو: یه کراس‌فیدِ کوتاه — تصویر محو
-    // می‌شه، دقیقاً وسطِ محو‌بودن currentTime رو یهو می‌بریم رو صفر (که چون
-    // تصویر نامرئیه، هیچ فریمی رد نمی‌شه)، بعد دوباره ظاهر می‌شه. حسش شبیهِ یه
-    // «کات» تمیزه، نه یه ری‌واینـدِ قابل‌مشاهده.
+    // می‌داد). اولین راه‌حل (fade به opacity:0) هم اشتباه بود: این ویدیو کلِ
+    // بک‌گراندِ صفحه‌ست، پس محوش‌کردن رنگِ تیرهٔ پشتش رو لخت می‌کرد — همون «کل
+    // صفحه سیاه می‌شه». الان به‌جاش یه فلشِ نور (filter:brightness، توی CSS) —
+    // ویدیو همیشه دیدنیه، فقط لحظه‌ای روشن‌تر می‌شه؛ دقیقاً وسطِ روشن‌ترین
+    // لحظه currentTime رو می‌بریم رو صفر (که زیرِ نور محو می‌شه)، بعد نور برمی‌گرده
+    // به حالتِ عادی. حسش شبیهِ یه فلشِ دوربینه، نه سیاهی و نه ری‌واینـدِ قابل‌مشاهده.
     function cutToStart() {
       isAnimating = true;
       video.classList.add('is-cutting');
