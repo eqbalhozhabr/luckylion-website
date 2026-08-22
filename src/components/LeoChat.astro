@@ -94,7 +94,7 @@
   :root {
     /* رنگ‌بندیِ فعلی عیناً از خودِ فایل‌های SVG — همه‌چی فقط با همین بلوک عوض می‌شه */
     --leo-shape-fill: #fff;
-    --leo-shape-stroke: #171716;
+    --leo-shape-stroke: transparent; /* طبقِ خواسته، خطِ دورِ دکمه/پنل حذف شد */
     --leo-mark-color: #171716; /* آیکونِ دکمه + صورتِ شیر */
     --leo-eye-color: #171716;
     --leo-accent: #171716; /* دکمه‌ی ارسال / حبابِ کاربر — چون فایل‌ها رنگِ دیگه‌ای تعریف نکردن */
@@ -164,7 +164,11 @@
   .leo-shell.is-open .leo-closed { opacity: 0; pointer-events: none; }
   .leo-shell.is-open .leo-panel {
     width: min(380px, calc(100vw - 2rem));
-    height: min(610px, calc(100vh - 7rem));
+    /* dvh نه vh: توی موبایل vh بر اساسِ ارتفاعِ صفحه با نوارِ آدرسِ جمع‌شده
+       حساب می‌شه (بزرگ‌تر از چیزی که واقعاً دیده می‌شه)، برای همین پنل از
+       صفحه می‌زد بیرون و دکمه‌ی × قابلِ‌کلیک نبود. dvh ارتفاعِ واقعیِ دیدنی
+       رو حساب می‌کنه. */
+    height: min(610px, calc(100dvh - 7rem));
     opacity: 1; pointer-events: auto;
   }
   .leo-shell.is-open .leo-panel-content { opacity: 1; transition-delay: .12s; }
@@ -218,7 +222,7 @@
   .leo-send svg { width: 17px; height: 17px; }
 
   @media (max-width: 480px) {
-    .leo-shell.is-open .leo-panel { width: calc(100vw - 1.5rem); height: calc(100vh - 6rem); }
+    .leo-shell.is-open .leo-panel { width: calc(100vw - 1.5rem); height: calc(100dvh - 6rem); }
   }
 
   @media (prefers-reduced-motion: reduce) {

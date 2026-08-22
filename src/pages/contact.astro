@@ -27,11 +27,18 @@ const components = [
     <div class="table-plane" aria-hidden="true">
       <div class="table-plane-inner">
 
-        <!-- ویدیوی تعاملی بک‌گراند که شامل میز، شیت کاراکتر و انیمیشن تایل پناهگاه است -->
+        <!-- ویدیوی تعاملی بک‌گراند که شامل میز، شیت کاراکتر و انیمیشن تایل پناهگاه است.
+             src عمداً اینجا نیست — توی اسکریپت با fetch+blob پر می‌شه، نه مستقیم.
+             دلیلش: روی سرورِ لوکال (Vite) درخواستِ Range درست جواب داده می‌شه، پس
+             ویدیو قابلِ seek‌ه؛ ولی Cloudflare Pages برای فایل‌های استاتیک هدرِ
+             Accept-Ranges/۲۰۶ رو برنمی‌گردونه (تست شد — حتی برای یه عکسِ ساده هم
+             همینه)، پس مرورگر با اینکه کلِ فایل رو دانلود می‌کنه، ویدیو رو
+             seekable=[0,0] می‌بینه و کلیک هیچ فریمی رو عوض نمی‌کنه. با گرفتنِ
+             کلِ فایل به‌صورتِ blob و دادنش به‌عنوانِ src، دیگه seek کاملاً
+             لوکاله و به Range-support سرور وابسته نیست. -->
         <video
           id="interactive-bg"
           class="table-background"
-          src="/contact/contact-animation.webm"
           muted
           playsinline
           preload="auto"
@@ -230,6 +237,21 @@ const components = [
   let activeIntervalId: ReturnType<typeof setInterval> | null = null;
 
   if (video && trigger) {
+    // کلِ فایلِ ویدیو رو می‌گیریم و به‌عنوانِ blob URL می‌دیم به src — به همون
+    // دلیلی که بالای تگِ <video> توضیح داده شد (Cloudflare Pages درخواستِ
+    // Range رو درست جواب نمی‌ده، پس seek روی src مستقیم کار نمی‌کنه). تا این
+    // fetch تموم نشه، دکمه غیرفعاله (کلیکش هیچ کاری نمی‌کنه).
+    fetch('/contact/contact-animation.webm')
+      .then((res) => res.blob())
+      .then((blob) => {
+        video.src = URL.createObjectURL(blob);
+      })
+      .catch(() => {
+        // اگه fetch شکست خورد، حداقل src مستقیم رو امتحان کن — بدونِ seek ولی
+        // بهتر از یه ویدیوی کاملاً خالی.
+        video.src = '/contact/contact-animation.webm';
+      });
+
     // مرحله‌های رفتِ جلو (۱ تا ۳): دیگه اصلاً از video.play() استفاده نمی‌کنیم؛
     // خودمون هر ۱/۲۴ ثانیه currentTime رو دستی، با سرعتِ طبیعیِ ۲۴fps، جلو
     // می‌بریم — پس هیچ‌وقت از هدف رد نمی‌شه. این مرحله‌ها کوتاه‌ان (حداکثر
