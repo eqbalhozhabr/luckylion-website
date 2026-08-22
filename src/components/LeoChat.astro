@@ -154,10 +154,10 @@
   }
   .leo-panel-frame { position: absolute; inset: 0; width: 100%; height: 100%; }
   .leo-panel-content {
-    /* پایین یه فاصله‌ی اضافه داره چون کادرِ SVG اونجا یه دنباله‌ی کوچیک
-       (نوکِ حباب) داره که مستطیلی نیست — بدونِ این فاصله، ردیفِ ارسالِ پیام
-       تا همون نوک می‌چسبید و پایینش خیلی کمتر از بالاش فاصله داشت. */
-    position: absolute; inset: 0 0 22px 0; display: flex; flex-direction: column;
+    /* پایین یه فاصله‌ی کمِ اضافه داره فقط برای رد‌شدن از دنباله‌ی غیرمستطیلیِ
+       قابِ SVG — فاصله‌ی واقعی‌یِ بالا/پایینِ ردیفِ ارسال رو خودِ padding‌ش
+       (پایین‌تر، ۲۵px هر طرف) تعیین می‌کنه. */
+    position: absolute; inset: 0 0 10px 0; display: flex; flex-direction: column;
     opacity: 0; transition: opacity .18s ease;
   }
 
@@ -201,7 +201,7 @@
      بلوکِ <style is:global> پایین‌تر — وگرنه اصلاً match نمی‌شدن (دقیقاً
      همون چیزی که باعث شد پس‌زمینه‌ی خاکستریِ حبابِ ربات اصلاً اعمال نشه). */
 
-  .leo-input-row { flex: none; display: flex; align-items: flex-end; gap: .5rem; padding: 1rem; border-top: 1px solid var(--leo-border); }
+  .leo-input-row { flex: none; display: flex; align-items: flex-end; gap: .5rem; padding: 25px .9rem; border-top: 1px solid var(--leo-border); }
   .leo-input-row textarea {
     flex: 1; resize: none; max-height: 6rem; padding: .6rem .8rem; border-radius: .9rem;
     background: rgb(0 0 0 / .04); border: 1px solid var(--leo-border); color: var(--leo-text);
@@ -272,7 +272,7 @@
     // چشم‌های شیر دنبالِ موس — فقط توی محدوده‌یِ صورت جابه‌جا می‌شن
     // ---------------------------------------------------------------
     if (face && eyes.length) {
-      const MAX_SHIFT = 6.5; // واحدِ SVG — بزرگ‌تر شد چون حرکتِ قبلی (۲.۲) خیلی نامحسوس بود
+      const MAX_SHIFT = 9; // واحدِ SVG — تستِ عددِ بزرگ‌تر طبقِ خواسته
       document.addEventListener('pointermove', (event) => {
         const rect = face.getBoundingClientRect();
         if (rect.width === 0) return;
