@@ -98,13 +98,7 @@ const components = [
   .table-plane { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
   .table-plane-inner { position: absolute; inset: 0; transform: scale(1.065); will-change: transform; }
 
-  /* .is-cutting: پوششِ برگشت-به-شروع (پایین‌تر توضیح داده شده) — یه فلشِ نور
-     کوتاه، نه یه fade به opacity:0. این ویدیو کلِ بک‌گراندِ صفحه‌ست، پس محو
-     کردنش تا opacity:0 رنگِ تیرهٔ .hero رو زیرش لخت می‌کنه — دقیقاً همون «کل
-     صفحه سیاه می‌شه» که دیده شد. با filter:brightness ویدیو همیشه دیدنی
-     می‌مونه (فقط لحظه‌ای روشن‌تر می‌شه)، پس هیچ‌وقت پسِ زمینه‌ی تیره لخت نمی‌شه. */
-  .table-background { display: block; width: 100%; height: 100%; object-fit: cover; transition: filter .16s ease; filter: brightness(1); }
-  .table-background.is-cutting { filter: brightness(2.4); }
+  .table-background { display: block; width: 100%; height: 100%; object-fit: cover; }
   .table-components { position: absolute; inset: 0; pointer-events: none; }
 
   /* تنظیمات ناحیه کلیک نامرئی روی شیت کاراکتر */
@@ -263,28 +257,6 @@ const components = [
       }, 1000 / FPS);
     }
 
-    // مرحله‌ی برگشت به شروع (فریم ۶۰ ← ۰): اینجا دیگه از اسکرابِ فریم‌به‌فریم
-    // استفاده نمی‌کنیم — نه با سرعتِ واقعی (که می‌شد «کل ویدیو پخش می‌شه»، چون
-    // واقعاً هم داشت کلِ کلیپ رو برعکس پخش می‌کرد) و نه سریع‌شده (که چون بازم
-    // داشت از هر ۶۰ فریم رد می‌شد، فقط با سرعتِ بیشتر، حسِ «یه دورِ تندِ عجیب»
-    // می‌داد). اولین راه‌حل (fade به opacity:0) هم اشتباه بود: این ویدیو کلِ
-    // بک‌گراندِ صفحه‌ست، پس محوش‌کردن رنگِ تیرهٔ پشتش رو لخت می‌کرد — همون «کل
-    // صفحه سیاه می‌شه». الان به‌جاش یه فلشِ نور (filter:brightness، توی CSS) —
-    // ویدیو همیشه دیدنیه، فقط لحظه‌ای روشن‌تر می‌شه؛ دقیقاً وسطِ روشن‌ترین
-    // لحظه currentTime رو می‌بریم رو صفر (که زیرِ نور محو می‌شه)، بعد نور برمی‌گرده
-    // به حالتِ عادی. حسش شبیهِ یه فلشِ دوربینه، نه سیاهی و نه ری‌واینـدِ قابل‌مشاهده.
-    function cutToStart() {
-      isAnimating = true;
-      video.classList.add('is-cutting');
-      setTimeout(() => {
-        video.currentTime = 0;
-        setTimeout(() => {
-          video.classList.remove('is-cutting');
-          isAnimating = false;
-        }, 160);
-      }, 160);
-    }
-
     trigger.addEventListener('click', () => {
       // کلیکِ موس، صرف‌نظر از tabindex="-1"، خودش فوکوس رو روی دکمه نگه می‌داره؛
       // چون این دکمه توی یه لایه‌ی aria-hidden="true" هست (.table-plane)،
@@ -298,16 +270,17 @@ const components = [
       currentStep = (currentStep + 1) % stopTimes.length;
       const targetTime = stopTimes[currentStep];
 
-      if (!motionAllowed) {
+      // برگشت به شروع (فریم ۶۰ ← ۰) یه جهشِ آنیه، بدونِ انیمیشن — بعد از ۳ تلاشِ
+      // ناموفق برای نشون‌دادنِ این مرحله با حرکت (پخشِ کامل، جهشِ سریع، فلشِ
+      // نور — هر سه یا حسِ عجیب می‌دادن یا صفحه رو سیاه می‌کردن)، برگشتیم به
+      // همینِ ساده: بدونِ حرکت، بدونِ فلش. تنها اثرش اینه که کلیکِ بعدی از این
+      // مرحله، تازه اولین حرکتِ قابل‌دیدن رو نشون می‌ده.
+      if (!motionAllowed || currentStep === 0) {
         video.currentTime = targetTime;
         return;
       }
 
-      if (currentStep === 0) {
-        cutToStart();
-      } else {
-        animateForwardTo(targetTime);
-      }
+      animateForwardTo(targetTime);
     });
   }
 </script>
