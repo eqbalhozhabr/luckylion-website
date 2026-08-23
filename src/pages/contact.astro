@@ -178,14 +178,12 @@ const components = [
 
   const section = document.querySelector<HTMLElement>('[data-contact-section]');
   const motionAllowed = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // Same fix as the hero page (index.astro): this is a MOUSE-hover parallax
-  // (pointermove → GSAP quickTo), but iOS Safari fires a synthetic
-  // 'pointermove' as part of handling a tap, so table pieces here would
-  // visibly glide/rotate on tap too. Gating on `hover: hover` (true only
-  // for a real mouse/trackpad) excludes touch-primary devices entirely.
-  const pointerAllowed = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  // NOTE: unlike the hero page (index.astro), this page has no "box" that
+  // must stay frozen — every element here (background plane + table pieces)
+  // is SUPPOSED to react with a small glide on tap, same as it always has,
+  // so this parallax intentionally stays ungated for touch.
 
-  if (section && motionAllowed && pointerAllowed) {
+  if (section && motionAllowed) {
     const plane = section.querySelector<HTMLElement>('.table-plane-inner')!;
     const planeMoveX = gsap.quickTo(plane, 'x', { duration: .65, ease: 'power3.out' });
 

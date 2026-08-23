@@ -342,15 +342,13 @@ const components = [
 
   const hero = document.querySelector<HTMLElement>('[data-hero]');
   const motionAllowed = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // Bug (reported on mobile Safari): tapping the box (or any table piece)
-  // made it visibly glide, even though nothing but frame 0 should ever move
-  // there. Cause: this whole section is a MOUSE-hover parallax (pointermove
-  // → GSAP quickTo), but Safari on iOS fires a synthetic 'pointermove' as
-  // part of handling a tap — Chrome on Android generally doesn't. Gating on
-  // `hover: hover` (true only when the primary input can actually hover,
-  // i.e. a real mouse/trackpad) excludes touch-primary devices, so a tap
-  // can't trigger this at all — matches motionAllowed's pattern of a
-  // one-time capability check on load, not a live per-event check.
+  // Only used to exempt the BOX specifically (see boxMove below) — everything
+  // ELSE in this parallax (background plane, mist, individual table-piece
+  // glide) stays on for touch too, since a small glide-on-tap there is
+  // wanted, existing behavior. `hover: hover` is true only when the primary
+  // input can actually hover (a real mouse/trackpad); false on touch-primary
+  // devices, including iOS Safari, where a tap fires a synthetic
+  // 'pointermove' that Chrome/Android generally doesn't.
   const pointerAllowed = matchMedia('(hover: hover) and (pointer: fine)').matches;
   // Hoisted so Scene 2's script (further down) can neutralize the hero's
   // mouse parallax once scrolling begins — otherwise the hero box can be
@@ -360,12 +358,16 @@ const components = [
   let mist: HTMLElement | null = null;
   let heroParallaxActive = true;
 
-  if (hero && motionAllowed && pointerAllowed) {
+  if (hero && motionAllowed) {
     plane = hero.querySelector<HTMLElement>('.table-plane-inner')!;
     mist = hero.querySelector<HTMLElement>('.mist-video-wrapper')!;
-    // The box (Scene 2's canvas) sits on the same table plane, so it needs
-    // the exact same parallax movement — otherwise it visually "floats"
-    // detached from the table while everything else shifts with the mouse.
+    // The box (Scene 2's canvas) sits on the same table plane, so on a real
+    // mouse it needs the exact same parallax movement — otherwise it
+    // visually "floats" detached from the table while everything else
+    // shifts with the mouse. But it must also stay perfectly frozen (still
+    // showing only Scene 2's static frame 0/40 while SCENE2_ENABLED is
+    // false) on touch devices — so unlike plane/mist, boxMove is only ever
+    // invoked when pointerAllowed (a real mouse), further down.
     const box = document.querySelector<HTMLElement>('.scene2-artboard');
     const quickMove = (element: HTMLElement) => ({
       x: gsap.quickTo(element, 'x', { duration: .65, ease: 'power3.out' }),
@@ -382,7 +384,9 @@ const components = [
       // Background and all tabletop components deliberately move as one plane.
       planeMove.x(-x * .01); planeMove.y(-y * .0);
       mistMove.x(-x * .08); mistMove.y(-y * 1);
-      boxMove?.x(-x * .01); boxMove?.y(-y * .0); // same multiplier as the plane, so it stays locked to the table
+      // Box stays frozen on touch (see comment above) — only a real mouse
+      // moves it, same multiplier as the plane so it stays locked to the table.
+      if (pointerAllowed) { boxMove?.x(-x * .01); boxMove?.y(-y * .0); }
     });
 
     hero.querySelectorAll<HTMLElement>('.table-component').forEach((component) => {
