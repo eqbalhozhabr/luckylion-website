@@ -178,8 +178,14 @@ const components = [
 
   const section = document.querySelector<HTMLElement>('[data-contact-section]');
   const motionAllowed = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Same fix as the hero page (index.astro): this is a MOUSE-hover parallax
+  // (pointermove → GSAP quickTo), but iOS Safari fires a synthetic
+  // 'pointermove' as part of handling a tap, so table pieces here would
+  // visibly glide/rotate on tap too. Gating on `hover: hover` (true only
+  // for a real mouse/trackpad) excludes touch-primary devices entirely.
+  const pointerAllowed = matchMedia('(hover: hover) and (pointer: fine)').matches;
 
-  if (section && motionAllowed) {
+  if (section && motionAllowed && pointerAllowed) {
     const plane = section.querySelector<HTMLElement>('.table-plane-inner')!;
     const planeMoveX = gsap.quickTo(plane, 'x', { duration: .65, ease: 'power3.out' });
 
@@ -256,11 +262,25 @@ const components = [
       video.addEventListener('playing', () => {
         video.pause();
         video.currentTime = 0;
+        setTimeout(playIntroHint, 500); // یه نفسِ کوتاه بعدِ لود، بعد اتوپلیِ راهنما
       }, { once: true });
       video.play().catch(() => {
-        // بعضی وب‌ویوهای محدودِ داخلِ اپ ممکنه حتی اینجا هم رد کنن؛ در اون
-        // حالت همون رفتارِ قبلی (رندر بعد از اولین لمس) باقی می‌مونه، فقط
-        // این fallback باعثِ خطا نمی‌شه.
+        // مرورگر (تستِ خودم رو دید: AbortError – "video-only background
+        // media was paused to save power") وقتی صفحه هنوز واقعاً دیده نمی‌شه
+        // (تبِ پس‌زمینه، یا لودشدنِ صفحه پشتِ یه اپِ دیگه روی موبایل) play() رو
+        // رد می‌کنه. بدونِ این retry، ویدیو برای همیشه توی حالتِ «فقط با لمس»
+        // گیر می‌کرد. به‌محضِ اینکه صفحه واقعاً دیده بشه (visibilitychange)،
+        // یه بارِ دیگه امتحان می‌کنیم.
+        if (document.visibilityState !== 'visible') {
+          document.addEventListener('visibilitychange', function retry() {
+            if (document.visibilityState === 'visible') {
+              document.removeEventListener('visibilitychange', retry);
+              warmUpFirstFrame();
+            }
+          });
+        }
+        // اگه دلیلِ ردشدن چیزِ دیگه‌ای بود (نه visibility)، همون رفتارِ قبلی
+        // (رندر بعد از اولین لمسِ کاربر) باقی می‌مونه — بدونِ خطا.
       });
     }
 
@@ -306,6 +326,19 @@ const components = [
         }
         video.currentTime = startTime + distance * progress;
       }, 1000 / FPS);
+    }
+
+    // اتوپلیِ خودکارِ اولِ صفحه: همون لحظه‌ای که ویدیو «گرم» شد (فریمِ ۰ رندر
+    // شد)، یه بار کوتاه از فریمِ ۴۰ تا ۶۰ پخش می‌شه — بدونِ برگشت به ۰ — فقط
+    // برای اینکه بازدیدکننده، قبل از اینکه خودش لمس کنه، بفهمه این ناحیه
+    // تعاملیه. بعدش دقیقاً سرِ جای خودش (فریمِ ۶۰) می‌مونه؛ currentStep هم
+    // همون‌جا روی ۳ ست می‌شه، پس اولین کلیکِ کاربر طبقِ چرخه‌ی عادی می‌ره سراغِ
+    // فریمِ ۰ (نه اینکه از سر تکرار کنه یا حالتِ داخلی رو گیج کنه).
+    function playIntroHint() {
+      if (!motionAllowed) return; // بدونِ حرکت برای prefers-reduced-motion — همون فریمِ ۰ می‌مونه
+      video.currentTime = stopTimes[2]; // فریم ۴۰
+      currentStep = 3; // مقصدِ نهایی همینه؛ کلیکِ بعدی از همین‌جا می‌چرخه سمتِ فریمِ ۰
+      animateForwardTo(stopTimes[3]); // → فریم ۶۰
     }
 
     trigger.addEventListener('click', () => {
