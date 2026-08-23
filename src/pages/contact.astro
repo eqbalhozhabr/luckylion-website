@@ -237,6 +237,33 @@ const components = [
   let activeIntervalId: ReturnType<typeof setInterval> | null = null;
 
   if (video && trigger) {
+    // موبایل (بخصوص iOS/iPadOS Safari، و بعضاً Chrome اندروید) تا وقتی ویدیو
+    // حداقل یه بار واقعاً play نشده هیچ فریمی رو رندر/نقاشی نمی‌کنه — even با
+    // src ست‌شده و preload="auto" و currentTime دستی. قبلاً اینجا فقط src ست
+    // می‌شد و بعدش هیچ‌وقت play() صدا زده نمی‌شد (فقط currentTime عوض می‌شد)،
+    // پس روی موبایل صفحه خالی می‌موند تا اولین لمسِ کاربر (یه user gesture)
+    // بالاخره مرورگر رو مجبور به رندر می‌کرد. چون ویدیو muted+playsinline‌ه،
+    // play() بدونِ نیاز به تعاملِ کاربر مجازه — بلافاصله pause می‌کنیم تا فقط
+    // فریمِ ۰ «گرم» و نقاشی‌شده بمونه، بدونِ اینکه واقعاً پخش دیده بشه.
+    function warmUpFirstFrame() {
+      // به رویدادِ 'playing' گوش می‌دیم (نه به Promise ای که play() برمی‌گردونه)
+      // چون این رویداد دقیقاً همون لحظه‌ای صدا زده می‌شه که مرورگر واقعاً اولین
+      // فریم رو رندر کرده — اگه به‌جاش منتظرِ resolve شدنِ Promise می‌موندیم،
+      // اگه ترد اصلی (مثلاً وسطِ لود شدنِ بقیه‌ی صفحه) مشغول بود، ممکن بود
+      // پخش قبل از رسیدنِ ما به pause() چند فریم (یا حتی کلِ ۲.۵ ثانیه) جلو
+      // بره — یعنی یه فلشِ کوتاهِ ناخواسته از انیمیشن، دقیقاً قبل از اینکه
+      // pause بشه.
+      video.addEventListener('playing', () => {
+        video.pause();
+        video.currentTime = 0;
+      }, { once: true });
+      video.play().catch(() => {
+        // بعضی وب‌ویوهای محدودِ داخلِ اپ ممکنه حتی اینجا هم رد کنن؛ در اون
+        // حالت همون رفتارِ قبلی (رندر بعد از اولین لمس) باقی می‌مونه، فقط
+        // این fallback باعثِ خطا نمی‌شه.
+      });
+    }
+
     // کلِ فایلِ ویدیو رو می‌گیریم و به‌عنوانِ blob URL می‌دیم به src — به همون
     // دلیلی که بالای تگِ <video> توضیح داده شد (Cloudflare Pages درخواستِ
     // Range رو درست جواب نمی‌ده، پس seek روی src مستقیم کار نمی‌کنه). تا این
@@ -245,11 +272,13 @@ const components = [
       .then((res) => res.blob())
       .then((blob) => {
         video.src = URL.createObjectURL(blob);
+        warmUpFirstFrame();
       })
       .catch(() => {
         // اگه fetch شکست خورد، حداقل src مستقیم رو امتحان کن — بدونِ seek ولی
         // بهتر از یه ویدیوی کاملاً خالی.
         video.src = '/contact/contact-animation.webm';
+        warmUpFirstFrame();
       });
 
     // مرحله‌های رفتِ جلو (۱ تا ۳): دیگه اصلاً از video.play() استفاده نمی‌کنیم؛
