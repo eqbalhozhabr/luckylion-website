@@ -1,0 +1,17 @@
+{
+  // این فایل قبلاً وجود نداشت — بدونش، هر بار "npx wrangler deploy" اجرا
+  // می‌شد، خودِ Wrangler چون هیچ تنظیماتی پیدا نمی‌کرد می‌رفت سراغِ
+  // auto-config (astro add cloudflare) که ادابتورِ SSR کلودفلر رو به
+  // astro.config.mjs اضافه می‌کرد — چیزی که این سایت (کاملاً استاتیک) اصلاً
+  // بهش نیاز نداره، و با نسخه‌ی Astro این پروژه (۷.۲.۰) ناسازگار بود و بیلد
+  // رو با خطای "renderForPrerender is not exported" می‌شکوند.
+  //
+  // با اعلامِ صریحِ "assets" اینجا، Wrangler می‌فهمه این یه سایتِ استاتیکه که
+  // فقط باید فایل‌های dist/ رو سرو کنه — دیگه هیچ‌وقت auto-config اجرا
+  // نمی‌شه، و astro.config.mjs هم دست‌نخورده می‌مونه.
+  "name": "luckylion-website",
+  "compatibility_date": "2024-09-23",
+  "assets": {
+    "directory": "./dist"
+  }
+}
