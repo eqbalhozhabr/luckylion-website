@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import BlogBackdrop from '../../components/BlogBackdrop.astro';
 import { getCollection } from 'astro:content';
 
 // اولین دسته از پست‌ها از پیجِ لینکداینِ شرکت وارد شدن (import اولیه، طبقِ
@@ -13,6 +14,7 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month:
 ---
 
 <Layout title="Blog — Lucky Lion Games" description="Design notes, rules deep-dives, and studio updates from Lucky Lion Games.">
+<BlogBackdrop />
 <section class="blog-page" aria-label="Studio blog">
   <header class="blog-header">
     <p class="blog-kicker">Lucky Lion Games</p>
@@ -45,7 +47,7 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month:
 
 <style>
   .blog-page {
-    position: relative; isolation: isolate; min-height: 100dvh; background: #121817; color: #d8dfe5;
+    position: relative; z-index: 1; min-height: 100dvh; color: #d8dfe5;
     padding: clamp(6rem, 14vh, 9rem) clamp(1.5rem, 6vw, 3.5rem) clamp(4rem, 10vh, 6rem);
   }
 
@@ -63,10 +65,10 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month:
   .post-list { list-style: none; margin: 0 auto; padding: 0; max-width: 42rem; display: flex; flex-direction: column; gap: 1.1rem; }
 
   .post-card {
-    border: 1px solid rgb(255 255 255 / .12); border-radius: 1rem; background: rgb(255 255 255 / .03);
+    border: 1px solid rgb(255 255 255 / .14); border-radius: 1rem; background: rgb(18 24 23 / .45); backdrop-filter: blur(8px);
     transition: border-color .2s ease, background .2s ease, transform .2s ease;
   }
-  .post-card:hover { border-color: rgb(255 255 255 / .3); background: rgb(255 255 255 / .06); transform: translateY(-2px); }
+  .post-card:hover { border-color: rgb(255 255 255 / .35); background: rgb(18 24 23 / .65); transform: translateY(-2px); }
   .post-card-link { display: block; padding: clamp(1.25rem, 3vw, 1.75rem); text-decoration: none; color: inherit; }
 
   .post-date { display: block; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; color: rgb(216 223 229 / .55); margin-bottom: .5rem; }

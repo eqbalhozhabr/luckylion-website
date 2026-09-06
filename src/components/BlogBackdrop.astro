@@ -1,0 +1,113 @@
+---
+// بک‌گراندِ صفحاتِ بلاگ — طبقِ خواسته، همون تمِ صفحه‌ی هیرو/کانتکت اما:
+// ۱. همون bg-table.webp (میزِ بدونِ جعبه‌ی بازی) ولی ۱۸۰ درجه چرخیده.
+// ۲. یه دسته‌ی دیگه از قطعاتِ روی میز، این‌بار پراکنده دورِ لبه‌های صفحه
+//    (نه وسط) چون بلاگ برخلافِ هیرو/کانتکت، متنش کلِ عرض/طولِ صفحه رو
+//    می‌گیره، نه فقط یه گوشه‌ی مشخص.
+// ۳. برخلافِ هیرو/کانتکت (یه صفحه‌ی تک‌ویوپورت با position:absolute)، بلاگ
+//    اسکرول می‌خوره — پس این بک‌گراند position:fixed هست تا هنگامِ اسکرولِ
+//    پست‌ها، ثابت زیرِ محتوا بمونه (مثلِ بک‌گراندِ فیکسِ خیلی از سایت‌های
+//    ادیتوریال).
+// موسِ صفحه/تاچِ روی قطعات هم دقیقاً همون افکتِ خفیفِ صفحاتِ دیگه رو داره —
+// عمداً پشتِ hover:hover قفل نشده (طبقِ درسِ صفحه‌ی هیرو: اون گلایدِ کوچیکِ
+// روی تاچ یه ویژگیِ خواسته‌شده‌ست، نه باگ؛ فقط پارالاکسِ کلِ صفحه با موس
+// پشتِ pointerAllowed می‌مونه، چون واقعاً فقط برای موسِ واقعیه).
+const components = [
+  { name: 'Large Monster', src: '/hero/Monster_L.webp', x: 4, y: 6, w: 8.5, h: 10.2, transform: 'rotate(-9deg)' },
+  { name: 'Small Monster', src: '/hero/Monster_S.webp', x: 90.5, y: 8, w: 6.5, h: 8.2, transform: 'rotate(11deg)' },
+  { name: 'Meeple', src: '/hero/Meeple_01.webp', x: 3.5, y: 76, w: 3.8, h: 6.6, transform: 'rotate(20deg)' },
+  { name: 'Trap Tile', src: '/hero/TrapTiles_02_RGB.webp', x: 91.5, y: 68, w: 5.6, h: 9.9, transform: 'rotate(-15deg)' },
+  { name: 'Wood Token', src: '/hero/TokenWood.webp', x: 6.5, y: 42, w: 3.3, h: 5.9, transform: 'rotate(-24deg)' },
+  { name: 'Food Token', src: '/hero/TokenFood.webp', x: 93, y: 40, w: 3.2, h: 5.9, transform: 'rotate(17deg)' },
+  { name: 'Pickup Red', src: '/hero/Pickup_Red.webp', x: 2, y: 90, w: 6.2, h: 5.9, transform: 'rotate(-12deg)' },
+  { name: 'Sacrifice Token', src: '/hero/TokenSacr.webp', x: 95, y: 90, w: 3.3, h: 5.9, transform: 'rotate(8deg)' },
+];
+---
+<div class="blog-backdrop" data-blog-backdrop aria-hidden="true">
+  <div class="blog-backdrop-plane" data-blog-backdrop-plane>
+    <img class="blog-backdrop-image" src="/hero/bg-table.webp" alt="" />
+    <div class="blog-backdrop-components">
+      {components.map((component) => (
+        <div
+          class="component-placement"
+          style={`--x:${component.x}%; --y:${component.y}%; --w:${component.w}%; --h:${component.h}%; --placement:${component.transform};`}
+        >
+          <img class="table-component" src={component.src} alt="" draggable="false" />
+        </div>
+      ))}
+    </div>
+  </div>
+  <div class="blog-backdrop-overlay"></div>
+</div>
+
+<style>
+  .blog-backdrop { position: fixed; inset: 0; overflow: hidden; background: #121817; }
+  .blog-backdrop-plane {
+    position: absolute; inset: 50% auto auto 50%;
+    width: max(100%, calc(100dvh * 16 / 9));
+    height: max(100%, calc(100dvw * 9 / 16));
+    aspect-ratio: 16 / 9;
+    /* ۱۸۰ درجه طبقِ خواسته — بعدِ rotate باید دوباره centered بشه، برای
+       همین translate هم توی همین transform هست (ترتیب مهمه: اول center،
+       بعد بچرخون، بعد کمی zoom تا لبه‌ها موقعِ چرخش خالی نمونن). */
+    transform: translate(-50%, -50%) rotate(180deg) scale(1.065);
+    will-change: transform;
+  }
+  .blog-backdrop-image { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .blog-backdrop-components { position: absolute; inset: 0; pointer-events: none; }
+
+  .component-placement {
+    position: absolute; left: var(--x); top: var(--y); width: var(--w); height: var(--h);
+    transform: var(--placement); transform-origin: 0 0; pointer-events: auto;
+  }
+  .table-component {
+    display: block; width: 100%; height: 100%; object-fit: contain; cursor: pointer; user-select: none; will-change: transform;
+    filter: drop-shadow(0 -5px 2px rgb(0 0 0 / .5)) drop-shadow(0 15px 150px rgb(0 0 0 / .1));
+  }
+
+  /* گرادیانِ تیره‌کننده — چون برخلافِ هیرو/کانتکت که متن فقط یه گوشه‌ی
+     مشخصه، اینجا متنِ بلاگ کلِ صفحه رو می‌گیره و باید رویِ کل‌ش خوانا بمونه. */
+  .blog-backdrop-overlay {
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg, rgb(18 24 23 / .6), rgb(18 24 23 / .85) 35%, rgb(18 24 23 / .93));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .blog-backdrop-plane, .table-component { transition: none !important; }
+  }
+</style>
+
+<script>
+  import { gsap } from 'gsap';
+
+  const backdrop = document.querySelector<HTMLElement>('[data-blog-backdrop]');
+  const plane = document.querySelector<HTMLElement>('[data-blog-backdrop-plane]');
+  const motionAllowed = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // عمداً پشتِ pointerAllowed قفل نشده — درست مثلِ contact.astro، که همین
+  // پارالاکسِ کلِ صفحه (planeMoveX) رو بدونِ این شرط داره. اون فیکسِ
+  // hover-only فقط مالِ چیزهاییه که باید کاملاً فریز بمونن (مثلِ باکسِ
+  // هیرو)؛ این یه حرکتِ چندپیکسلیِ تزئینیه، نه چیزی که تاچ خرابش کنه.
+
+  if (backdrop && plane && motionAllowed) {
+    const planeMoveX = gsap.quickTo(plane, 'x', { duration: .65, ease: 'power3.out' });
+    document.addEventListener('pointermove', (event) => {
+      const x = event.clientX - innerWidth / 2;
+      planeMoveX(-x * .015);
+    });
+  }
+
+  if (motionAllowed) {
+    document.querySelectorAll<HTMLElement>('[data-blog-backdrop] .table-component').forEach((component) => {
+      const glideX = gsap.quickTo(component, 'x', { duration: .5, ease: 'power2.out' });
+      const glideY = gsap.quickTo(component, 'y', { duration: .5, ease: 'power2.out' });
+      const turn = gsap.quickTo(component, 'rotation', { duration: .75, ease: 'power2.out' });
+
+      component.addEventListener('pointermove', (event) => {
+        const bounds = component.getBoundingClientRect();
+        const x = (event.clientX - bounds.left) / bounds.width - .5;
+        const y = (event.clientY - bounds.top) / bounds.height - .5;
+        glideX(x * 75); glideY(y * 75); turn(x * 25);
+      });
+    });
+  }
+</script>

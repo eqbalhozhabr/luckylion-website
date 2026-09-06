@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import BlogBackdrop from '../../components/BlogBackdrop.astro';
 import { getCollection, render } from 'astro:content';
 
 export async function getStaticPaths() {
@@ -17,6 +18,7 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month:
 ---
 
 <Layout title={`${post.data.title} — Lucky Lion Games Blog`} description={post.data.excerpt}>
+<BlogBackdrop />
 <article class="post-page" aria-label={post.data.title}>
   <div class="post-page-inner">
     <a class="back-link" href="/blog/">&larr; Back to Blog</a>
@@ -48,10 +50,13 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month:
 
 <style>
   .post-page {
-    position: relative; isolation: isolate; min-height: 100dvh; background: #121817; color: #d8dfe5;
+    position: relative; z-index: 1; min-height: 100dvh; color: #d8dfe5;
     padding: clamp(6rem, 14vh, 9rem) clamp(1.5rem, 6vw, 3.5rem) clamp(4rem, 10vh, 6rem);
   }
-  .post-page-inner { max-width: 42rem; margin: 0 auto; }
+  .post-page-inner {
+    max-width: 42rem; margin: 0 auto; background: rgb(18 24 23 / .5); backdrop-filter: blur(8px);
+    border: 1px solid rgb(255 255 255 / .1); border-radius: 1.25rem; padding: clamp(1.75rem, 5vw, 3rem);
+  }
 
   .back-link {
     display: inline-block; margin-bottom: clamp(2rem, 5vh, 3rem); text-decoration: none;
