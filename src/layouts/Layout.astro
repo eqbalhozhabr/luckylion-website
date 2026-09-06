@@ -1,6 +1,13 @@
 ---
 import LeoChat from '../components/LeoChat.astro';
 import SiteChrome from '../components/SiteChrome.astro';
+
+interface Props {
+	/** Per-page <title> — defaults to the plain studio name for the hero/contact pages. */
+	title?: string;
+	description?: string;
+}
+const { title = 'Lucky Lion Games', description } = Astro.props;
 ---
 <!doctype html>
 <html lang="en">
@@ -10,8 +17,8 @@ import SiteChrome from '../components/SiteChrome.astro';
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<link rel="icon" href="/favicon.ico" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Lucky Lion Games</title>
-		
+		<title>{title}</title>
+		{description && <meta name="description" content={description} />}
 	</head>
 	<body>
 		<slot />

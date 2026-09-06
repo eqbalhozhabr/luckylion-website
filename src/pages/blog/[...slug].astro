@@ -1,0 +1,86 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCollection, render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', ({ data }) => !data.draft);
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+
+const dateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+---
+
+<Layout title={`${post.data.title} — Lucky Lion Games Blog`} description={post.data.excerpt}>
+<article class="post-page" aria-label={post.data.title}>
+  <div class="post-page-inner">
+    <a class="back-link" href="/blog/">&larr; Back to Blog</a>
+
+    <header class="post-page-header">
+      <time class="post-date" datetime={post.data.pubDate.toISOString()}>
+        {dateFormatter.format(post.data.pubDate)}
+      </time>
+      <h1>{post.data.title}</h1>
+      {post.data.tags.length > 0 && (
+        <ul class="post-tags" aria-label="Tags">
+          {post.data.tags.map((tag) => <li>{tag}</li>)}
+        </ul>
+      )}
+    </header>
+
+    <div class="post-body">
+      <Content />
+    </div>
+
+    {post.data.sourceUrl && (
+      <p class="post-source">
+        Originally posted on <a href={post.data.sourceUrl} target="_blank" rel="noopener noreferrer">LinkedIn</a>.
+      </p>
+    )}
+  </div>
+</article>
+</Layout>
+
+<style>
+  .post-page {
+    position: relative; isolation: isolate; min-height: 100dvh; background: #121817; color: #d8dfe5;
+    padding: clamp(6rem, 14vh, 9rem) clamp(1.5rem, 6vw, 3.5rem) clamp(4rem, 10vh, 6rem);
+  }
+  .post-page-inner { max-width: 42rem; margin: 0 auto; }
+
+  .back-link {
+    display: inline-block; margin-bottom: clamp(2rem, 5vh, 3rem); text-decoration: none;
+    font-size: .85rem; letter-spacing: .02em; color: rgb(216 223 229 / .65);
+    transition: color .2s ease;
+  }
+  .back-link:hover { color: #fff; }
+
+  .post-page-header { margin-bottom: clamp(2rem, 5vh, 2.75rem); }
+  .post-date { display: block; font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; color: rgb(216 223 229 / .55); margin-bottom: .75rem; }
+  .post-page-header h1 {
+    margin: 0 0 1rem; font-family: var(--font-title); font-size: clamp(1.9rem, 4.5vw, 3rem); color: #fff;
+    letter-spacing: .01em; line-height: 1.15;
+  }
+
+  .post-tags { list-style: none; display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; padding: 0; }
+  .post-tags li {
+    font-size: .72rem; letter-spacing: .02em; color: rgb(216 223 229 / .75);
+    border: 1px solid rgb(255 255 255 / .18); border-radius: 999px; padding: .2rem .65rem;
+  }
+
+  .post-body { font-size: clamp(.98rem, 1.4vw, 1.08rem); line-height: 1.75; color: rgb(216 223 229 / .92); }
+  .post-body :global(p) { margin: 0 0 1.2em; }
+  .post-body :global(p:last-child) { margin-bottom: 0; }
+  .post-body :global(ul), .post-body :global(ol) { margin: 0 0 1.2em; padding-left: 1.3em; }
+  .post-body :global(li) { margin: .35em 0; }
+  .post-body :global(strong) { color: #fff; }
+  .post-body :global(a) { color: #fff; text-decoration-color: rgb(255 255 255 / .4); }
+
+  .post-source { margin-top: clamp(2.5rem, 6vh, 3.5rem); padding-top: 1.5rem; border-top: 1px solid rgb(255 255 255 / .12); font-size: .85rem; color: rgb(216 223 229 / .55); }
+  .post-source a { color: rgb(216 223 229 / .85); }
+</style>

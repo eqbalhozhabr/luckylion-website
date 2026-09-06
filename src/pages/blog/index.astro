@@ -1,0 +1,83 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCollection } from 'astro:content';
+
+// اولین دسته از پست‌ها از پیجِ لینکداینِ شرکت وارد شدن (import اولیه، طبقِ
+// توافق). تا وقتی دسترسیِ LinkedIn API تأیید بشه، پست‌های تازه‌تر دستی
+// (یه فایلِ .md جدید توی src/content/blog/) اضافه می‌شن.
+const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+);
+
+const dateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+---
+
+<Layout title="Blog — Lucky Lion Games" description="Design notes, rules deep-dives, and studio updates from Lucky Lion Games.">
+<section class="blog-page" aria-label="Studio blog">
+  <header class="blog-header">
+    <p class="blog-kicker">Lucky Lion Games</p>
+    <h1>Blog</h1>
+    <p class="blog-intro">Design notes, rules deep-dives, and updates from the studio — cross-posted from our LinkedIn.</p>
+  </header>
+
+  <ul class="post-list">
+    {posts.map((post) => (
+      <li class="post-card">
+        <a class="post-card-link" href={`/blog/${post.id}/`}>
+          <time class="post-date" datetime={post.data.pubDate.toISOString()}>
+            {dateFormatter.format(post.data.pubDate)}
+          </time>
+          <h2 class="post-title">{post.data.title}</h2>
+          <p class="post-excerpt">{post.data.excerpt}</p>
+          {post.data.tags.length > 0 && (
+            <ul class="post-tags" aria-label="Tags">
+              {post.data.tags.map((tag) => <li>{tag}</li>)}
+            </ul>
+          )}
+        </a>
+      </li>
+    ))}
+  </ul>
+
+  {posts.length === 0 && <p class="blog-empty">No posts yet — check back soon.</p>}
+</section>
+</Layout>
+
+<style>
+  .blog-page {
+    position: relative; isolation: isolate; min-height: 100dvh; background: #121817; color: #d8dfe5;
+    padding: clamp(6rem, 14vh, 9rem) clamp(1.5rem, 6vw, 3.5rem) clamp(4rem, 10vh, 6rem);
+  }
+
+  .blog-header { max-width: 46rem; margin: 0 auto clamp(3rem, 8vh, 4.5rem); text-align: center; }
+  .blog-kicker {
+    margin: 0 0 .5rem; font-family: var(--font-subtitle, cursive); font-size: clamp(1.1rem, 2.2vw, 1.5rem);
+    color: rgb(255 255 255 / .55);
+  }
+  .blog-header h1 {
+    margin: 0 0 .75rem; font-family: var(--font-title); font-size: clamp(2.4rem, 6vw, 4rem); color: #fff;
+    letter-spacing: .02em;
+  }
+  .blog-intro { margin: 0; font-size: clamp(.95rem, 1.4vw, 1.1rem); line-height: 1.6; color: rgb(216 223 229 / .8); }
+
+  .post-list { list-style: none; margin: 0 auto; padding: 0; max-width: 42rem; display: flex; flex-direction: column; gap: 1.1rem; }
+
+  .post-card {
+    border: 1px solid rgb(255 255 255 / .12); border-radius: 1rem; background: rgb(255 255 255 / .03);
+    transition: border-color .2s ease, background .2s ease, transform .2s ease;
+  }
+  .post-card:hover { border-color: rgb(255 255 255 / .3); background: rgb(255 255 255 / .06); transform: translateY(-2px); }
+  .post-card-link { display: block; padding: clamp(1.25rem, 3vw, 1.75rem); text-decoration: none; color: inherit; }
+
+  .post-date { display: block; font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; color: rgb(216 223 229 / .55); margin-bottom: .5rem; }
+  .post-title { margin: 0 0 .5rem; font-family: var(--font-body); font-weight: 700; font-size: clamp(1.1rem, 2.2vw, 1.4rem); color: #fff; letter-spacing: .01em; }
+  .post-excerpt { margin: 0; font-size: .92rem; line-height: 1.55; color: rgb(216 223 229 / .8); }
+
+  .post-tags { list-style: none; display: flex; flex-wrap: wrap; gap: .4rem; margin: .9rem 0 0; padding: 0; }
+  .post-tags li {
+    font-size: .72rem; letter-spacing: .02em; color: rgb(216 223 229 / .75);
+    border: 1px solid rgb(255 255 255 / .18); border-radius: 999px; padding: .2rem .65rem;
+  }
+
+  .blog-empty { text-align: center; color: rgb(216 223 229 / .6); }
+</style>
