@@ -101,10 +101,16 @@ const components = [
   // هیرو)؛ این یه حرکتِ چندپیکسلیِ تزئینیه، نه چیزی که تاچ خرابش کنه.
 
   if (backdrop && plane && motionAllowed) {
+    // نکته: برخلافِ contact.astro (که planeMoveX(-x*.015) درسته)، این پلین
+    // داخلِ یه والدِ ۱۸۰-درجه‌چرخیده (.blog-backdrop-artboard) نشسته. یه
+    // rotate(180deg) رویِ والد، جهتِ translateِ x/y فرزند رو رویِ صفحه
+    // معکوس می‌کنه (چون ماتریسِ چرخش، بردارِ جابه‌جایی رو منفی می‌کنه) —
+    // برای همین علامت اینجا باید برعکسِ بقیه‌ی صفحات باشه تا نتیجه‌ی نهایی
+    // (چیزی که کاربر رویِ صفحه می‌بینه) با بقیه یکی بشه: موس چپ → بک‌گراند راست.
     const planeMoveX = gsap.quickTo(plane, 'x', { duration: .65, ease: 'power3.out' });
     document.addEventListener('pointermove', (event) => {
       const x = event.clientX - innerWidth / 2;
-      planeMoveX(-x * .015);
+      planeMoveX(x * .015);
     });
   }
 

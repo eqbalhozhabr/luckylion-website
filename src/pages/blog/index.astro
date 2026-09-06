@@ -17,7 +17,6 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month:
 <BlogBackdrop />
 <section class="blog-page" aria-label="Studio blog">
   <header class="blog-header">
-    <p class="blog-kicker">Lucky Lion Games</p>
     <h1>Blog</h1>
     <p class="blog-intro">Design notes, rules deep-dives, and updates from the studio — cross-posted from our LinkedIn.</p>
   </header>
@@ -52,10 +51,6 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month:
   }
 
   .blog-header { max-width: 46rem; margin: 0 auto clamp(3rem, 8vh, 4.5rem); text-align: center; }
-  .blog-kicker {
-    margin: 0 0 .5rem; font-family: var(--font-subtitle, cursive); font-size: clamp(1.1rem, 2.2vw, 1.5rem);
-    color: rgb(255 255 255 / .55);
-  }
   .blog-header h1 {
     margin: 0 0 .75rem; font-family: var(--font-title); font-size: clamp(2.4rem, 6vw, 4rem); color: #fff;
     letter-spacing: .02em;
