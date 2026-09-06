@@ -24,17 +24,26 @@ const components = [
 ];
 ---
 <div class="blog-backdrop" data-blog-backdrop aria-hidden="true">
-  <div class="blog-backdrop-plane" data-blog-backdrop-plane>
-    <img class="blog-backdrop-image" src="/hero/bg-table.webp" alt="" />
-    <div class="blog-backdrop-components">
-      {components.map((component) => (
-        <div
-          class="component-placement"
-          style={`--x:${component.x}%; --y:${component.y}%; --w:${component.w}%; --h:${component.h}%; --placement:${component.transform};`}
-        >
-          <img class="table-component" src={component.src} alt="" draggable="false" />
-        </div>
-      ))}
+  <!-- سه‌لایه، دقیقاً مثلِ .artboard/.table-plane/.table-plane-inner توی
+       index.astro و contact.astro: لایه‌ی بیرونی فقط سنتر+چرخشِ ثابته (هیچ‌وقت
+       با GSAP دست‌کاری نمی‌شه)، لایه‌ی داخلی فقط scale داره و تنها همینه که
+       GSAP براش x رو انیمیت می‌کنه. اگه translate(-50%,-50%) و rotate(180deg)
+       رو با scale روی یه المانِ واحد می‌ذاشتیم (نسخه‌ی قبلی)، اولین‌باری که
+       GSAP اون transform رو می‌گرفت دست، اشتباه پارسش می‌کرد و باعثِ یه
+       جهش/کشیده‌شدنِ ناگهانی به چپ می‌شد، دقیقاً همون‌که گزارش شد. -->
+  <div class="blog-backdrop-artboard">
+    <div class="blog-backdrop-plane" data-blog-backdrop-plane>
+      <img class="blog-backdrop-image" src="/hero/bg-table.webp" alt="" />
+      <div class="blog-backdrop-components">
+        {components.map((component) => (
+          <div
+            class="component-placement"
+            style={`--x:${component.x}%; --y:${component.y}%; --w:${component.w}%; --h:${component.h}%; --placement:${component.transform};`}
+          >
+            <img class="table-component" src={component.src} alt="" draggable="false" />
+          </div>
+        ))}
+      </div>
     </div>
   </div>
   <div class="blog-backdrop-overlay"></div>
@@ -42,16 +51,19 @@ const components = [
 
 <style>
   .blog-backdrop { position: fixed; inset: 0; overflow: hidden; background: #121817; }
-  .blog-backdrop-plane {
+  .blog-backdrop-artboard {
     position: absolute; inset: 50% auto auto 50%;
     width: max(100%, calc(100dvh * 16 / 9));
     height: max(100%, calc(100dvw * 9 / 16));
     aspect-ratio: 16 / 9;
-    /* ۱۸۰ درجه طبقِ خواسته — بعدِ rotate باید دوباره centered بشه، برای
-       همین translate هم توی همین transform هست (ترتیب مهمه: اول center،
-       بعد بچرخون، بعد کمی zoom تا لبه‌ها موقعِ چرخش خالی نمونن). */
-    transform: translate(-50%, -50%) rotate(180deg) scale(1.065);
-    will-change: transform;
+    /* فقط سنتر+چرخشِ ثابت — این المان هیچ‌وقت با GSAP دست‌کاری نمی‌شه. */
+    transform: translate(-50%, -50%) rotate(180deg);
+  }
+  .blog-backdrop-plane {
+    position: absolute; inset: 0;
+    /* تنها transform ای که GSAP باهاش کار می‌کنه — ساده و بدونِ ترکیب با
+       translate/rotate، دقیقاً مثلِ .table-plane-inner توی صفحاتِ دیگه. */
+    transform: scale(1.065); will-change: transform;
   }
   .blog-backdrop-image { display: block; width: 100%; height: 100%; object-fit: cover; }
   .blog-backdrop-components { position: absolute; inset: 0; pointer-events: none; }
