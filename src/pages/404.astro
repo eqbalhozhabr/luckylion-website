@@ -1,0 +1,47 @@
+---
+import Layout from '../layouts/Layout.astro';
+import BlogBackdrop from '../components/BlogBackdrop.astro';
+---
+
+<Layout title="Page Not Found — Lucky Lion Games" description="This page drifted into the mist. Head back to Lucky Lion Games.">
+<BlogBackdrop />
+<section class="not-found" aria-label="Page not found">
+  <div class="not-found-inner">
+    <p class="not-found-kicker">404</p>
+    <h1>Lost in the Mist</h1>
+    <p class="not-found-copy">This page doesn't exist — maybe it was consumed by a monster, or the link just wandered off. Let's get you back somewhere safe.</p>
+    <div class="not-found-links">
+      <a href="/">Home</a>
+      <a href="/blog/">Blog</a>
+      <a href="/contact/">Contact Us</a>
+    </div>
+  </div>
+</section>
+</Layout>
+
+<style>
+  .not-found {
+    position: relative; z-index: 1; min-height: 100dvh; color: #d8dfe5;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    padding: clamp(1.5rem, 6vw, 3.5rem);
+  }
+  .not-found-inner {
+    max-width: 30rem; background: rgb(18 24 23 / .55); backdrop-filter: blur(8px);
+    border: 1px solid rgb(255 255 255 / .12); border-radius: 1.25rem; padding: clamp(2rem, 6vw, 3rem);
+  }
+  .not-found-kicker {
+    margin: 0 0 .25rem; font-family: var(--font-title); font-size: clamp(2.5rem, 8vw, 4rem);
+    color: rgb(255 255 255 / .25); letter-spacing: .04em;
+  }
+  .not-found-inner h1 {
+    margin: 0 0 .75rem; font-family: var(--font-title); font-size: clamp(1.8rem, 4.5vw, 2.6rem); color: #fff;
+  }
+  .not-found-copy { margin: 0 0 1.75rem; font-size: .95rem; line-height: 1.6; color: rgb(216 223 229 / .85); }
+  .not-found-links { display: flex; flex-wrap: wrap; gap: .75rem; justify-content: center; }
+  .not-found-links a {
+    font-size: .85rem; color: #d8dfe5; text-decoration: none;
+    border: 1px solid rgb(255 255 255 / .35); border-radius: 999px; padding: .55rem 1.2rem;
+    background: rgb(18 24 23 / .35); transition: border-color .2s ease, color .2s ease;
+  }
+  .not-found-links a:hover { border-color: #fff; color: #fff; }
+</style>
