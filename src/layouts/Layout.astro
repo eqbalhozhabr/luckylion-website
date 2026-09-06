@@ -6,8 +6,22 @@ interface Props {
 	/** Per-page <title> — defaults to the plain studio name for the hero/contact pages. */
 	title?: string;
 	description?: string;
+	/** برای og:image / twitter:image — مسیرِ نسبی (از public/)، پیش‌فرض بک‌گراندِ میزِ بازی. */
+	image?: string;
+	/** بلاگ پست‌ها article هستن، بقیه‌ی صفحات website — برای og:type. */
+	type?: 'website' | 'article';
 }
-const { title = 'Lucky Lion Games', description } = Astro.props;
+const {
+	title = 'Lucky Lion Games',
+	description = "Lucky Lion Games is an independent studio crafting The Last Shelter: Whispers of the Mist — a tabletop game of survival, resource management, and mist-shrouded monsters.",
+	image = '/hero/bg-table.webp',
+	type = 'website',
+} = Astro.props;
+
+// URL مطلق برای canonical/og:url (بدونِ query/hash) — astro.config.mjs یه `site`
+// تعریف کرده، پس Astro.url همیشه origin رو هم داره، حتی توی dev.
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const absoluteImageURL = new URL(image, Astro.site);
 ---
 <!doctype html>
 <html lang="en">
@@ -18,7 +32,38 @@ const { title = 'Lucky Lion Games', description } = Astro.props;
 		<link rel="icon" href="/favicon.ico" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
-		{description && <meta name="description" content={description} />}
+		<meta name="description" content={description} />
+		<link rel="canonical" href={canonicalURL} />
+
+		<!-- Open Graph — پیش‌نمایشِ لینک توی لینکداین/فیسبوک/واتساپ و... -->
+		<meta property="og:type" content={type} />
+		<meta property="og:url" content={canonicalURL} />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:image" content={absoluteImageURL} />
+		<meta property="og:site_name" content="Lucky Lion Games" />
+
+		<!-- Twitter/X card -->
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={absoluteImageURL} />
+
+		<!-- JSON-LD — به گوگل می‌گه این یه استودیوی بازی‌سازیه، برای نمایشِ بهترِ
+		     نتیجه‌ی جست‌وجو (Knowledge Panel و مشابه). فقط یه‌بار (توی هر صفحه)
+		     کافیه، تکرارش رو گوگل مشکلی نمی‌بینه ولی لازم هم نیست. -->
+		<script type="application/ld+json" set:html={JSON.stringify({
+			'@context': 'https://schema.org',
+			'@type': 'Organization',
+			name: 'Lucky Lion Games',
+			url: 'https://www.luckylion.games',
+			logo: new URL('/hero/LogoLuckyLionGames_001.webp', Astro.site).toString(),
+			sameAs: [
+				'https://www.linkedin.com/company/lucky-lion-games',
+				'https://www.instagram.com/luckyliongames/',
+				'https://gamefound.com/en/creators/eqbalh',
+			],
+		})} />
 	</head>
 	<body>
 		<slot />

@@ -17,7 +17,16 @@ const { Content } = await render(post);
 const dateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 ---
 
-<Layout title={`${post.data.title} — Lucky Lion Games Blog`} description={post.data.excerpt}>
+<Layout title={`${post.data.title} — Lucky Lion Games Blog`} description={post.data.excerpt} type="article">
+<script type="application/ld+json" set:html={JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: post.data.title,
+  description: post.data.excerpt,
+  datePublished: post.data.pubDate.toISOString(),
+  author: { '@type': 'Organization', name: 'Lucky Lion Games' },
+  publisher: { '@type': 'Organization', name: 'Lucky Lion Games' },
+})} />
 <BlogBackdrop />
 <article class="post-page" aria-label={post.data.title}>
   <div class="post-page-inner">
