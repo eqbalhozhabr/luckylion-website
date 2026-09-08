@@ -1,0 +1,709 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { games } from '../data/games';
+
+// PLACEHOLDER PHASE — see src/data/games.ts for the per-game data this page
+// renders from. Nothing below needs to change to add a game; add an entry
+// to that array instead. All four games now have real box/component art,
+// summary copy, and (except Cumulus) a BoardGameGeek link. What's still
+// missing before this page is fully "real":
+//   - real status (buy / out of stock / coming soon) + store URL per game —
+//     everything is still `comingsoon` until an actual store link exists
+//   - BoardGameArena / Tabletopia URLs + logo files (currently text badges,
+//     rendered disabled since no URL exists yet)
+//   - a BoardGameGeek listing/link for Cumulus
+//   - final art-directed backgrounds (currently a blurred 2-color wash)
+
+const statusLabel: Record<string, string> = {
+	buy: 'Buy Now',
+	outofstock: 'Out of Stock',
+	comingsoon: 'Coming Soon',
+};
+
+// Splits title into the plain part + the optional titleAccent suffix (see
+// the field's doc comment in games.ts) so only that suffix can get the
+// handwriting-font treatment.
+function splitTitle(game: (typeof games)[number]) {
+	if (game.titleAccent && game.title.endsWith(game.titleAccent)) {
+		return { main: game.title.slice(0, game.title.length - game.titleAccent.length), accent: game.titleAccent };
+	}
+	return { main: game.title, accent: null };
+}
+
+// summary is authored as plain text: a blank line (\n\n) starts a new
+// paragraph, a single \n is a line break within one.
+function summaryParagraphs(summary: string) {
+	return summary.split(/\n\n+/).map((paragraph) => paragraph.split('\n'));
+}
+---
+
+<Layout
+	title="Games — Lucky Lion Games"
+	description="Explore the tabletop games from Lucky Lion Games, including The Last Shelter: Whispers of the Mist."
+>
+<div class="games-viewport" data-games-viewport>
+	<!-- Backdrops are separate, stacked layers that only crossfade opacity —
+	     kept apart from the sliding content below so the color wash never
+	     drags/slides with the box+text transition. -->
+	<div class="games-backdrops" aria-hidden="true">
+		{games.map((game, i) => (
+			<div class="game-backdrop" data-backdrop data-index={i} style={`--c1:${game.backdrop[0]}; --c2:${game.backdrop[1]}`}></div>
+		))}
+	</div>
+
+	<div class="games-slides">
+		{games.map((game, i) => { const titleParts = splitTitle(game); const paragraphs = summaryParagraphs(game.summary); return (
+			<section class="game-slide" data-slide data-index={i} aria-label={game.title} aria-hidden={i === 0 ? 'false' : 'true'}>
+				<div class="slide-stage">
+					<div class="slide-box-wrap" data-box style={`--box-color:${game.boxColor}`}>
+						{game.boxImage ? (
+							<img class="slide-box-image" src={game.boxImage} alt={`${game.title} box`} />
+						) : (
+							<div class="slide-box" aria-hidden="true">
+								<div class="slide-box-face slide-box-face--front"></div>
+								<div class="slide-box-face slide-box-face--side"></div>
+								<div class="slide-box-face slide-box-face--top"></div>
+							</div>
+						)}
+					</div>
+					<div class="slide-components" data-components aria-hidden="true">
+						{game.components.map((c) => (
+							// The mover carries only position + GSAP's travel (x/y) — it has
+							// no CSS-authored transform of its own, so animating it can never
+							// clobber the inner piece's own centering/rotation transform (see
+							// the CSS comment on .slide-component for why that split matters).
+							<div class="slide-component-mover" data-component-mover data-speed={c.speed ?? 1} style={`left:calc(50% + ${c.x}%); top:calc(50% + ${c.y}%); z-index:${c.behind ? 1 : 10};`}>
+								{c.image ? (
+									<img
+										class={`slide-component slide-component--image${c.near ? ' slide-component--near' : ''}`}
+										style={`--size:${c.size}rem; --rotate:${c.rotate ?? 0}deg;`}
+										src={c.image} alt=""
+									/>
+								) : (
+									<div
+										class={`slide-component slide-component--${c.shape}${c.near ? ' slide-component--near' : ''}`}
+										style={`--size:${c.size}rem; --rotate:${c.rotate ?? 0}deg; --color:${c.color};`}
+									></div>
+								)}
+							</div>
+						))}
+					</div>
+				</div>
+
+				<div class="slide-info">
+					{game.logo ? (
+						<h2 class="slide-title slide-title--logo" data-title>
+							<img class="slide-logo" src={game.logo} alt={game.title} />
+						</h2>
+					) : (
+						<h2 class="slide-title" data-title>{titleParts.main}{titleParts.accent && <span class="slide-title-accent">{titleParts.accent}</span>}</h2>
+					)}
+					<div class="slide-summary" data-summary>
+						{paragraphs.map((lines) => (
+							<p>{lines.map((line, li) => (li === 0 ? line : <><br />{line}</>))}</p>
+						))}
+					</div>
+					{game.mechanics && game.mechanics.length > 0 && (
+						<ul class="slide-mechanics" data-mechanics>
+							{game.mechanics.map((m) => <li>{m}</li>)}
+						</ul>
+					)}
+
+					<div class="slide-actions" data-actions>
+						{game.status === 'buy' && game.buyUrl ? (
+							<a class="status-btn status-btn--buy" href={game.buyUrl} target="_blank" rel="noopener noreferrer">{statusLabel.buy}</a>
+						) : game.comingSoonLabel && game.comingSoonUrl ? (
+							<a class="status-btn status-btn--follow" href={game.comingSoonUrl} target="_blank" rel="noopener noreferrer">{game.comingSoonLabel}</a>
+						) : (
+							<span class="status-btn status-btn--disabled" aria-disabled="true">{statusLabel[game.status]}</span>
+						)}
+
+						<div class="platform-row">
+							{game.bgaUrl ? (
+								<a class="platform-btn" href={game.bgaUrl} target="_blank" rel="noopener noreferrer" aria-label={`Play ${game.title} on BoardGameArena`}>
+									<img src="/icons/BGA.png" alt="" />
+								</a>
+							) : (
+								<span class="platform-btn is-disabled" aria-disabled="true" aria-label="BoardGameArena — coming soon">
+									<img src="/icons/BGA.png" alt="" />
+								</span>
+							)}
+							{game.tabletopiaUrl ? (
+								<a class="platform-btn" href={game.tabletopiaUrl} target="_blank" rel="noopener noreferrer" aria-label={`Play ${game.title} on Tabletopia`}>
+									<img src="/icons/TT-logo.png" alt="" />
+								</a>
+							) : (
+								<span class="platform-btn is-disabled" aria-disabled="true" aria-label="Tabletopia — coming soon">
+									<img src="/icons/TT-logo.png" alt="" />
+								</span>
+							)}
+							{game.bggUrl ? (
+								<a class="platform-btn platform-btn--bgg" href={game.bggUrl} target="_blank" rel="noopener noreferrer" aria-label={`${game.title} on BoardGameGeek`}>
+									<img src="/icons/BGG-logo.png" alt="" />
+								</a>
+							) : (
+								<span class="platform-btn platform-btn--bgg is-disabled" aria-disabled="true" aria-label="BoardGameGeek — coming soon">
+									<img src="/icons/BGG-logo.png" alt="" />
+								</span>
+							)}
+							{game.youtubeUrl ? (
+								<a class="platform-btn platform-btn--youtube" href={game.youtubeUrl} target="_blank" rel="noopener noreferrer" aria-label={`${game.title} trailer on YouTube`}>
+									<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="5" width="21" height="14" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" /><path d="M10 8.5 16 12l-6 3.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /></svg>
+								</a>
+							) : (
+								<span class="platform-btn platform-btn--youtube is-disabled" aria-disabled="true" aria-label="YouTube trailer — coming soon">
+									<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="5" width="21" height="14" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" /><path d="M10 8.5 16 12l-6 3.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /></svg>
+								</span>
+							)}
+						</div>
+					</div>
+				</div>
+			</section>
+		); })}
+	</div>
+
+	<nav class="games-pager" aria-label="Browse games">
+		<button type="button" class="pager-arrow" data-pager-prev aria-label="Previous game">&uarr;</button>
+		<div class="games-dots" role="tablist">
+			{games.map((game, i) => (
+				<button type="button" class="games-dot" data-dot data-goto={i} aria-label={`Go to ${game.title}`} aria-selected={i === 0 ? 'true' : 'false'}></button>
+			))}
+		</div>
+		<button type="button" class="pager-arrow" data-pager-next aria-label="Next game">&darr;</button>
+	</nav>
+</div>
+</Layout>
+
+<style>
+	/* This page is a full-viewport "one game at a time" pager, not a normal
+	   scrolling page — see the note at the top of the file. No document
+	   scrollbar should ever appear here. */
+	:global(html), :global(body) { overflow: hidden; margin: 0; height: 100%; }
+
+	.games-viewport { position: relative; width: 100%; height: 100dvh; overflow: hidden; background: #0d1211; color: #d8dfe5; }
+
+	/* BACKDROPS ----------------------------------------------------------- */
+	.games-backdrops, .game-backdrop { position: absolute; inset: 0; }
+	.game-backdrop {
+		opacity: 0;
+		background:
+			radial-gradient(circle at 25% 30%, var(--c1), transparent 60%),
+			radial-gradient(circle at 75% 70%, var(--c2), transparent 60%),
+			#0d1211;
+		filter: blur(60px) saturate(1.1);
+		transform: scale(1.15); /* keeps the blurred edge from ever showing a hard border */
+		transition: opacity .7s ease;
+	}
+	.game-backdrop[data-index="0"] { opacity: 1; }
+
+	/* SLIDES ---------------------------------------------------------------*/
+	.games-slides { position: absolute; inset: 0; }
+	.game-slide {
+		position: absolute; inset: 0;
+		display: grid; grid-template-columns: 1fr 1fr; align-items: center;
+		padding: clamp(5rem, 9vh, 7rem) clamp(2rem, 6vw, 5rem) clamp(3rem, 6vh, 4rem);
+		gap: clamp(1.5rem, 4vw, 4rem);
+		pointer-events: none;
+	}
+	.game-slide[aria-hidden="false"] { pointer-events: auto; }
+
+	/* STAGE (right column — box + components) ------------------------------*/
+	/* grid-row:1 is required on both this and .slide-info below: with only
+	   grid-column set, CSS Grid's auto-placement cursor advances past
+	   column 1 once this (column 2) item is placed — since it comes first
+	   in DOM order — so .slide-info silently gets pushed onto a second row
+	   instead of sharing this one. */
+	.slide-stage { position: relative; grid-column: 2; grid-row: 1; height: min(72vh, 40rem); perspective: 1400px; }
+
+	/* Nudged left of the stage's own center (translateX) so the box reads as
+	   closer to the middle of the whole screen, not glued to the right edge. */
+	/* z-index sits between a component-mover's two possible values (1 =
+	   behind, 10 = in front — set inline per piece from `behind` in
+	   games.ts) so some components can peek out from behind the box while
+	   others float in front of it. */
+	.slide-box-wrap { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; transform: translateX(-12%); }
+	.slide-box {
+		--depth: 3.25rem;
+		position: relative; width: min(75%, 25rem); height: min(88%, 32rem);
+		transform-style: preserve-3d;
+		transform: rotateY(-22deg) rotateX(8deg);
+	}
+	.slide-box-face { position: absolute; background: var(--box-color); }
+	.slide-box-face--front {
+		inset: 0; border-radius: .6rem;
+		box-shadow: 0 40px 80px rgb(0 0 0 / .55);
+		background: linear-gradient(155deg, color-mix(in srgb, var(--box-color) 100%, white 18%), var(--box-color) 55%);
+	}
+	.slide-box-face--side {
+		top: 0; right: 0; width: var(--depth); height: 100%;
+		transform-origin: right; transform: rotateY(90deg);
+		background: color-mix(in srgb, var(--box-color) 55%, black);
+		border-radius: 0 .6rem .6rem 0;
+	}
+	.slide-box-face--top {
+		top: 0; left: 0; width: 100%; height: var(--depth);
+		transform-origin: top; transform: rotateX(90deg);
+		background: color-mix(in srgb, var(--box-color) 80%, white 20%);
+		border-radius: .6rem .6rem 0 0;
+	}
+	.slide-box-image { display: block; max-width: 80%; max-height: 90%; margin: 0 auto; filter: drop-shadow(0 30px 60px rgb(0 0 0 / .55)); }
+
+	.slide-components { position: absolute; inset: 0; }
+	/* The mover is positioned (left/top, from inline style) and is the ONLY
+	   element the script ever puts a GSAP x/y travel tween on. It carries no
+	   transform of its own, so GSAP always starts that tween from a clean
+	   x:0/y:0 baseline — if the inner .slide-component below (which DOES
+	   have its own translate+rotate transform for centering/orientation)
+	   were animated directly instead, GSAP would take over its whole
+	   `transform` property and silently drop that centering. */
+	.slide-component-mover { position: absolute; }
+	.slide-component {
+		display: block; width: var(--size); height: var(--size);
+		transform: translate(-50%, -50%) rotate(var(--rotate));
+		background: var(--color);
+		box-shadow: 0 12px 24px rgb(0 0 0 / .4);
+	}
+	.slide-component--circle { border-radius: 50%; }
+	.slide-component--square { border-radius: .35rem; }
+	/* Real component photo/render (see `image` in games.ts) — no background
+	   fill or rounded-shape styling, just the image itself with a matching
+	   drop shadow instead of the placeholder's box-shadow. */
+	.slide-component--image {
+		background: none; box-shadow: none; object-fit: contain;
+		filter: drop-shadow(0 10px 18px rgb(0 0 0 / .4));
+	}
+	/* "Closer to camera" pieces — a soft shallow-depth-of-field blur instead
+	   of full focus, per the brief. Slightly larger/brighter too, to sell
+	   the proximity, not just blur. */
+	.slide-component--near { filter: blur(2.5px); }
+
+	/* All slides ship fully painted from the server (no client-side
+	   show/hide toggle on the wrapper itself — see .game-slide above), so
+	   without this, every game's box/components/text would sit stacked on
+	   top of each other at full opacity until the active one's entrance
+	   animation happened to touch it. The script's playEnter()/playExit()
+	   drive these via GSAP's autoAlpha (opacity+visibility together) from
+	   here on — this is only the pre-JS/never-yet-visited default. */
+	[data-box], [data-component-mover], [data-title], [data-summary], [data-mechanics], [data-actions] {
+		opacity: 0; visibility: hidden;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		[data-box], [data-component-mover], [data-title], [data-summary], [data-mechanics], [data-actions] {
+			opacity: 1; visibility: visible;
+		}
+	}
+
+	/* INFO (left column) ----------------------------------------------------*/
+	/* A little breathing room off the hard left edge, so the text doesn't
+	   read as glued to the corner now that the box has moved toward center. */
+	.slide-info { grid-column: 1; grid-row: 1; max-width: 32rem; margin-left: clamp(0.5rem, 4vw, 3rem); }
+	.slide-title {
+		margin: 0 0 1rem; font-family: var(--font-title); color: #fff;
+		font-size: clamp(1.9rem, 3.4vw, 3rem); line-height: 1.1; letter-spacing: .01em;
+		text-shadow: 0 5px 8px #000, 0 0 20px rgb(0 0 0 / .5);
+	}
+	/* The ONE deliberate exception to this page never using the site's
+	   handwriting font — see the `titleAccent` field in games.ts. Bumped up
+	   a bit since script faces generally need more size to stay legible. */
+	.slide-title-accent { display: block; font-family: var(--font-subtitle); font-weight: 400; font-size: 1.2em; }
+	/* Logo wordmark — replaces the text title entirely once games.ts has a
+	   `logo` for that game (see the .slide-title--logo class swap above).
+	   Width-constrained, not height-constrained: every logo file is a
+	   different canvas/aspect ratio, so capping height would crop some and
+	   leave others tiny — a shared width with natural height keeps them
+	   all readable at a consistent visual scale instead. */
+	.slide-title--logo { margin-bottom: 1.25rem; }
+	.slide-logo {
+		display: block; width: min(85%, 24rem); height: auto;
+		filter: drop-shadow(0 5px 8px #000) drop-shadow(0 0 20px rgb(0 0 0 / .5));
+	}
+	.slide-summary {
+		margin: 0 0 1.25rem; font-family: var(--font-body); color: rgb(216 223 229 / .9);
+		font-size: clamp(.95rem, 1.3vw, 1.15rem); line-height: 1.6;
+	}
+	.slide-summary p { margin: 0 0 .85em; }
+	.slide-summary p:last-child { margin-bottom: 0; }
+	.slide-mechanics { list-style: none; display: flex; flex-wrap: wrap; gap: .45rem; margin: 0 0 2rem; padding: 0; }
+	.slide-mechanics li {
+		font-family: var(--font-body); font-size: .78rem; letter-spacing: .02em; color: rgb(216 223 229 / .85);
+		border: 1px solid rgb(255 255 255 / .25); border-radius: 999px; padding: .3rem .8rem;
+	}
+
+	.slide-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 1rem; margin-top: 1.5rem; }
+
+	.status-btn {
+		font-family: var(--font-body); font-weight: 600; font-size: .9rem; letter-spacing: .02em;
+		border-radius: 999px; padding: .7rem 1.75rem; text-decoration: none; display: inline-block;
+	}
+	.status-btn--buy {
+		background: #f2f5f4; color: #121817;
+		transition: transform .2s ease, box-shadow .2s ease;
+		box-shadow: 0 8px 20px rgb(0 0 0 / .35);
+	}
+	.status-btn--buy:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgb(0 0 0 / .45); }
+	.status-btn--disabled {
+		color: rgb(216 223 229 / .55); border: 1px solid rgb(255 255 255 / .25);
+		background: rgb(18 24 23 / .35);
+	}
+	/* An actually-clickable stand-in for "Coming Soon" (e.g. "Follow us on
+	   Gamefound") — bordered like the disabled pill so it doesn't compete
+	   with the solid Buy Now style, but full-opacity text/border since,
+	   unlike that pill, this one really does do something. */
+	.status-btn--follow {
+		color: #fff; border: 1px solid rgb(255 255 255 / .55); background: rgb(18 24 23 / .35);
+		text-decoration: none; transition: border-color .2s ease, background .2s ease;
+	}
+	.status-btn--follow:hover { border-color: #fff; background: rgb(18 24 23 / .6); }
+
+	.platform-row { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+	.platform-btn {
+		width: 2.5rem; height: 2.5rem; display: grid; place-items: center; border-radius: 50%;
+		border: 1px solid rgb(255 255 255 / .35); background: rgb(18 24 23 / .35); backdrop-filter: blur(6px);
+		color: #d8dfe5; font-family: var(--font-body); font-size: .68rem; font-weight: 700; letter-spacing: .02em;
+		text-decoration: none; transition: border-color .2s ease, color .2s ease, background .2s ease;
+	}
+	.platform-btn:hover { border-color: #fff; color: #fff; background: rgb(18 24 23 / .6); }
+	.platform-btn.is-disabled { color: rgb(216 223 229 / .35); border-color: rgb(255 255 255 / .15); cursor: not-allowed; }
+	.platform-btn img { width: 1.15rem; height: 1.15rem; object-fit: contain; }
+	.platform-btn.is-disabled img { opacity: .5; }
+	.platform-btn--youtube svg { width: 1.3rem; height: 1.3rem; }
+
+	/* PAGER -----------------------------------------------------------------*/
+	.games-pager {
+		position: absolute; right: clamp(1.25rem, 4vw, 3rem); top: 50%; transform: translateY(-50%); z-index: 20;
+		display: flex; flex-direction: column; align-items: center; gap: .9rem;
+	}
+	.pager-arrow {
+		width: 2.25rem; height: 2.25rem; border-radius: 50%; display: grid; place-items: center;
+		border: 1px solid rgb(255 255 255 / .35); background: rgb(18 24 23 / .35); backdrop-filter: blur(6px);
+		color: #d8dfe5; cursor: pointer; font-size: 1rem; transition: border-color .2s ease, color .2s ease, background .2s ease;
+	}
+	.pager-arrow:hover { border-color: #fff; color: #fff; background: rgb(18 24 23 / .6); }
+	.games-dots { display: flex; flex-direction: column; gap: .55rem; }
+	.games-dot {
+		width: .55rem; height: .55rem; border-radius: 50%; padding: 0;
+		border: 1px solid rgb(255 255 255 / .5); background: transparent; cursor: pointer;
+		transition: background .2s ease, transform .2s ease;
+	}
+	.games-dot[aria-selected="true"] { background: #fff; transform: scale(1.2); }
+
+	@media (max-width: 900px), (max-aspect-ratio: 3 / 4) {
+		.game-slide {
+			grid-template-columns: 1fr; grid-template-rows: auto auto;
+			padding: clamp(5.5rem, 12vh, 7rem) clamp(1.5rem, 6vw, 2.5rem) clamp(2rem, 6vh, 3rem);
+			text-align: center; overflow-y: auto;
+		}
+		.slide-stage { grid-column: 1; grid-row: 1; height: 40vh; }
+		.slide-info { grid-column: 1; grid-row: 2; max-width: 100%; }
+		.slide-mechanics, .platform-row { justify-content: center; }
+		.slide-actions { align-items: center; }
+		/* The side rail would otherwise sit on top of the box at this width —
+		   move it to a small horizontal strip at the bottom-center instead
+		   (the only fixed corner not already claimed by the studio logo,
+		   menu button, or chat bubble). */
+		.games-pager {
+			position: fixed; bottom: 1rem; left: 50%; right: auto; top: auto;
+			transform: translateX(-50%); flex-direction: row; gap: .6rem;
+		}
+		.games-dots { flex-direction: row; }
+		.pager-arrow { display: none; }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.game-backdrop { transition: none; }
+	}
+</style>
+
+<script>
+	import { gsap } from 'gsap';
+	const viewport = document.querySelector<HTMLElement>('[data-games-viewport]');
+	if (!viewport) throw new Error('[Games] viewport missing');
+
+	const slides = Array.from(viewport.querySelectorAll<HTMLElement>('[data-slide]'));
+	const backdrops = Array.from(viewport.querySelectorAll<HTMLElement>('[data-backdrop]'));
+	const dots = Array.from(viewport.querySelectorAll<HTMLElement>('[data-dot]'));
+	const prevBtn = viewport.querySelector<HTMLButtonElement>('[data-pager-prev]');
+	const nextBtn = viewport.querySelector<HTMLButtonElement>('[data-pager-next]');
+	const motionAllowed = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	let activeIndex = 0;
+	let isAnimating = false;
+
+	// Idle float: once a slide's components have fully landed, each drifts
+	// gently up/down on its own irregular little loop — different duration,
+	// amplitude and phase per piece so they never move in sync — until the
+	// slide exits. Tracked per-element so exit can kill exactly these
+	// tweens (and only these) before starting the exit animation.
+	const idleTweens = new WeakMap<HTMLElement, gsap.core.Tween>();
+
+	function startIdleFloat(elements: HTMLElement[]) {
+		if (!motionAllowed) return;
+		elements.forEach((el) => {
+			if (idleTweens.has(el)) return;
+			const amplitude = 4 + Math.random() * 6; // 4–10px
+			const duration = 2 + Math.random() * 1.8; // 2–3.8s, irregular per piece
+			const tween = gsap.to(el, {
+				y: `+=${amplitude}`,
+				duration,
+				delay: Math.random() * 1.2, // different phase, not synchronized
+				ease: 'sine.inOut',
+				yoyo: true,
+				repeat: -1,
+			});
+			idleTweens.set(el, tween);
+		});
+	}
+
+	function stopIdleFloat(elements: HTMLElement[]) {
+		elements.forEach((el) => {
+			const tween = idleTweens.get(el);
+			if (tween) {
+				tween.kill();
+				idleTweens.delete(el);
+			}
+		});
+	}
+
+	function elementsFor(slide: HTMLElement) {
+		return {
+			box: slide.querySelector<HTMLElement>('[data-box]'),
+			// Each mover's own data-speed drives its individual travel speed —
+			// see playEnter/playExit below.
+			components: Array.from(slide.querySelectorAll<HTMLElement>('[data-component-mover]')),
+			title: slide.querySelector<HTMLElement>('[data-title]'),
+			summary: slide.querySelector<HTMLElement>('[data-summary]'),
+			mechanics: slide.querySelector<HTMLElement>('[data-mechanics]'),
+			actions: slide.querySelector<HTMLElement>('[data-actions]'),
+		};
+	}
+
+	function speedOf(mover: HTMLElement) {
+		const raw = Number(mover.getAttribute('data-speed'));
+		return Number.isFinite(raw) && raw > 0 ? raw : 1;
+	}
+
+	// Bends a straight left↔right sweep into one continuous, smooth arc.
+	//
+	// Three earlier versions had real bugs here, all worth leaving a note on:
+	//  1) Chaining TWO separate tweens (a "rise" then a "fall") — velocity
+	//     discontinued at the seam where they met (each one decelerates
+	//     into its own end, then the next starts from a fresh acceleration),
+	//     which read as a stutter/stop in the middle, and the path itself
+	//     had a visible kink at the top instead of a smooth round arc.
+	//  2) Driving x/y from a SEPARATE proxy object's onUpdate (to get a
+	//     smooth single-tween parabola) — animated correctly in isolation,
+	//     but the box ALSO had its own separate rotateY tween running on
+	//     the very same element; two independent GSAP tweens both touching
+	//     one element's transform in the same timeline apparently fight
+	//     over its internal transform cache, and x silently stayed frozen
+	//     at 0 every frame (confirmed by inspecting the live tween — its
+	//     `x` var was progressing fine, the DOM just never reflected it).
+	//  3) Splitting the box's rotateY into its own separate tween instead of
+	//     folding it into this one, which reproduced bug #2's exact
+	//     symptom again (x frozen at 0) for the same reason: don't put two
+	//     tweens on one target's transform in the same timeline, ever.
+	// Fixed by making this the ONLY tween that ever touches `target`'s
+	// transform: x is a real tweened property (so it behaves like any
+	// normal GSAP tween), y is derived as a `modifiers` side-effect of x's
+	// own per-frame value (one continuous eased curve, no seam), and an
+	// optional rotateY rides along on the exact same tween instead of a
+	// second one.
+	function arcTravel(tl: gsap.core.Timeline, target: HTMLElement, opts: {
+		x: number; arcHeight: number; duration: number; startAt: number;
+		rotation?: number; rotateYFrom?: number; ease?: string;
+	}) {
+		const { x: fromX, arcHeight, duration, startAt, rotation = 0, rotateYFrom, ease = 'sine.inOut' } = opts;
+		tl.fromTo(target,
+			{ x: fromX, y: 0, rotation: 0, autoAlpha: 0, ...(rotateYFrom !== undefined ? { rotateY: rotateYFrom } : {}) },
+			{
+				x: 0, rotation, autoAlpha: 1, duration, ease,
+				...(rotateYFrom !== undefined ? { rotateY: 0 } : {}),
+				modifiers: {
+					x: (value: string) => {
+						const p = fromX === 0 ? 1 : 1 - (parseFloat(value) / fromX);
+						gsap.set(target, { y: arcHeight * 4 * p * (1 - p) }); // parabola: 0 → arcHeight (mid) → 0
+						return value;
+					},
+				},
+			}, startAt);
+	}
+
+	// Entrance: the box leads — the components are its "children", each
+	// launching only once the box is already partway through its own
+	// travel (not waiting for it to fully land), one after another with a
+	// small gap between each launch (not a pack that all moves together).
+	// Each component's own data-speed (see games.ts)
+	// also gives it its own travel duration, so besides the staggered start,
+	// they don't even arrive at evenly-spaced times.
+	//
+	// `dir` is 1 for the normal left→right sweep (initial load, "next"),
+	// -1 to run the whole thing mirrored (right→left, for "prev") — see
+	// goTo() below for why this needs to flip with scroll direction.
+	// Guards against a 0/unreported innerWidth at the exact instant this
+	// script runs (seen in at least one automated test browser) so the
+	// travel distance never accidentally collapses to 0.
+	function viewportWidth() {
+		return window.innerWidth || document.documentElement.clientWidth || 1200;
+	}
+
+	function playEnter(slide: HTMLElement, dir: 1 | -1) {
+		const el = elementsFor(slide);
+		const tl = gsap.timeline();
+		const boxTravel = Math.min(viewportWidth() * 0.6, 900) * dir;
+
+		if (!motionAllowed) {
+			gsap.set([el.box, ...el.components, el.title, el.summary, el.mechanics, el.actions].filter(Boolean), { autoAlpha: 1, x: 0, y: 0, scale: 1, rotation: 0, rotateY: 0 });
+			return tl;
+		}
+
+		const BOX_DURATION = 1;
+		if (el.box) arcTravel(tl, el.box, { x: -boxTravel, arcHeight: -28, duration: BOX_DURATION, startAt: 0, rotateYFrom: 8 * dir });
+
+		// Each component launches once the box is partway through its own
+		// travel (COMPONENTS_START_AT), one after another with a small gap
+		// (COMPONENT_STAGGER) — they're still the box's "children" (it leads,
+		// they follow), just with a shorter lead-in than waiting for the box
+		// to fully land. Duration is DERIVED from speed (not the other way
+		// around) and kept short and snappy, per piece, so "arrive one by one
+		// with a small gap" actually reads as gaps between arrivals, not
+		// overlapping crawls.
+		const COMPONENTS_START_AT = BOX_DURATION * 0.5;
+		const COMPONENT_STAGGER = 0.13;
+		const componentDurations = el.components.map((mover) => gsap.utils.clamp(.45, .85, (1 / speedOf(mover)) * 0.55));
+		el.components.forEach((mover, i) => {
+			const startAt = COMPONENTS_START_AT + i * COMPONENT_STAGGER;
+			const arcHeight = -(6 + (i % 3) * 3);
+			arcTravel(tl, mover, {
+				x: -boxTravel, arcHeight, duration: componentDurations[i], startAt,
+				rotation: dir * (i % 2 === 0 ? 4 : -4),
+			});
+		});
+		// Everything on the stage — box included — must be fully settled
+		// before the text is allowed to start.
+		const stageEnd = Math.max(BOX_DURATION, ...componentDurations.map((d, i) => COMPONENTS_START_AT + i * COMPONENT_STAGGER + d));
+
+		const textEls = [el.title, el.summary, el.mechanics].filter(Boolean) as HTMLElement[];
+		if (textEls.length) {
+			tl.fromTo(textEls, { autoAlpha: 0, x: -60 * dir }, { autoAlpha: 1, x: 0, duration: .6, ease: 'power2.out', stagger: .1 }, stageEnd);
+		}
+		if (el.actions) tl.fromTo(el.actions, { autoAlpha: 0, y: 22 }, { autoAlpha: 1, y: 0, duration: .45, ease: 'power2.out' });
+
+		// Once everything has fully landed, let the components drift gently
+		// in place (see startIdleFloat) until the user navigates away.
+		tl.call(() => startIdleFloat(el.components), [], stageEnd);
+		return tl;
+	}
+
+	// Exit is the mirror: everything continues onward in the same direction
+	// it's already facing, off the OPPOSITE edge from where the next slide
+	// enters. Components keep their individual speed here too, so the exit
+	// reads as the same depth-staggered "convoy" scattering, not a flat block.
+	function playExit(slide: HTMLElement, dir: 1 | -1) {
+		const el = elementsFor(slide);
+		const tl = gsap.timeline();
+		const boxTravel = Math.min(viewportWidth() * 0.6, 900) * dir;
+
+		// Stop this slide's idle float immediately — otherwise those infinite
+		// y loops keep running underneath (and fighting) the exit tween.
+		stopIdleFloat(el.components);
+
+		if (!motionAllowed) {
+			gsap.set([el.box, ...el.components, el.title, el.summary, el.mechanics, el.actions].filter(Boolean), { autoAlpha: 0 });
+			return tl;
+		}
+
+		if (el.actions) tl.to(el.actions, { autoAlpha: 0, y: -12, duration: .3, ease: 'power1.in' }, 0);
+		const textEls = [el.title, el.summary, el.mechanics].filter(Boolean) as HTMLElement[];
+		if (textEls.length) tl.to(textEls, { autoAlpha: 0, x: 60 * dir, duration: .4, ease: 'power1.in' }, 0);
+		el.components.forEach((mover) => {
+			const duration = gsap.utils.clamp(.3, .8, .5 / speedOf(mover));
+			tl.to(mover, { autoAlpha: 0, x: boxTravel, duration, ease: 'power1.in' }, 0);
+		});
+		if (el.box) tl.to(el.box, { autoAlpha: 0, x: boxTravel, duration: .5, ease: 'power1.in' }, 0);
+		return tl;
+	}
+
+	function updateDots(index: number) {
+		dots.forEach((dot, i) => dot.setAttribute('aria-selected', i === index ? 'true' : 'false'));
+	}
+
+	function goTo(targetIndex: number) {
+		if (isAnimating) return;
+		const total = slides.length;
+		const next = ((targetIndex % total) + total) % total;
+		if (next === activeIndex) return;
+
+		// Shortest-path direction around the loop (so wrapping from the last
+		// game back to the first still feels like "forward", not a long
+		// reverse sweep) — this also decides which way the sweep runs:
+		// forward is the normal left→right; backward mirrors it (right→left),
+		// so scrolling back up genuinely reverses the motion instead of
+		// replaying the same direction every time.
+		const forwardDistance = (next - activeIndex + total) % total;
+		const dir: 1 | -1 = forwardDistance <= total / 2 ? 1 : -1;
+
+		const outgoing = slides[activeIndex];
+		const incoming = slides[next];
+		const outgoingBackdrop = backdrops[activeIndex];
+		const incomingBackdrop = backdrops[next];
+
+		isAnimating = true;
+		outgoing.setAttribute('aria-hidden', 'true');
+		incoming.setAttribute('aria-hidden', 'false');
+		incomingBackdrop.style.opacity = '1';
+		outgoingBackdrop.style.opacity = '0';
+
+		const exitTl = playExit(outgoing, dir);
+		const enterTl = playEnter(incoming, dir);
+
+		Promise.all([
+			new Promise<void>((resolve) => exitTl.eventCallback('onComplete', resolve)),
+			new Promise<void>((resolve) => enterTl.eventCallback('onComplete', resolve)),
+		]).then(() => {
+			isAnimating = false;
+		});
+
+		activeIndex = next;
+		updateDots(activeIndex);
+	}
+
+	prevBtn?.addEventListener('click', () => goTo(activeIndex - 1));
+	nextBtn?.addEventListener('click', () => goTo(activeIndex + 1));
+	dots.forEach((dot) => {
+		dot.addEventListener('click', () => {
+			const target = Number(dot.getAttribute('data-goto'));
+			goTo(target);
+		});
+	});
+
+	document.addEventListener('keydown', (event) => {
+		if (event.key === 'ArrowDown' || event.key === 'PageDown') { event.preventDefault(); goTo(activeIndex + 1); }
+		if (event.key === 'ArrowUp' || event.key === 'PageUp') { event.preventDefault(); goTo(activeIndex - 1); }
+	});
+
+	// Wheel paging — one "tick" per gesture, locked out while animating or
+	// during a short cooldown, so a single trackpad swipe doesn't fire ten
+	// slide changes at once.
+	let wheelCooldown = false;
+	viewport.addEventListener('wheel', (event) => {
+		event.preventDefault();
+		if (isAnimating || wheelCooldown) return;
+		if (Math.abs(event.deltaY) < 12) return;
+		wheelCooldown = true;
+		setTimeout(() => { wheelCooldown = false; }, 700);
+		goTo(activeIndex + (event.deltaY > 0 ? 1 : -1));
+	}, { passive: false });
+
+	// Touch swipe (mobile has no wheel event).
+	let touchStartY = 0;
+	viewport.addEventListener('touchstart', (event) => { touchStartY = event.touches[0].clientY; }, { passive: true });
+	viewport.addEventListener('touchend', (event) => {
+		const delta = touchStartY - event.changedTouches[0].clientY;
+		if (Math.abs(delta) < 48) return;
+		goTo(activeIndex + (delta > 0 ? 1 : -1));
+	}, { passive: true });
+
+	// Play the first game's entrance immediately on load, same animation as
+	// any other transition — dir 1 is the normal forward (left→right) sweep.
+	playEnter(slides[0], 1);
+</script>
