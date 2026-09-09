@@ -153,7 +153,7 @@ export const games: Game[] = [
 			{ shape: 'square', size: 7, x: -38, y: 32, rotate: -6, color: '#e8987a', speed: 0.6, near: true, image: '/games/anti-enzyme/component-2.webp' }, // Protease card, big/blurred — bigger per feedback
 			{ shape: 'square', size: 3, x: 16, y: -32, rotate: 10, color: '#b48ac9', speed: 0.75, behind: true, image: '/games/anti-enzyme/component-3.webp' }, // Amylase card (behind) — bigger per feedback
 			{ shape: 'square', size: 5.2, x: 38, y: 26, rotate: 8, color: '#1a1a1a', speed: 0.65, image: '/games/anti-enzyme/component-4.webp' }, // black Anti-Enzyme card — bigger per feedback
-			{ shape: 'square', size: 6.8, x: 44, y: 4, rotate: -4, color: '#a8c9e0', speed: 0.58, near: true, image: '/games/anti-enzyme/component-5.webp' }, // Enzyme Five card, big/blurred — bigger per feedback
+			{ shape: 'square', size: 6.8, x: 44, y: 4, rotate: 45, color: '#a8c9e0', speed: 0.58, near: true, image: '/games/anti-enzyme/component-5.webp' }, // Enzyme Five card (blue), big/blurred — rotated 45° clockwise per feedback
 		],
 	},
 	{

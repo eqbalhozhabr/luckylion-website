@@ -72,7 +72,7 @@ function summaryParagraphs(summary: string) {
 							// no CSS-authored transform of its own, so animating it can never
 							// clobber the inner piece's own centering/rotation transform (see
 							// the CSS comment on .slide-component for why that split matters).
-							<div class="slide-component-mover" data-component-mover data-speed={c.speed ?? 1} style={`left:calc(50% + ${c.x}%); top:calc(50% + ${c.y}%); z-index:${c.behind ? 1 : 10};`}>
+							<div class="slide-component-mover" data-component-mover data-speed={c.speed ?? 1} style={`left:calc(50% + ${c.x}%); top:calc(50% + ${c.y}%); z-index:${c.near ? 20 : c.behind ? 1 : 10};`}>
 								{c.image ? (
 									<img
 										class={`slide-component slide-component--image${c.near ? ' slide-component--near' : ''}`}
@@ -224,10 +224,12 @@ function summaryParagraphs(summary: string) {
 
 	/* Nudged left of the stage's own center (translateX) so the box reads as
 	   closer to the middle of the whole screen, not glued to the right edge. */
-	/* z-index sits between a component-mover's two possible values (1 =
-	   behind, 10 = in front — set inline per piece from `behind` in
-	   games.ts) so some components can peek out from behind the box while
-	   others float in front of it. */
+	/* z-index sits between a component-mover's three possible values (1 =
+	   behind, 10 = in front, 20 = near/blurred — set inline per piece from
+	   `behind`/`near` in games.ts) so some components can peek out from
+	   behind the box, others float in front of it, and the "closer to
+	   camera" ones always render above the rest of the front layer too,
+	   not just above the box. */
 	.slide-box-wrap { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; transform: translateX(-12%); }
 	.slide-box {
 		--depth: 3.25rem;
@@ -404,6 +406,14 @@ function summaryParagraphs(summary: string) {
 			   the smallest common phone screen without ever needing this —
 			   see the tightened title/summary/mechanics/actions rules. */
 			overflow-y: auto;
+			/* Explicit, not just implied by touch-action above: per spec, an
+			   element with overflow-y:auto and no overflow-x set computes
+			   overflow-x to 'auto' too — which silently turned this into a
+			   real horizontally-scrollable/draggable container (dragging the
+			   backdrop, text, and logo sideways with it) the instant any
+			   descendant was a hair wider than the phone screen. Pinning
+			   overflow-x:hidden here closes that off at the source. */
+			overflow-x: hidden;
 		}
 		/* Shrunk from the desktop stage so the info column below has enough
 		   room to fit the whole card without scrolling on a small phone. */
