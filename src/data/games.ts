@@ -174,9 +174,9 @@ export const games: Game[] = [
 			// peeking from behind the box, two cloud tokens (one black, one
 			// white) blurred and bigger up close, two smaller cloud tokens
 			// peeking from behind.
-			{ shape: 'square', size: 4.2, x: -32, y: -30, rotate: -8, color: '#9aa3a8', speed: 0.72, image: '/games/cumulus/component-1.webp' }, // grey hex card — bigger per feedback
-			{ shape: 'square', size: 3.4, x: 14, y: -32, rotate: 12, color: '#bcd9ef', speed: 0.65, behind: true, image: '/games/cumulus/component-2.webp' }, // blue hex card (behind) — bigger per feedback
-			{ shape: 'square', size: 4.4, x: 36, y: 28, rotate: 10, color: '#e9d9a0', speed: 0.6, image: '/games/cumulus/component-3.webp' }, // tan hex card — bigger per feedback
+			{ shape: 'square', size: 8.4, x: -32, y: -30, rotate: -8, color: '#9aa3a8', speed: 0.72, image: '/games/cumulus/component-1.webp' }, // grey hex card — ~2x per feedback
+			{ shape: 'square', size: 6.8, x: 14, y: -32, rotate: 12, color: '#bcd9ef', speed: 0.65, behind: true, image: '/games/cumulus/component-2.webp' }, // blue hex card (behind) — ~2x per feedback
+			{ shape: 'square', size: 8.8, x: 36, y: 28, rotate: 10, color: '#e9d9a0', speed: 0.6, image: '/games/cumulus/component-3.webp' }, // tan hex card — ~2x per feedback
 			{ shape: 'square', size: 6.5, x: -38, y: 32, rotate: -6, color: '#2b2b2b', speed: 0.58, near: true, image: '/games/cumulus/component-4.webp' }, // black cloud token, big/blurred
 			{ shape: 'square', size: 1.6, x: -18, y: -34, rotate: -10, color: '#2b2b2b', speed: 0.75, behind: true, image: '/games/cumulus/component-5.webp' }, // black cloud token (behind) — smaller per feedback (not blurred)
 			{ shape: 'square', size: 2.4, x: 40, y: -22, rotate: 8, color: '#f2f5f4', speed: 0.68, image: '/games/cumulus/component-6.webp' }, // white cloud token — smaller per feedback (not blurred)
