@@ -59,7 +59,7 @@ export interface Game {
 	mechanics?: string[];
 	status: GameStatus;
 	buyUrl?: string;
-	/** Overrides the disabled "Coming Soon" pill with an actual clickable link (e.g. "Follow on Gamefound") — needs both fields set. Only used when status isn't 'buy'. */
+	/** Overrides the disabled status pill with an actual clickable link — any label works (e.g. "Follow on Gamefound", or "Play Now" linking to an online-play platform when there's no real store yet) — needs both fields set. Only used when status isn't 'buy'. */
 	comingSoonLabel?: string;
 	comingSoonUrl?: string;
 	bggUrl?: string;
@@ -112,6 +112,8 @@ export const games: Game[] = [
 		summary: "Who is the luckiest tennis player in the world?\nTennidice is a 2-or-4-player game that simulates an actual tennis match. Instead of using rackets, you roll dice — and use strategy cubes to strengthen your abilities to win, but sometimes a lucky opponent won't let you succeed!",
 		mechanics: ['Dice Rolling', 'Head-to-Head', 'Push Your Luck'],
 		status: 'comingsoon',
+		comingSoonLabel: 'Play Now',
+		comingSoonUrl: 'https://tabletopia.com/games/tennidice',
 		bggUrl: 'https://boardgamegeek.com/boardgame/360149/tennidice',
 		tabletopiaUrl: 'https://tabletopia.com/games/tennidice',
 		youtubeUrl: 'https://youtu.be/EJatPHHf0x4',
