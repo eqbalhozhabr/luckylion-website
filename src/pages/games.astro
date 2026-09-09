@@ -418,7 +418,11 @@ function summaryParagraphs(summary: string) {
 		/* Shrunk from the desktop stage so the info column below has enough
 		   room to fit the whole card without scrolling on a small phone. */
 		.slide-stage { grid-column: 1; grid-row: 1; height: 26vh; }
-		.slide-info { grid-column: 1; grid-row: 2; max-width: 100%; }
+		/* margin-left:0 cancels the desktop-only "breathing room off the left
+		   edge" offset (see .slide-info above) — on mobile everything is
+		   centered, so that leftover margin was what was skewing the whole
+		   card slightly right of true center. */
+		.slide-info { grid-column: 1; grid-row: 2; max-width: 100%; margin-left: 0; }
 
 		/* Logo/title, summary, mechanics, and the actions block all get
 		   visibly tighter margins here — the desktop spacing (meant for a
