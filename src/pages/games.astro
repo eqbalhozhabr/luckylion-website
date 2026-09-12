@@ -35,12 +35,32 @@ function splitTitle(game: (typeof games)[number]) {
 function summaryParagraphs(summary: string) {
 	return summary.split(/\n\n+/).map((paragraph) => paragraph.split('\n'));
 }
+
+// `offers` (price/availability) is deliberately omitted — every game is
+// still `comingsoon` with no real store link, and an `offers` block without
+// a real `price` trips Search Console's "missing required field" error.
+// Add it per-game once a game's status becomes `buy` and `buyUrl` is set.
+const gameSchema = {
+	'@context': 'https://schema.org',
+	'@graph': games.map((game) => ({
+		'@type': 'Product',
+		name: game.title,
+		description: game.summary.replace(/\s+/g, ' ').trim(),
+		category: 'Board Game',
+		brand: { '@type': 'Organization', name: 'Lucky Lion Games' },
+		url: new URL('/games', Astro.site).toString(),
+		...(game.boxImage ? { image: new URL(game.boxImage, Astro.site).toString() } : {}),
+		...(game.bggUrl ? { sameAs: [game.bggUrl] } : {}),
+	})),
+};
 ---
 
 <Layout
 	title="Games — Lucky Lion Games"
 	description="Explore the tabletop games from Lucky Lion Games, including The Last Shelter: Whispers of the Mist."
 >
+<h1 class="sr-only">Board Games by Lucky Lion Games</h1>
+<script type="application/ld+json" set:html={JSON.stringify(gameSchema)} />
 <div class="games-viewport" data-games-viewport>
 	<!-- Backdrops are separate, stacked layers that only crossfade opacity —
 	     kept apart from the sliding content below so the color wash never
@@ -175,6 +195,18 @@ function summaryParagraphs(summary: string) {
 </Layout>
 
 <style>
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
 	/* This page is a full-viewport "one game at a time" pager, not a normal
 	   scrolling page — see the note at the top of the file. No document
 	   scrollbar should ever appear here. overscroll-behavior guards against
