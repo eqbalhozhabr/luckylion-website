@@ -13,6 +13,8 @@ import { games } from '../data/games';
 //     rendered disabled since no URL exists yet)
 //   - a BoardGameGeek listing/link for Cumulus
 //   - final art-directed backgrounds (currently a blurred 2-color wash)
+//   - `offers` on the Product JSON-LD below, once a game's store URL is
+//     real (see the comment on gameSchema for why it's not there yet)
 
 const statusLabel: Record<string, string> = {
 	buy: 'Buy Now',
@@ -40,6 +42,14 @@ function summaryParagraphs(summary: string) {
 // still `comingsoon` with no real store link, and an `offers` block without
 // a real `price` trips Search Console's "missing required field" error.
 // Add it per-game once a game's status becomes `buy` and `buyUrl` is set.
+//
+// Confirmed via Google's Rich Results Test (2026-09-12): with `offers`
+// missing, it flags each Product as a hard error ("1 critical issue" —
+// "Either offers, review, or aggregateRating should be specified"), not
+// merely a warning. That's expected and fine for now — the schema itself
+// is valid, it's just not yet eligible for the full rich-result treatment
+// (price/star display in search) until `offers` (or a review/rating) is
+// added. Re-run the test after adding `offers` to confirm it clears.
 const gameSchema = {
 	'@context': 'https://schema.org',
 	'@graph': games.map((game) => ({
