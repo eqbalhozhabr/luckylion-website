@@ -1,0 +1,100 @@
+---
+import Layout from '../layouts/Layout.astro';
+import BlogBackdrop from '../components/BlogBackdrop.astro';
+
+// محتوای این صفحه از سشن‌نوتِ سئو اومده (هدف: سرچِ اسمِ «Eqbal Hojabrosadati»
+// به luckylion.games برسه). بیوِ زیر پیش‌نویسه — طبقِ خودِ نوت، جزئیاتی مثلِ
+// سال‌های تجربه/شرکت‌های قبلی/تحصیلات عمداً توش نیست چون فعلاً موجود نیست.
+const founder = {
+  name: 'Eqbal Hojabrosadati',
+  jobTitle: 'Founder & Game Designer',
+  bio: 'Eqbal Hojabrosadati is an architect, interior designer, and CGI generalist based in Dubai, and the founder of Lucky Lion Games. His background in spatial design and visual storytelling now shapes his approach to tabletop games — building worlds players can step into, one system at a time. He is currently developing The Last Shelter: Whispers of the Mist, a survival board game launching on Gamefound.',
+  linkedin: 'https://www.linkedin.com/in/eqbalhojabr/',
+  instagram: 'https://www.instagram.com/eqbal.designs.games/',
+};
+
+// Person schema — طبقِ نوت، sameAs پروفایل‌ها رو به‌هم وصل می‌کنه تا گوگل
+// اسمِ بالا رو به همین صفحه/آدم ربط بده. url پایین با آدرسِ واقعیِ همین صفحه
+// (new URL('/about', ...)) پر می‌شه، نه هاردکد، تا اگه مسیر عوض شد خودش درست بمونه.
+const founderSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: founder.name,
+  jobTitle: founder.jobTitle,
+  worksFor: {
+    '@type': 'Organization',
+    name: 'Lucky Lion Games',
+    url: 'https://www.luckylion.games',
+  },
+  url: new URL('/about', Astro.site).toString(),
+  sameAs: [founder.linkedin, founder.instagram],
+};
+---
+
+<Layout
+  title="About Us — Lucky Lion Games"
+  description="Meet Eqbal Hojabrosadati, the architect and designer behind Lucky Lion Games, and the story behind The Last Shelter: Whispers of the Mist."
+>
+<script type="application/ld+json" set:html={JSON.stringify(founderSchema)} />
+<BlogBackdrop />
+<section class="about-page" aria-label="About Lucky Lion Games">
+  <header class="about-header">
+    <h1>About Us</h1>
+    <p class="about-intro">The studio, and the person building it.</p>
+  </header>
+
+  <div class="founder-card">
+    <h2 class="founder-name">{founder.name}</h2>
+    <p class="founder-title">{founder.jobTitle}, Lucky Lion Games</p>
+    <p class="founder-bio">{founder.bio}</p>
+    <div class="founder-links">
+      <a href={founder.linkedin} target="_blank" rel="noopener noreferrer">LinkedIn</a>
+      <a href={founder.instagram} target="_blank" rel="noopener noreferrer">Instagram</a>
+    </div>
+  </div>
+</section>
+</Layout>
+
+<style>
+  /* بکگراند/تیرگی از BlogBackdrop میاد — عیناً همون کامپوننتِ صفحه‌ی بلاگه،
+     پس این استایل‌ها فقط لایه‌ی متن رو می‌سازن، طبقِ همون رنگ/فاصله‌بندیِ
+     blog/index.astro و blog/[...slug].astro.
+     برخلافِ بلاگ (که اسکرول می‌خوره)، این صفحه طبقِ خواسته یه تک‌ویوپورتِ
+     بدونِ اسکرولِ (مثلِ hero/contact) — محتوا با flex وسط‌چین می‌شه، نه
+     پدینگِ بالا/پایین + اسکرول. */
+  :global(html), :global(body) { overflow: hidden; height: 100%; margin: 0; }
+
+  .about-page {
+    position: relative; z-index: 1; height: 100dvh; overflow: hidden; color: #d8dfe5;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: clamp(1.5rem, 4vh, 2.5rem);
+    padding: clamp(1.5rem, 5vw, 3.5rem);
+  }
+
+  .about-header { max-width: 46rem; margin: 0 auto; text-align: center; }
+  .about-header h1 {
+    margin: 0 0 .75rem; font-family: var(--font-title); font-size: clamp(2.4rem, 6vw, 4rem); color: #fff;
+    letter-spacing: .02em;
+  }
+  .about-intro { margin: 0; font-size: clamp(.95rem, 1.4vw, 1.1rem); line-height: 1.6; color: rgb(216 223 229 / .8); }
+
+  .founder-card {
+    max-width: 42rem; margin: 0 auto; background: rgb(18 24 23 / .5); backdrop-filter: blur(8px);
+    border: 1px solid rgb(255 255 255 / .1); border-radius: 1.25rem; padding: clamp(1.75rem, 5vw, 3rem);
+  }
+  .founder-name {
+    margin: 0 0 .35rem; font-family: var(--font-body); font-weight: 700; font-size: clamp(1.3rem, 2.6vw, 1.7rem);
+    color: #fff; letter-spacing: .01em;
+  }
+  .founder-title { margin: 0 0 1.25rem; font-size: .85rem; letter-spacing: .03em; text-transform: uppercase; color: rgb(216 223 229 / .6); }
+  .founder-bio { margin: 0; font-size: clamp(.98rem, 1.4vw, 1.08rem); line-height: 1.75; color: rgb(216 223 229 / .92); }
+
+  .founder-links { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: clamp(1.5rem, 4vh, 2rem); }
+  .founder-links a {
+    font-size: .8rem; color: #d8dfe5; text-decoration: none;
+    border: 1px solid rgb(255 255 255 / .35); border-radius: 999px; padding: .4rem .9rem;
+    background: rgb(18 24 23 / .35); backdrop-filter: blur(6px);
+    transition: border-color .2s ease, color .2s ease;
+  }
+  .founder-links a:hover { border-color: #fff; color: #fff; }
+</style>
