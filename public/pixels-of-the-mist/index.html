@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TLS: Pixels of the Mist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet">
+<style>
+  :root{
+    --bg:#1b1d22; --panel:#23262d; --ink:#e8e4dc; --muted:#8d8a84;
+    --line:#3a3e47; --ok:#7fb069; --bad:#c9614e; --sel:#e0a458;
+    --rock:#0f1114;
+    /* twice the 32px sprites, so every art pixel lands on an exact pair */
+    --cell:64px;
+    /* one flat colour per sector, separated by hue rather than brightness:
+       the buildings are cool grey, so a sector that differed only in value
+       would swallow them */
+    --z0:#63422e; --z1:#3a4735; --z2:#414855;
+    --z3:#524e48; --z4:#5c5439; --z5:#443a46;
+    /* the LCD test: one screen colour under everything, the sector art laid
+       over it faintly, and a tint on top so nothing sits outside the panel */
+    /* the muted grey-green of the old handhelds, and a darker one from the
+       same family for the cast toward the corners */
+    --lcd-paper:#9b9d75;
+    --lcd-edge:#5d5f48;
+    /* the segment shadow: on a real LCD the printed element sits above the
+       backing, so only the bold layer casts one, always the same way */
+    --ink-shadow:2px 3px 2px rgba(46,56,38,.5);
+    /* the only "selection" colour on the panel, and deliberately not a hue:
+       an orange ring was the last thing importing a colour the screen does
+       not have */
+    --pick:#eaeedc;
+    /* the patterns are already drawn in the panel's own greens, so they no
+       longer need holding back with transparency */
+    --ground-alpha:1;
+    /* both screens are the widest board the game ever draws, so the device
+       never changes size between stages */
+    --screen-w:calc(var(--cell) * 6);
+    /* short of opaque so the ground and the buildings stay faintly readable
+       under the fog rather than being erased by it */
+    --mist-alpha:.84;
+    /* swapped by the Fire selector so the two candidate sets can be compared
+       in place, on a real board */
+    --fire-img:url(assets/lcd/fire_dither.png);
+    --fire-dim-img:url(assets/lcd/fire_dither.png);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:16px;background:var(--bg);color:var(--ink);
+       font:15px/1.6 "Segoe UI",system-ui,sans-serif;
+       -webkit-user-select:none;user-select:none}
+  h1{font-size:18px;margin:0;font-weight:600;letter-spacing:.02em}
+  .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+       margin:2px 0 14px;color:var(--muted);font-size:13px}
+  .wrap{max-width:1000px;margin:0 auto}
+  /* desktop: board on the left, readout on the right. Narrow: the readout
+     drops under the board, both inside the same console shell. */
+  .cols{display:flex;gap:16px;align-items:flex-start}
+  /* The device is always its own size; when the viewport is too narrow the
+     whole thing is scaled down rather than reflowed, because the screens are
+     fixed at the art's own 64px grid and cannot be squeezed. */
+  /* Scaled from the top-left corner, and left-aligned like everything above
+     it. Centring was the bug: once the case is wider than the space it has,
+     `margin:0 auto` stops centring and it sits at the left, so scaling about
+     the centre then pushed it off to the right. */
+  .fitter{transform-origin:top left}
+  .console{background:linear-gradient(#3a3f33,#2b2f26);
+           border:1px solid #171a13;border-radius:18px;padding:16px;
+           box-shadow:inset 0 1px 0 rgba(255,255,255,.07),
+                      0 10px 26px rgba(0,0,0,.45);
+           width:max-content}
+  /* the bezel casting onto the glass. This is what separates the panel from
+     the shell — without it the screen looks printed on the case rather than
+     sunk behind it. */
+  .screen{padding:10px;background:#20241b;border-color:#14170f;
+          box-shadow:inset 0 2px 5px rgba(0,0,0,.65),
+                     inset 0 -1px 0 rgba(255,255,255,.05)}
+  /* the brushed plate the buttons are set into */
+  .panelplate{background:linear-gradient(#4a4f3e,#343827);
+              border-color:#20241a;padding:16px 18px;
+              box-shadow:inset 0 1px 0 rgba(255,255,255,.10),
+                         inset 0 -1px 0 rgba(0,0,0,.35)}
+  .screen .lcd{box-shadow:inset 0 3px 7px rgba(24,30,16,.5),
+                          inset 0 -2px 5px rgba(24,30,16,.32),
+                          inset 3px 0 6px rgba(24,30,16,.28),
+                          inset -3px 0 6px rgba(24,30,16,.28)}
+  @media (max-width:820px){
+    .cols{flex-direction:column;align-items:center}
+    .col-side{min-width:0;flex:none}
+  }
+  .card{background:var(--panel);border:1px solid var(--line);
+        border-radius:10px;padding:12px 14px;margin-bottom:12px}
+  .card h2{font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+           color:var(--muted);margin:0 0 8px;font-weight:600}
+  .col-side{flex:1 1 340px;min-width:300px}
+  .rules{display:grid;gap:6px}
+  .rules div{background:#2a2e36;border:1px solid var(--line);
+             border-radius:8px;padding:7px 10px;font-size:13.5px}
+  .rules b.n{color:var(--sel)}
+  /* the board card hugs the board, so a 5-wide map does not leave a gap */
+  .board{width:max-content}
+  /* max-content, or the grid box stretches to the card's width (which the hint
+     text sets) while the columns do not — the leftover strip used to be the
+     near-black line colour and went unnoticed, but as paper it reads as a
+     green band beside any board narrower than the hint */
+  /* One screen, used by both panels: the board and the testimony readout are
+     the same piece of glass, so the cast, the glare and the subpixel fringe
+     live here rather than on the grid. */
+  .lcd{position:relative;isolation:isolate;background:var(--lcd-paper);
+       filter:url(#fringe)}
+  .lcd::after{content:"";position:absolute;inset:0;z-index:20;
+    pointer-events:none;mix-blend-mode:multiply;
+    background:radial-gradient(120% 95% at 50% 45%,
+      rgba(255,255,255,0) 38%, var(--lcd-edge) 100%)}
+  .lcd::before{content:"";position:absolute;inset:0;z-index:21;
+    pointer-events:none;mix-blend-mode:screen;
+    background:linear-gradient(107deg,
+      rgba(255,255,255,0) 34%, rgba(255,255,255,.13) 45%,
+      rgba(255,255,255,0) 55%)}
+  /* The glass is always the size of the largest board, and a smaller one is
+     centred in it. Stretching a 5-wide board to fill it would mean 76.8px
+     squares, which is not a whole multiple of the 64px art — so the device
+     stays one size and the printed area simply does not always fill it,
+     which is how these panels actually looked. */
+  .boardscreen{width:var(--screen-w);height:var(--screen-w);
+               display:grid;place-items:center}
+  .grid{display:grid;gap:0;width:max-content;touch-action:manipulation}
+
+  /* the readout: same glass, same green, set in the blocky type of the old
+     handhelds */
+  /* square, and exactly the board's size, so the two screens are a matched
+     pair rather than a big one and a small one */
+  /* The glass does not scroll — only the text inside it does. The glare and
+     the corner cast are absolutely positioned against this box, and when this
+     box was the scrolling one they stretched to the full scroll height and
+     rode up with the content. */
+  .readout{width:var(--screen-w);height:var(--screen-w);overflow:hidden;
+           font-family:"Press Start 2P","Courier New",monospace;
+           color:#2a2e1e;font-size:8.5px;line-height:1.95}
+  /* the fuel and the hearts are the instrument panel, not part of the log, so
+     they stay put while only the testimony moves under them */
+  .fuelrow{display:flex;align-items:center;justify-content:space-between;
+           padding:8px 12px 6px;border-bottom:2px solid #74765a}
+  .scroller{height:calc(100% - 62px);overflow-y:auto;padding:12px 12px 14px;
+            scrollbar-width:thin;scrollbar-color:#5d5f48 #8b8d69}
+  /* squared off and in the panel's own greens, so the bar belongs to the
+     device rather than to the browser */
+  .scroller::-webkit-scrollbar{width:10px}
+  .scroller::-webkit-scrollbar-track{background:#8b8d69;
+    box-shadow:inset 1px 0 0 #74765a, inset -1px 0 0 #aaac86}
+  .scroller::-webkit-scrollbar-thumb{background:#5d5f48;border:2px solid #8b8d69;
+    box-shadow:inset 1px 1px 0 #74765a, inset -1px -1px 0 #333526}
+  .scroller::-webkit-scrollbar-thumb:hover{background:#464837}
+  .readout h2{font-size:8px;letter-spacing:.06em;color:#4a4e36;
+              margin:0 0 10px;font-weight:400;text-transform:uppercase}
+  .readout ol{margin:0;padding:0;list-style:none}
+  .readout li{display:flex;align-items:center;gap:7px;padding:2px 4px;
+              margin-bottom:3px;cursor:default;border:2px solid transparent}
+  .readout li .num{flex:none;width:12px;color:#5a5e44}
+  .readout li.ok{color:#1f2a16} .readout li.no{color:#5c2318}
+  /* the selection box of an old menu: a hard frame around the line the pointer
+     is on, matching the frame drawn around the squares it refers to */
+  .readout li:hover,.readout li.sel{border-color:var(--pick);color:#141a0c}
+  .readout .status{margin-top:10px;font-size:8px;line-height:1.85;
+                   min-height:2.2em}
+  /* the board's own fire at 1:1 — halving it mangled the flame */
+  .fuelgroup{display:flex;align-items:center;gap:8px}
+  .rowlabel{font-size:8px;color:#4a4e36;text-transform:uppercase;
+            letter-spacing:.06em}
+  .fuel,.lives{display:flex;gap:2px}
+  .fpip{width:32px;height:32px;background-image:var(--fire-img);
+        background-size:128px 32px;background-position:-64px 0;
+        background-repeat:no-repeat;image-rendering:pixelated;opacity:.2}
+  .fpip.on{opacity:1}
+  /* the heart is drawn 1:1 in the top-left 24x24 of its canvas, so the window
+     is anchored there rather than centred on an empty middle */
+  .hpip{width:24px;height:24px;background-image:url(assets/lcd/heart.png);
+        background-size:64px 64px;background-position:0 0;
+        background-repeat:no-repeat;image-rendering:pixelated}
+  /* a spent life stays on the panel as a faint outline rather than vanishing,
+     so the player can still count how many they started with */
+  .hpip.gone{opacity:.22}
+  .cell{width:var(--cell);height:var(--cell);position:relative;cursor:pointer;
+        display:flex;align-items:center;justify-content:center;
+        overflow:hidden;background-color:transparent;
+        image-rendering:pixelated;isolation:isolate}
+  /* the sector art is its own layer now, so it can be held back to a tint of
+     the screen colour instead of painting over it */
+  .ground{position:absolute;inset:0;z-index:0;opacity:var(--ground-alpha);
+          background-size:100% 100%;background-repeat:no-repeat;
+          image-rendering:pixelated}
+  /* the sector boundary, drawn once per boundary rather than once per square,
+     and sitting under the mist because it is printed on the panel */
+  .zb{position:absolute;inset:0;z-index:0;pointer-events:none;
+      background-repeat:no-repeat;background-size:100% 100%;
+      image-rendering:pixelated}
+  /* named blockage, not rubble: the sector tile is Rubble.png, and Windows
+     treats the two spellings as one file — which is how the original was lost */
+  /* a one-pixel hard stroke rather than a blur, so the number stays legible
+     over the mountain's dither without going soft */
+  .cell.rock{cursor:default;color:#eef2d2;font-weight:700;font-size:20px;
+    text-shadow:1px 0 0 #1f2117, -1px 0 0 #1f2117, 0 1px 0 #1f2117,
+                0 -1px 0 #1f2117, 1px 1px 0 #1f2117, -1px 1px 0 #1f2117,
+                1px -1px 0 #1f2117, -1px -1px 0 #1f2117}
+  /* the rubble now sits on the same panel green as everything else, with its
+     own shape carried by the ordered dither rather than by a dark fill */
+  .cell.rock .ground{opacity:1;
+                     background-image:url(assets/lcd/mountain_dither.png)}
+  /* scenery on the open ground, held under the mist because it is part of the
+     printed terrain rather than something happening on it */
+  .deco{position:absolute;inset:0;z-index:0;pointer-events:none;
+        background-repeat:no-repeat;image-rendering:pixelated;
+        filter:url(#greentone);opacity:.92}
+
+  /* Pressing the panel: a bloom where the finger is and a darker ring around
+     it, the way liquid crystal shifts under pressure. Gone as soon as the
+     press ends. */
+  /* slow to let go, the way the crystal takes a moment to settle back */
+  .press{position:absolute;inset:0;z-index:19;pointer-events:none;opacity:0;
+         mix-blend-mode:screen;transition:opacity .45s ease-out}
+  .boardscreen.pressing .press{opacity:1;transition-duration:.05s}
+  .cell.struct{cursor:default}
+  /* z 2 puts the building over the mist but under the sprites and the name
+     labels, which sit at 3 and 4. The ink threshold that used to run here is
+     off until the buildings are drawn as linework by hand — a filter was only
+     ever standing in for that. */
+  .bld{position:absolute;inset:0;z-index:2;background-repeat:no-repeat;
+       background-position:center;background-size:contain;
+       image-rendering:pixelated;
+       filter:url(#greentone) drop-shadow(var(--ink-shadow))}
+
+  /* The mist is its own layer so a fire can be animated pushing it back.
+     steps() rather than a smooth fade: a blur fights pixel art, and the chunky
+     reveal is what the dithered sprite dissolve will look like. */
+  /* The hand-drawn mist is an opaque paper fill with an ink border, not the
+     transparent dither it replaced, so it covers the ground instead of
+     darkening it and the reveal has to ride on opacity. steps() keeps the
+     fade chunky rather than smooth. */
+  .mist{position:absolute;inset:0;z-index:1;image-rendering:pixelated;
+        background-repeat:no-repeat;background-size:100% 100%;
+        background-image:var(--mist-a);
+        opacity:0;transition:opacity .32s steps(4)}
+  /* two halves of the board swap frames out of step, so the fog shifts like a
+     bank rather than blinking all at once */
+  .grid.alt0 .mist:not(.g1){background-image:var(--mist-b)}
+  .grid.alt1 .mist.g1{background-image:var(--mist-b)}
+  .cell.fog .mist{opacity:var(--mist-alpha)}
+  .cell.ghost .mist{opacity:calc(var(--mist-alpha) * .5)}
+  /* The mist breathes. This rides on brightness rather than opacity because
+     opacity is already carrying the reveal, and an animation would win over
+     that transition and kill it. Each square gets its own phase so the bank
+     shifts rather than pulsing as one. */
+  /* lifted above the paper, not level with it: the fill the mist is drawn in
+     is exactly the screen colour, so without this a fogged square reads only
+     as an outline. On a real panel the unlit area is the brighter one. */
+  /* TEMPORARY. The current tiles are filled in exactly the screen colour, so
+     without this a fogged square reads only as an outline. Once the mist is
+     redrawn white with darker edges the art carries its own value: drop this
+     back to brightness(1) and let the breathe swing gently around it. */
+  /* One value for every fogged square, and no per-square animation on it: a
+     brightness cycle with a different phase per cell is exactly what made the
+     fog read as patchy. The movement comes from the frame swap instead.
+     The lift is gone too: it existed because the mist was filled in the old
+     olive panel colour and sat level with it. The panel is darker now, so that
+     same fill already reads lighter, and lifting it only blew it out to white. */
+  .mist{filter:none}
+
+  /* one four-frame strip, stepped so the frames swap rather than slide */
+  .spr{position:absolute;inset:0;z-index:3;image-rendering:pixelated;
+       background-repeat:no-repeat;
+       background-size:calc(var(--cell)*4) var(--cell)}
+  @keyframes strip{to{background-position-x:calc(var(--cell)*-4)}}
+  /* drawn as ink already, so no flattening filter — only the panel shadow */
+  .spr.fire{background-image:var(--fire-img);
+            filter:drop-shadow(var(--ink-shadow));
+            animation:strip .48s steps(4) infinite}
+  /* a fire the player is only considering holds still: movement is how the
+     board says "this one is actually lit" */
+  .spr.fire.dim{background-image:var(--fire-dim-img);opacity:.4;
+                animation-play-state:paused}
+  /* a creature only casts a shadow once it is out of the mist: the half-seen
+     ones belong to the faint printed layer, which is not lifted off the panel */
+  .spr.mon{animation:strip .96s steps(4) infinite;
+           filter:drop-shadow(var(--ink-shadow))}
+  .spr.mon.glimpse{filter:none}
+  .spr.mon.dim{opacity:.55}
+  /* Half-seen: the clip keeps the bell in the mist and lets only the trailing
+     limbs show, and the long cycle means a square surfaces for a couple of
+     seconds in every eighteen. */
+  .spr.mon.glimpse{clip-path:inset(54% 0 4% 0);
+    animation:strip 1.9s steps(4) infinite, surface 18s linear infinite}
+  @keyframes surface{
+    0%,45%{opacity:0} 50%{opacity:.3} 56%{opacity:.26} 61%,100%{opacity:0}}
+
+  .glyph{font-size:26px;line-height:1;position:relative;z-index:3}
+  .lab{position:absolute;bottom:2px;left:0;right:0;text-align:center;
+       font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;
+       z-index:3;color:#20241a;font-weight:600;
+       text-shadow:0 1px 0 #cdd0ab, 0 -1px 0 #cdd0ab,
+                   1px 0 0 #cdd0ab, -1px 0 0 #cdd0ab}
+  /* dark ink with a light halo rather than white with a dark one: these names
+     sit on pale fog as often as on the ground, and white vanished there */
+  .zname{position:absolute;top:2px;left:0;right:0;text-align:center;
+         font-size:9.5px;font-weight:700;letter-spacing:.03em;z-index:4;
+         pointer-events:none;color:#2f3422;text-transform:uppercase;
+         text-shadow:0 1px 0 #cdd0ab, 0 -1px 0 #cdd0ab,
+                     1px 0 0 #cdd0ab, -1px 0 0 #cdd0ab}
+  .cell.inprev{box-shadow:inset 0 0 0 2px var(--pick)}
+  /* a layer rather than an outline: the zone borders are children of the cell
+     and paint over an outline sitting on the same edge */
+  .cell.hit::before{content:"";position:absolute;inset:0;z-index:6;
+    box-shadow:inset 0 0 0 3px var(--bad);pointer-events:none}
+
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:12px;
+          color:var(--muted)}
+  /* Handheld buttons: each one is a pill sunk into a slot in the case, lit
+     from above. The shell keeps the recess, the button keeps the dome, and
+     pressing swaps which of the two highlights you see. */
+  .tools{display:flex;gap:14px;flex-wrap:wrap;margin-top:2px;
+         align-items:center}
+  /* scoped to the device's own panel: the stage/seed strip above is a
+     developer control, not part of the console */
+  .tools button{font-family:"Press Start 2P","Courier New",monospace;font-size:8px;
+         letter-spacing:.04em;text-transform:uppercase;cursor:pointer;
+         padding:11px 16px 12px;border:none;border-radius:999px;
+         color:#e8ead6;background:linear-gradient(#5e6350,#3d4234);
+         box-shadow:0 2px 0 #23271d, 0 4px 7px rgba(0,0,0,.5),
+                    inset 0 1px 0 rgba(255,255,255,.22),
+                    inset 0 -2px 3px rgba(0,0,0,.35);
+         transition:transform .04s linear, box-shadow .04s linear}
+  .tools button:active:not(:disabled){transform:translateY(2px);
+         box-shadow:0 0 0 #23271d, 0 1px 3px rgba(0,0,0,.5),
+                    inset 0 2px 4px rgba(0,0,0,.45)}
+  .tools button:disabled{opacity:.45;cursor:default}
+  /* the red action button of the originals */
+  .tools button.go{color:#fff2ee;background:linear-gradient(#c8402c,#8d2417);
+            box-shadow:0 2px 0 #4c120b, 0 4px 7px rgba(0,0,0,.5),
+                       inset 0 1px 0 rgba(255,255,255,.30),
+                       inset 0 -2px 3px rgba(0,0,0,.35)}
+  .tools button.go:active:not(:disabled){box-shadow:0 0 0 #4c120b,
+                       0 1px 3px rgba(0,0,0,.5),
+                       inset 0 2px 4px rgba(0,0,0,.45)}
+  ol.brief{margin:0;padding-inline-start:20px}
+  /* the flex row lives inside the item, not on it: making the li itself a flex
+     container drops the list marker */
+  ol.brief li{margin-bottom:6px;font-size:13.5px;color:var(--ink);cursor:default}
+  ol.brief li:hover{color:var(--sel)}
+  .trow{display:flex;align-items:center;gap:9px}
+  /* 1:1 with the source art: any other size would land the sprite's pixels on
+     fractions of a screen pixel */
+  /* 1:1 with the source art, as before — halving it dropped every other pixel
+     and the buildings stopped being recognisable */
+  .ticon{flex:none;width:32px;height:32px;background-size:100% 100%;
+         background-repeat:no-repeat;image-rendering:pixelated;
+         filter:url(#greentone)}
+  .ticon.chip{background-size:50% 50%;background-repeat:repeat;filter:none;
+              background-color:#8b8d69;box-shadow:inset 0 0 0 1px #5d5f48}
+
+  /* Hovering a line of testimony puts the rest of the map in shadow, so the
+     ground that line is talking about is the only thing still lit. */
+  .grid.dimmed .cell::after{content:"";position:absolute;inset:0;z-index:7;
+    background:rgba(8,10,14,.68);pointer-events:none}
+  .grid.dimmed .cell.clue::after{background:transparent;
+    box-shadow:inset 0 0 0 2px var(--pick)}
+  ol.brief li.ok{color:var(--ok)} ol.brief li.no{color:var(--bad)}
+  .status{margin-top:10px;font-size:14px;font-weight:600;min-height:1.4em}
+  select,input{font:inherit;font-size:13px;padding:4px 6px;background:#2a2e36;
+         color:var(--ink);border:1px solid var(--line);border-radius:6px}
+  input.seed{width:8em}
+  .fuel{font-size:22px;letter-spacing:5px}
+  /* capped so the hint text does not dictate the board card's width */
+  /* 320px is the narrowest board (5 squares), so the card always hugs the
+     board instead of the hint dictating its width */
+  .hint{color:var(--muted);font-size:12.5px;margin-top:8px;line-height:1.5;
+        max-width:320px}
+  .chip{background:#2a2e36;border:1px solid var(--line);border-radius:999px;
+        padding:2px 9px;font-size:12px}
+  .busy{color:var(--sel)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter
+  id="ink" color-interpolation-filters="sRGB">
+  <feColorMatrix type="saturate" values="0"/>
+  <feComponentTransfer>
+    <feFuncR type="discrete" tableValues="0 1 1 1"/>
+    <feFuncG type="discrete" tableValues="0 1 1 1"/>
+    <feFuncB type="discrete" tableValues="0 1 1 1"/>
+  </feComponentTransfer>
+</filter>
+<!-- A gradient map onto the panel's own greens: the sprite's luminance is kept,
+     so every bit of its shading survives, but the greys are replaced by the
+     family running from ink green up to a light green. Lets the buildings stay
+     as drawn instead of being redrawn. -->
+<filter id="greentone" color-interpolation-filters="sRGB">
+  <feColorMatrix type="matrix"
+    values="0.299 0.587 0.114 0 0
+            0.299 0.587 0.114 0 0
+            0.299 0.587 0.114 0 0
+            0     0     0     1 0"/>
+  <feComponentTransfer>
+    <feFuncR type="table" tableValues="0.12 0.67"/>
+    <feFuncG type="table" tableValues="0.13 0.67"/>
+    <feFuncB type="table" tableValues="0.09 0.52"/>
+  </feComponentTransfer>
+</filter>
+<!-- The colour along the edges, the way a subpixel panel splits them: red
+     pulled one way, blue the other, green left where it is. It has to run on
+     the finished board rather than on each sprite, because a black shape on
+     transparent has no luminance to separate — the colour only exists where
+     ink meets lit paper. -->
+<filter id="fringe" color-interpolation-filters="sRGB">
+  <feOffset in="SourceGraphic" dx="-0.7" dy="0" result="ra"/>
+  <feColorMatrix in="ra" type="matrix" result="r"
+    values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0"/>
+  <feOffset in="SourceGraphic" dx="0.7" dy="0" result="ba"/>
+  <feColorMatrix in="ba" type="matrix" result="b"
+    values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0"/>
+  <feColorMatrix in="SourceGraphic" type="matrix" result="g"
+    values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0"/>
+  <feBlend mode="screen" in="r" in2="g" result="rg"/>
+  <feBlend mode="screen" in="rg" in2="b"/>
+</filter></svg>
+
+<div class="wrap">
+  <h1 id="title">Mist</h1>
+  <div class="bar">
+    <span>Stage</span>
+    <select id="stage"></select>
+    <span class="chip" id="diff">—</span>
+    <span>Seed</span><input class="seed" id="seed" inputmode="numeric">
+    <button id="newLevel">New level</button>
+    <span id="busy"></span>
+  </div>
+
+  <div class="card">
+    <h2>Rules</h2>
+    <div class="rules" id="rules"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="fitter" id="fitter">
+  <div class="cols console" id="console">
+    <div>
+      <div class="card board screen">
+        <div class="lcd boardscreen" id="boardscreen">
+          <div class="grid" id="grid"></div>
+        </div>
+        <div class="hint" id="hint"></div>
+      </div>
+    </div>
+    <div class="col-side">
+      <div class="card screen">
+        <div class="lcd readout">
+          <div class="fuelrow">
+            <span class="fuelgroup">
+              <span class="rowlabel" id="fuelLabel">Fuel</span>
+              <span class="fuel" id="fuel"></span>
+            </span>
+            <span class="lives" id="lives"></span>
+          </div>
+          <div class="scroller">
+            <h2 id="testimonyLabel">Survivor testimony</h2>
+            <ol id="brief"></ol>
+            <div class="status" id="status"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card panelplate">
+        <div class="tools">
+          <button id="submit" class="go">Submit</button>
+          <button id="reset">Clear</button>
+          <button id="reveal">Reveal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<script src="mist-engine.js"></script>
+<script>
+'use strict';
+const el = id => document.getElementById(id);
+
+/* ------------------------------------------------ level supply (worker) */
+const worker = new Worker('mist-worker.js');
+let reqId = 0;
+const pending = new Map();
+worker.onmessage = (e) => {
+  const { id, level, error, ms } = e.data;
+  const cb = pending.get(id);
+  pending.delete(id);
+  if (error) console.error('generator:', error);
+  if (cb) cb(level, ms);
+};
+function requestLevel(stage, seed, cb) {
+  const id = ++reqId;
+  pending.set(id, cb);
+  worker.postMessage({ id, stage, seed });
+}
+
+/* The next level is generated while the current one is being solved, so
+   pressing "New level" never waits on the generator. */
+let prefetch = null, prefetching = false;
+function prefetchNext(stage) {
+  if (prefetching) return;
+  prefetching = true;
+  requestLevel(stage, (Math.random() * 0xffffffff) >>> 0, (lvl) => {
+    prefetching = false;
+    prefetch = lvl && lvl.stage === stage ? lvl : null;
+  });
+}
+
+/* --------------------------------------------------------------- state */
+let P, W, H, grid, zones, landmarks, scorch;
+let fires, preview, submitted, prevLit;
+/* a wrong submission costs a heart; what happens at zero is still open */
+const MAX_LIVES = 3;
+let lives = MAX_LIVES;
+
+const rc = i => [(i / W) | 0, i % W];
+const idx = (r, c) => r * W + c;
+function nbs(i, tbl) {
+  const [r, c] = rc(i), out = [];
+  for (const [dr, dc] of tbl) {
+    const rr = r + dr, cc = c + dc;
+    if (rr >= 0 && rr < H && cc >= 0 && cc < W) out.push(idx(rr, cc));
+  }
+  return out;
+}
+const isRock = i => grid[i] === '#';
+const isOpen = i => grid[i] === '.';
+const foggable = i => !isRock(i);
+
+function lit(fs) {
+  const out = new Set();
+  fs.forEach(f => { out.add(f); nbs(f, NB8).forEach(j => out.add(j)); });
+  return out;
+}
+function fog(fs) {
+  const L = lit(fs), out = new Set();
+  for (let i = 0; i < W * H; i++) if (foggable(i) && !L.has(i)) out.add(i);
+  return out;
+}
+
+/* A tiny map-shaped object so the engine's testClue/clueText work unchanged. */
+let mpView = null;
+function buildMpView() {
+  mpView = makeMap(P.map.rows, zones);
+}
+
+/* ----------------------------------------------------------- chrome */
+function paintChrome() {
+  const s = T().ui;
+  el('title').textContent = s.title;
+  el('fuelLabel').textContent = s.fuel;
+  el('testimonyLabel').textContent = s.testimony;
+  el('submit').textContent = s.submit;
+  el('reset').textContent = s.reset;
+  el('reveal').textContent = s.reveal;
+  el('newLevel').textContent = s.newLevel;
+  el('rules').innerHTML = [
+    s.rule1(P.nfires), s.rule2, s.rule3, s.rule4, s.rule5,
+  ].map((t, n) => `<div><b class="n">${n + 1}.</b> ${t}</div>`).join('');
+  const lg = s.legend;
+  el('legend').innerHTML =
+    `<span>🔥 ${lg.fire}</span><span>👹 ${lg.monster}</span>` +
+    `<span>${lg.border}</span><span>black — ${lg.rock}</span>`;
+  el('hint').innerHTML = s.hintTap + '<br>' + s.hintPreview;
+}
+
+function zoneLabelCells() {
+  const best = {};
+  for (let i = 0; i < W * H; i++) {
+    if (isRock(i)) continue;
+    const z = zones[i];
+    const inside = nbs(i, NB4).filter(j => !isRock(j) && zones[j] === z).length;
+    const score = inside * 2 + (landmarks[i] ? 0 : 1);
+    if (!(z in best) || score > best[z].score) best[z] = { i, score };
+  }
+  const out = {};
+  for (const z in best) out[best[z].i] = T().zone[z] || ('T' + z);
+  return out;
+}
+
+/* ------------------------------------------------------------- board */
+/* the -1 files are the corrected passes: memorial given mass, pump given
+   height, workshop re-centred */
+const BUILDING = { C: 'shelter', M: 'workshop-1', G: 'depot',
+                   S: 'memorial-1', W: 'pump-1' };
+/* indexed by sector id, matching STRINGS.zone. Several variants per sector are
+   scattered across its squares; one is fine, it just repeats. */
+const GROUND = [
+  ['lcd/zone_scrapfield_a', 'lcd/zone_scrapfield_b'],
+  ['lcd/zone_sludge_a', 'lcd/zone_sludge_b'],
+  ['lcd/zone_rubble_a', 'lcd/zone_rubble_b'],
+  ['lcd/zone_ashfield_a', 'lcd/zone_ashfield_b'],
+  ['lcd/zone_deadgrove_a', 'lcd/zone_deadgrove_b'],
+  ['lcd/zone_crater_a', 'lcd/zone_crater_b'],
+];
+const MONSTERS = ['monster_a', 'monster_b', 'monster_c'];
+/* mountain is deliberately absent: it is the rubble square's own art now, and
+   repeating it as scenery would blur what is and is not passable */
+const DECOR = ['boulder', 'cave', 'dead_tree', 'dead_bush', 'bone_pile'];
+
+/* Scatter that is stable per square, so the ground and the creatures do not
+   reshuffle themselves every time the player taps. */
+function variant(i, n) {
+  return n < 2 ? 0 : (Math.imul(i + 1, 2654435761) >>> 24) % n;
+}
+
+/* --------------------------------------------------------- ragged fog edges */
+/* The edge pieces are alpha masks of the same flat colour, so they have to be
+   INTERSECTED with the density strip, not layered over it: a square open on two
+   sides must have the mist pulled back from both, and drawing the two tiles on
+   top of each other would add them together instead. Each configuration is
+   composited once and cached, so a board only ever builds a handful. */
+/* The set is complete now: one drawn tile for every combination of open sides,
+   so the base no longer has to be composited. Only the concave "void" notches
+   are still overlays. Two frames of each, a and b, differing by a one-pixel
+   wave along the open edges - enough that the bank of fog visibly shifts. */
+const BASE_TILE = {
+  '': 'mist-center',
+  n: 'mist-edge-n', s: 'mist-edge-s', w: 'mist-edge-w', e: 'mist-edge-e',
+  nw: 'mist-corner-nw', ne: 'mist-corner-ne',
+  sw: 'mist-corner-sw', se: 'mist-corner-se',
+  ns: 'mist-2edges-ns', we: 'mist-2edges-we',
+  nwe: 'mist-3edges-n', swe: 'mist-3edges-s',
+  nse: 'mist-3edges-e', nsw: 'mist-3edges-w',
+  nswe: 'mist-all-edges',
+};
+const VOID_TILE = { vnw: 'mist-corner-void-nw', vne: 'mist-corner-void-ne',
+                    vsw: 'mist-corner-void-sw', vse: 'mist-corner-void-se' };
+const edgeArt = {};
+let edgesReady = false;
+const allTiles = [...Object.values(BASE_TILE), ...Object.values(VOID_TILE)];
+Promise.all(allTiles.flatMap(name => ['a', 'b'].map(fr => new Promise(done => {
+  const im = new Image();
+  im.onload = () => { edgeArt[name + '-' + fr] = im; done(); };
+  im.onerror = done;
+  im.src = `assets/mist64/${name}-${fr}.png`;
+})))).then(() => {
+  edgesReady = !!edgeArt['mist-center-a'];
+  if (edgesReady && P) render();
+});
+
+const stripCache = new Map();
+/* Darken for the ink, intersect for the alpha. These tiles are opaque paper
+   with a drawn border, so plain layering would bury one tile's border under
+   the next tile's fill; taking the darker pixel keeps every border and leaves
+   the paper alone. The corner pieces came in at 31px, so they are drawn
+   stretched to the cell with smoothing off until they are redrawn at 32. */
+function mistTile(key, fr) {
+  const cacheKey = key + '#' + fr;
+  if (stripCache.has(cacheKey)) return stripCache.get(cacheKey);
+  const [sides, ...voids] = key.split('|');
+  const pieces = [BASE_TILE[sides] || 'mist-center',
+                  ...voids.map(v => VOID_TILE[v]).filter(Boolean)];
+  const first = edgeArt[pieces[0] + '-' + fr];
+  /* taken from the art, so the set can change canvas size without touching
+     this */
+  const N = first.naturalWidth || 64;
+  const cv = document.createElement('canvas');
+  cv.width = N; cv.height = N;
+  const cx = cv.getContext('2d');
+  cx.imageSmoothingEnabled = false;
+  cx.drawImage(first, 0, 0, N, N);
+  for (const p of pieces.slice(1)) {
+    const im = edgeArt[p + '-' + fr];
+    if (!im) continue;
+    cx.globalCompositeOperation = 'darken';
+    cx.drawImage(im, 0, 0, N, N);
+    cx.globalCompositeOperation = 'destination-in';
+    cx.drawImage(im, 0, 0, N, N);
+  }
+  cx.globalCompositeOperation = 'source-over';
+  const url = `url(${cv.toDataURL()})`;
+  stripCache.set(cacheKey, url);
+  return url;
+}
+
+/* Anything that is not fog counts as open, including the panel border and the
+   rubble: the mist should show a drawn edge wherever it actually ends, not
+   only where a fire cleared it. Two adjacent open sides are served by the one
+   corner piece that already draws both. */
+function edgeKey(i, F) {
+  const [r, c] = rc(i);
+  const open = (rr, cc) => {
+    if (rr < 0 || rr >= H || cc < 0 || cc >= W) return true;
+    const j = idx(rr, cc);
+    return isRock(j) || !F.has(j);
+  };
+  const n = open(r - 1, c), s = open(r + 1, c);
+  const e = open(r, c + 1), w = open(r, c - 1);
+  /* n,s,w,e order, which is how the tile names are keyed */
+  const sides = (n ? 'n' : '') + (s ? 's' : '') + (w ? 'w' : '') + (e ? 'e' : '');
+  const parts = [sides];
+  if (!n && !w && open(r - 1, c - 1)) parts.push('vnw');
+  if (!n && !e && open(r - 1, c + 1)) parts.push('vne');
+  if (!s && !w && open(r + 1, c - 1)) parts.push('vsw');
+  if (!s && !e && open(r + 1, c + 1)) parts.push('vse');
+  return parts.join('|');
+}
+
+/* Which squares a line of testimony is actually talking about. A clue about a
+   landmark means the ground the witness could see from it, not just the
+   building, so the neighbourhood the rule reads comes with it. */
+function clueCells(c) {
+  const out = new Set();
+  switch (c.kind) {
+    case 'EITHER':
+      c.args.forEach(sub => clueCells(sub).forEach(x => out.add(x)));
+      break;
+    case 'ZONE_FOG': case 'ZONE_CLEAR':
+      for (let i = 0; i < W * H; i++) {
+        if (!isRock(i) && zones[i] === c.args[0]) out.add(i);
+      }
+      break;
+    case 'COUNT':
+      break;
+    case 'NEAR_MONSTER': case 'NO_MONSTER_NEAR':
+      out.add(c.args[0]);
+      nbs(c.args[0], NB4).forEach(x => out.add(x));
+      break;
+    case 'FIRE_BESIDE': case 'NO_FIRE_BESIDE': case 'SCORCH':
+      out.add(c.args[0]);
+      nbs(c.args[0], NB8).forEach(x => out.add(x));
+      break;
+    default:                                   // SAFE, FOGGED
+      out.add(c.args[0]);
+  }
+  return out;
+}
+
+/* The picture that belongs beside a line: the building it names, or a swatch
+   of the sector's own ground. */
+function clueIcon(c) {
+  if (c.kind === 'EITHER') return clueIcon(c.args[0]);
+  /* a headcount is about the creatures, so it gets one */
+  if (c.kind === 'COUNT') return 'url(assets/monster_a.png)';
+  if (c.kind === 'ZONE_FOG' || c.kind === 'ZONE_CLEAR') {
+    const g = GROUND[c.args[0]];
+    return g ? `url(assets/${g[0]}.png)` : null;
+  }
+  const lm = landmarks[c.args[0]];
+  return lm ? `url(assets/${BUILDING[lm]}.png)` : null;
+}
+
+function spotlight(set) {
+  const cells = el('grid').children;
+  for (let i = 0; i < W * H; i++) {
+    cells[i].classList.toggle('clue', !!set && set.has(i));
+  }
+  el('grid').classList.toggle('dimmed', !!(set && set.size));
+}
+
+function buildBoard() {
+  const g = el('grid');
+  g.style.gridTemplateColumns = `repeat(${W}, var(--cell))`;
+  g.innerHTML = '';
+  const znames = zoneLabelCells();
+  for (let i = 0; i < W * H; i++) {
+    const d = document.createElement('div');
+    d.className = 'cell';
+    d.dataset.i = i;
+    const gl = document.createElement('div');
+    gl.className = 'ground';
+    d.appendChild(gl);
+
+    /* Only the north and west sides are drawn, so each boundary gets exactly
+       one line instead of two parallel ones. Rubble carries a boundary too
+       (its zone id is its own), so a sector line does not break where a rock
+       happens to sit on it. */
+    {
+      const [br, bc] = rc(i), sides = [];
+      if (br > 0 && zones[idx(br - 1, bc)] !== zones[i]) sides.push('n');
+      if (bc > 0 && zones[idx(br, bc - 1)] !== zones[i]) sides.push('w');
+      if (sides.length) {
+        const zb = document.createElement('div');
+        zb.className = 'zb';
+        zb.style.backgroundImage = sides.map(s => `url(assets/lcd/zb_${s}.png)`).join(',');
+        d.appendChild(zb);
+      }
+    }
+    if (isRock(i)) {
+      d.classList.add('rock');
+      if (scorch[i] !== undefined) {
+        const s = document.createElement('div');
+        s.className = 'glyph'; s.textContent = scorch[i];
+        d.appendChild(s);
+      }
+    } else {
+      d.classList.add('z' + zones[i]);
+      const g = GROUND[zones[i]];
+      if (g) gl.style.backgroundImage =
+        `url(assets/${g[variant(i, g.length)]}.png)`;
+      /* roughly one open square in four, placed off-centre so the scenery does
+         not line up with the grid it sits on */
+      if (isOpen(i) && variant(i * 3 + 1, 4) === 0) {
+        const dv = document.createElement('div');
+        dv.className = 'deco';
+        dv.style.backgroundImage =
+          `url(assets/${DECOR[variant(i * 7 + 5, DECOR.length)]}.png)`;
+        dv.style.backgroundSize = '58% 58%';
+        dv.style.backgroundPosition =
+          `${12 + variant(i * 11, 5) * 16}% ${45 + variant(i * 13, 4) * 14}%`;
+        d.appendChild(dv);
+      }
+      if (landmarks[i]) {
+        const b = document.createElement('div');
+        b.className = 'bld';
+        b.style.backgroundImage = `url(assets/${BUILDING[landmarks[i]]}.png)`;
+        d.appendChild(b);
+      }
+      const m = document.createElement('div');
+      m.className = 'mist'; d.appendChild(m);
+      // landmarks are structures: the mist settles on them, no fire fits
+      if (isOpen(i)) bindCell(d, i); else d.classList.add('struct');
+    }
+    if (znames[i]) {
+      const t = document.createElement('div');
+      t.className = 'zname'; t.textContent = znames[i];
+      d.appendChild(t);
+    }
+    g.appendChild(d);
+  }
+}
+
+/* on the glass rather than on the grid, so the whole panel responds even where
+   a smaller board leaves it bare */
+const pressEl = document.createElement('div');
+pressEl.className = 'press';
+el('boardscreen').appendChild(pressEl);
+
+function showPress(e) {
+  const g = el('boardscreen'), r = g.getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  /* Not a dark blot after all. What reads as pressure on these panels is the
+     cool shift the reference shows — the green going teal and lifting, the
+     way the tint moves when the viewing angle or the cell gap changes. Two
+     offset ellipses so it is not a perfect circle. */
+  pressEl.style.background =
+    `radial-gradient(ellipse 78px 68px at ${x - 8}px ${y + 5}px,` +
+    ' rgba(120,226,196,.16) 0, rgba(96,190,170,.09) 48%, rgba(0,0,0,0) 74%),' +
+    `radial-gradient(ellipse 94px 86px at ${x}px ${y}px,` +
+    ' rgba(150,240,212,.34) 0,' +
+    ' rgba(116,220,192,.26) 18%,' +
+    ' rgba(88,190,170,.17) 34%,' +
+    ' rgba(70,158,146,.09) 52%,' +
+    ' rgba(0,0,0,0) 76%)';
+  g.classList.add('pressing');
+}
+function endPress() { el('boardscreen').classList.remove('pressing'); }
+el('boardscreen').addEventListener('pointerdown', showPress);
+el('boardscreen').addEventListener('pointermove', e => {
+  if (el('boardscreen').classList.contains('pressing')) showPress(e);
+});
+window.addEventListener('pointerup', endPress);
+window.addEventListener('pointercancel', endPress);
+
+/* Tap previews, hold or double-tap lights. Murdoku commits on hold too, but
+   there the reward is rows getting crossed out; here it is the mist visibly
+   lifting, which is the same satisfaction without asking the player to keep
+   their own notes. */
+function bindCell(d, i) {
+  let timer = null, held = false;
+  d.addEventListener('pointerdown', e => {
+    e.preventDefault(); held = false;
+    timer = setTimeout(() => { held = true; commit(i); }, 380);
+  });
+  d.addEventListener('pointerup', () => {
+    clearTimeout(timer);
+    if (!held) tap(i);
+  });
+  d.addEventListener('pointerleave', () => clearTimeout(timer));
+  d.addEventListener('dblclick', e => { e.preventDefault(); commit(i); });
+  d.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+/* Previews are hypotheses, not placements: any number can be held at once,
+   and they deliberately do not spend fuel. */
+function tap(i) {
+  if (fires.has(i)) {
+    fires.delete(i); preview.delete(i); submitted = false; render(); return;
+  }
+  preview.has(i) ? preview.delete(i) : preview.add(i);
+  render();
+}
+function commit(i) {
+  if (fires.has(i)) return;
+  if (fires.size >= P.nfires) { preview.add(i); render(); return; }
+  fires.add(i); preview.delete(i); submitted = false;
+  render(i);
+}
+
+function render(justLit) {
+  const fs = [...fires];
+  const L = lit(fs), F = fog(fs);
+  const inPrev = new Set();
+  preview.forEach(p => { inPrev.add(p); nbs(p, NB8).forEach(j => inPrev.add(j)); });
+
+  const lines = P.clues.map(c => ({
+    c, s: submitted ? (testClue(mpView, c, new Set(fs), F) ? 'ok' : 'no') : null,
+  }));
+  const guilty = new Set();
+  lines.forEach(l => { if (l.s === 'no') cluePieces(l.c).forEach(x => guilty.add(x)); });
+
+  /* The sector rule only judges a finished board: before the last fire is down
+     every sector is over capacity, so warning early is pure noise. */
+  const load = {};
+  F.forEach(i => { load[zones[i]] = (load[zones[i]] || 0) + 1; });
+  const overIds = fires.size === P.nfires
+    ? Object.keys(load).filter(z => load[z] > ZONE_CAP) : [];
+
+  /* Until the night is survived the creatures are only half-seen. They come out
+     of the mist whole exactly once: when the board is right. */
+  const solved = submitted && !overIds.length && !lines.some(l => l.s === 'no');
+
+  const cells = el('grid').children;
+  for (let i = 0; i < W * H; i++) {
+    const d = cells[i];
+    // a failed scorch mark is the only clue with no line in the testimony, so
+    // the rock itself has to carry the red
+    if (isRock(i)) { d.classList.toggle('hit', guilty.has(i)); continue; }
+    [...d.querySelectorAll('.spr,.lab')].forEach(n => n.remove());
+    d.classList.remove('fog', 'ghost', 'inprev', 'hit');
+
+    // stagger the mist lifting outward from the fire just lit
+    const m = d.querySelector('.mist');
+    /* only reshaped while the square is still fogged: a square being cleared
+       keeps the shape it had, so it retreats as itself */
+    if (edgesReady && F.has(i)) {
+      const key = edgeKey(i, F);
+      if (m.dataset.key !== key) {
+        m.style.setProperty('--mist-a', mistTile(key, 'a'));
+        m.style.setProperty('--mist-b', mistTile(key, 'b'));
+        m.classList.toggle('g1', variant(i, 2) === 1);
+        m.dataset.key = key;
+      }
+      m.style.animationDelay = (-variant(i, 30) * 0.25) + 's';
+    }
+    if (justLit !== undefined && !prevLit.has(i) && !F.has(i)) {
+      const [r0, c0] = rc(justLit), [r1, c1] = rc(i);
+      m.style.transitionDelay = (Math.max(Math.abs(r0 - r1), Math.abs(c0 - c1)) * 70) + 'ms';
+    } else {
+      m.style.transitionDelay = '0ms';
+    }
+
+    if (F.has(i)) d.classList.add(inPrev.has(i) ? 'ghost' : 'fog');
+    if (inPrev.has(i)) d.classList.add('inprev');
+
+    /* the negative delay is what keeps the board from beating in unison:
+       every square enters its loop at a different point, but always the same
+       one, so a redraw does not resynchronise them */
+    if (fires.has(i) || preview.has(i)) {
+      const s = document.createElement('div');
+      s.className = 'spr fire' + (fires.has(i) ? '' : ' dim');
+      s.style.animationDelay = (-(i % 7) * 0.07) + 's';
+      d.appendChild(s);
+    } else if (F.has(i)) {
+      const s = document.createElement('div');
+      s.className = 'spr mon' + (solved ? (inPrev.has(i) ? ' dim' : '')
+                                        : ' glimpse');
+      s.style.backgroundImage = `url(assets/${MONSTERS[variant(i, 3)]}.png)`;
+      /* two delays: one for the frame loop, one for the long surfacing cycle.
+         Spreading the second over the whole cycle is what keeps the squares
+         from surfacing together — only a couple are ever showing at once. */
+      s.style.animationDelay = solved
+        ? (-(i % 11) * 0.09) + 's'
+        : `${-(i % 11) * 0.17}s, ${-variant(i, 36) * 0.5}s`;
+      d.appendChild(s);
+    }
+
+    if (landmarks[i]) {
+      const lab = document.createElement('div');
+      lab.className = 'lab';
+      lab.textContent = T().landmark[landmarks[i]] || landmarks[i];
+      d.appendChild(lab);
+    }
+    if (guilty.has(i)) d.classList.add('hit');
+  }
+  prevLit = L;
+
+  const fu = el('fuel');
+  fu.innerHTML = '';
+  for (let k = 0; k < P.nfires; k++) {
+    const pip = document.createElement('span');
+    pip.className = 'fpip' + (k < fires.size ? ' on' : '');
+    fu.appendChild(pip);
+  }
+  const lv = el('lives');
+  lv.innerHTML = '';
+  for (let k = 0; k < MAX_LIVES; k++) {
+    const h = document.createElement('span');
+    h.className = 'hpip' + (k < lives ? '' : ' gone');
+    lv.appendChild(h);
+  }
+  el('submit').disabled = fires.size !== P.nfires;
+
+  const ol = el('brief'); ol.innerHTML = '';
+  lines.forEach(l => {
+    const text = clueText(mpView, l.c);
+    if (!text) return;                 // scorch numbers live on the rock
+    const li = document.createElement('li');
+    if (l.s) li.className = l.s;
+    /* the marker is drawn by hand, because the readout's list has none: a
+       default marker would not be in the panel's typeface */
+    const num = document.createElement('span');
+    num.className = 'num';
+    num.textContent = (ol.children.length + 1) + '.';
+    li.appendChild(num);
+    const icon = clueIcon(l.c);
+    if (icon) {
+      const b = document.createElement('span');
+      const k = l.c.kind === 'EITHER' ? l.c.args[0].kind : l.c.kind;
+      /* a sector's ground is deliberately sparse, so one tile of it at icon
+         size is just a few specks — shown as a chip of four, the motif reads */
+      b.className = 'ticon' +
+        (k === 'ZONE_FOG' || k === 'ZONE_CLEAR' ? ' chip' : '');
+      b.style.backgroundImage = icon;
+      li.appendChild(b);
+    }
+    li.appendChild(document.createElement('span')).textContent = text;
+    /* the class carries the selection box as well as :hover, so the frame and
+       the squares it points at are always driven by the same event */
+    li.onmouseenter = () => { li.classList.add('sel'); spotlight(clueCells(l.c)); };
+    li.onmouseleave = () => { li.classList.remove('sel'); spotlight(null); };
+    ol.appendChild(li);
+  });
+  spotlight(null);
+
+  const s = T().ui;
+  const over = overIds.map(z => T().zone[z] || ('T' + z));
+  /* printed on the panel, so the status reads in its greens rather than the
+     dark interface palette */
+  const st = el('status');
+  if (over.length) {
+    st.textContent = s.overloaded(over); st.style.color = '#5c2318';
+  } else if (!submitted) {
+    st.textContent = fires.size < P.nfires
+      ? s.remaining(P.nfires - fires.size) : s.ready;
+    st.style.color = '#5a5e44';
+  } else if (lines.some(l => l.s === 'no')) {
+    st.textContent = s.wrong; st.style.color = '#5c2318';
+  } else {
+    st.textContent = s.win; st.style.color = '#1f3a16';
+  }
+}
+
+/* -------------------------------------------------------------- loading */
+function install(level) {
+  P = level;
+  W = P.map.w; H = P.map.h; grid = P.map.rows.join('');
+  zones = P.zones;
+  landmarks = {};
+  for (const k in P.landmarks) landmarks[+k] = P.landmarks[k];
+  scorch = {};
+  P.clues.filter(c => c.kind === 'SCORCH').forEach(c => { scorch[c.args[0]] = c.args[1]; });
+  fires = new Set(); preview = new Set(); submitted = false; prevLit = new Set();
+  lives = MAX_LIVES;                       // a fresh night, a fresh three
+  buildMpView();
+  el('seed').value = P.seed;
+  el('diff').textContent = T().difficulty[P.difficulty] || P.difficulty;
+  paintChrome();
+  buildBoard();
+  render();
+  prefetchNext(P.stage);
+}
+
+function loadLevel(stage, seed) {
+  if (seed === undefined && prefetch && prefetch.stage === stage) {
+    const lvl = prefetch; prefetch = null;
+    install(lvl);
+    return;
+  }
+  el('busy').textContent = 'generating…';
+  el('busy').className = 'busy';
+  requestLevel(stage, seed === undefined ? (Math.random() * 0xffffffff) >>> 0 : seed,
+    (lvl, ms) => {
+      el('busy').textContent = ms > 0 ? `built in ${ms} ms` : '';
+      el('busy').className = '';
+      if (lvl) install(lvl);
+      else el('status').textContent = 'The generator could not build a level.';
+    });
+}
+
+const stageSel = el('stage');
+LADDER_STAGES().forEach(n => {
+  const o = document.createElement('option');
+  o.value = n;
+  o.textContent = T().ui.stageLabel(n, T().stage[n]);
+  stageSel.appendChild(o);
+});
+function LADDER_STAGES() { return [1, 2, 3, 4]; }
+
+stageSel.onchange = () => { prefetch = null; loadLevel(+stageSel.value); };
+el('newLevel').onclick = () => loadLevel(+stageSel.value);
+el('seed').addEventListener('change', () => {
+  const v = parseInt(el('seed').value, 10);
+  if (!isNaN(v)) loadLevel(+stageSel.value, v >>> 0);
+});
+/* Checked here rather than inside render, because render runs on every tap and
+   a heart must only be spent on an actual submission. */
+function answerIsRight() {
+  const fs = [...fires], F = fog(fs), set = new Set(fs);
+  const load = {};
+  F.forEach(i => { load[zones[i]] = (load[zones[i]] || 0) + 1; });
+  if (Object.keys(load).some(z => load[z] > ZONE_CAP)) return false;
+  return P.clues.every(c => testClue(mpView, c, set, F));
+}
+el('submit').onclick = () => {
+  if (!submitted && !answerIsRight() && lives > 0) lives--;
+  submitted = true;
+  render();
+};
+el('reset').onclick = () => { fires = new Set(); preview = new Set(); submitted = false; render(); };
+el('reveal').onclick = () => {
+  fires = new Set(P.solution); preview = new Set(); submitted = true; render();
+};
+
+/* Shrink the whole device to fit a narrow screen. The board is locked to the
+   art's 64px grid, so it cannot reflow — scaling the case is the only way it
+   fits a phone, and it is what holding the thing actually looks like. The
+   wrapper's height is set by hand because a transform leaves layout alone. */
+function fitConsole() {
+  const fit = el('fitter'), con = el('console');
+  fit.style.transform = 'none';
+  fit.style.height = '';
+  const avail = fit.parentElement.clientWidth;
+  const k = Math.min(1, avail / con.offsetWidth);
+  if (k < 1) {
+    fit.style.transform = `scale(${k})`;
+    fit.style.height = (con.offsetHeight * k) + 'px';
+  }
+}
+addEventListener('resize', fitConsole);
+new ResizeObserver(fitConsole).observe(el('console'));
+
+setInterval(() => el('grid').classList.toggle('alt0'), 1500);
+setTimeout(() => setInterval(() => el('grid').classList.toggle('alt1'), 1500), 750);
+
+loadLevel(1);
+</script>
+</body>
+</html>
