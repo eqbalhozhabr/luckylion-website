@@ -58,10 +58,15 @@
   /* desktop: board on the left, readout on the right. Narrow: the readout
      drops under the board, both inside the same console shell. */
   .cols{display:flex;gap:16px;align-items:flex-start}
+  /* The device is always its own size; when the viewport is too narrow the
+     whole thing is scaled down rather than reflowed, because the screens are
+     fixed at the art's own 64px grid and cannot be squeezed. */
+  .fitter{transform-origin:top center}
   .console{background:linear-gradient(#3a3f33,#2b2f26);
            border:1px solid #171a13;border-radius:18px;padding:16px;
            box-shadow:inset 0 1px 0 rgba(255,255,255,.07),
-                      0 10px 26px rgba(0,0,0,.45);width:max-content}
+                      0 10px 26px rgba(0,0,0,.45);
+           width:max-content;margin:0 auto}
   /* the bezel casting onto the glass. This is what separates the panel from
      the shell — without it the screen looks printed on the case rather than
      sunk behind it. */
@@ -78,8 +83,7 @@
                           inset 3px 0 6px rgba(24,30,16,.28),
                           inset -3px 0 6px rgba(24,30,16,.28)}
   @media (max-width:820px){
-    .cols{flex-direction:column;align-items:stretch}
-    .console{width:100%}
+    .cols{flex-direction:column;align-items:center}
     .col-side{min-width:0;flex:none}
   }
   .card{background:var(--panel);border:1px solid var(--line);
@@ -312,7 +316,9 @@
      pressing swaps which of the two highlights you see. */
   .tools{display:flex;gap:14px;flex-wrap:wrap;margin-top:2px;
          align-items:center}
-  button{font-family:"Press Start 2P","Courier New",monospace;font-size:8px;
+  /* scoped to the device's own panel: the stage/seed strip above is a
+     developer control, not part of the console */
+  .tools button{font-family:"Press Start 2P","Courier New",monospace;font-size:8px;
          letter-spacing:.04em;text-transform:uppercase;cursor:pointer;
          padding:11px 16px 12px;border:none;border-radius:999px;
          color:#e8ead6;background:linear-gradient(#5e6350,#3d4234);
@@ -320,16 +326,16 @@
                     inset 0 1px 0 rgba(255,255,255,.22),
                     inset 0 -2px 3px rgba(0,0,0,.35);
          transition:transform .04s linear, box-shadow .04s linear}
-  button:active:not(:disabled){transform:translateY(2px);
+  .tools button:active:not(:disabled){transform:translateY(2px);
          box-shadow:0 0 0 #23271d, 0 1px 3px rgba(0,0,0,.5),
                     inset 0 2px 4px rgba(0,0,0,.45)}
-  button:disabled{opacity:.45;cursor:default}
+  .tools button:disabled{opacity:.45;cursor:default}
   /* the red action button of the originals */
-  button.go{color:#fff2ee;background:linear-gradient(#c8402c,#8d2417);
+  .tools button.go{color:#fff2ee;background:linear-gradient(#c8402c,#8d2417);
             box-shadow:0 2px 0 #4c120b, 0 4px 7px rgba(0,0,0,.5),
                        inset 0 1px 0 rgba(255,255,255,.30),
                        inset 0 -2px 3px rgba(0,0,0,.35)}
-  button.go:active:not(:disabled){box-shadow:0 0 0 #4c120b,
+  .tools button.go:active:not(:disabled){box-shadow:0 0 0 #4c120b,
                        0 1px 3px rgba(0,0,0,.5),
                        inset 0 2px 4px rgba(0,0,0,.45)}
   ol.brief{margin:0;padding-inline-start:20px}
@@ -431,7 +437,8 @@
     <div class="legend" id="legend"></div>
   </div>
 
-  <div class="cols console">
+  <div class="fitter" id="fitter">
+  <div class="cols console" id="console">
     <div>
       <div class="card board screen">
         <div class="lcd boardscreen" id="boardscreen">
@@ -465,6 +472,7 @@
         </div>
       </div>
     </div>
+  </div>
   </div>
 </div>
 
@@ -1108,6 +1116,24 @@ el('reset').onclick = () => { fires = new Set(); preview = new Set(); submitted 
 el('reveal').onclick = () => {
   fires = new Set(P.solution); preview = new Set(); submitted = true; render();
 };
+
+/* Shrink the whole device to fit a narrow screen. The board is locked to the
+   art's 64px grid, so it cannot reflow — scaling the case is the only way it
+   fits a phone, and it is what holding the thing actually looks like. The
+   wrapper's height is set by hand because a transform leaves layout alone. */
+function fitConsole() {
+  const fit = el('fitter'), con = el('console');
+  fit.style.transform = 'none';
+  fit.style.height = '';
+  const avail = fit.parentElement.clientWidth;
+  const k = Math.min(1, avail / con.offsetWidth);
+  if (k < 1) {
+    fit.style.transform = `scale(${k})`;
+    fit.style.height = (con.offsetHeight * k) + 'px';
+  }
+}
+addEventListener('resize', fitConsole);
+new ResizeObserver(fitConsole).observe(el('console'));
 
 setInterval(() => el('grid').classList.toggle('alt0'), 1500);
 setTimeout(() => setInterval(() => el('grid').classList.toggle('alt1'), 1500), 750);
