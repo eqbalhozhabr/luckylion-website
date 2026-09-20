@@ -63,27 +63,34 @@
              overflow:hidden;padding:10px}
   .deck{width:max-content}
 
-  /* Tabs cut from the same case as the console and sitting on its top edge.
-     The active one is the shell's own colour and overlaps the seam by a pixel,
-     so it reads as one moulding rather than a control floating above it. */
-  .tabs{display:flex;gap:3px;margin-left:16px}
-  .tab{font-family:"Press Start 2P","Courier New",monospace;font-size:9px;
-       padding:10px 18px 9px;cursor:pointer;color:#7f8468;
-       background:linear-gradient(#2e3227,#23271d);
-       border:1px solid #171a13;border-bottom:none;
-       border-radius:9px 9px 0 0;position:relative;
-       box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
-  .tab.on{background:linear-gradient(#41473a,#3a3f33);color:#e8ead6;
-          margin-bottom:-1px;padding-bottom:10px;z-index:2;
-          box-shadow:inset 0 1px 0 rgba(255,255,255,.10)}
+  /* The slide switch, after the POWER slider on the Crazy Climber: a recessed
+     slot in the brushed plate with a ribbed knob that travels between two
+     printed labels. Left shows the rules, right shows the testimony. */
+  .switchplate{padding:9px 14px}
+  .slide{display:flex;align-items:center;justify-content:center;gap:12px}
+  .slidelabel{font-family:"Press Start 2P","Courier New",monospace;font-size:8px;
+              text-transform:uppercase;letter-spacing:.05em;
+              background:none;border:none;padding:4px 2px;cursor:pointer;
+              color:#767b62;transition:color .12s}
+  .slide[data-pos="left"] .slidelabel[data-pos="left"],
+  .slide[data-pos="right"] .slidelabel[data-pos="right"]{color:#e8ead6}
+  .slideslot{width:62px;height:22px;border-radius:12px;cursor:pointer;
+             background:linear-gradient(#1a1d15,#2a2e22);
+             box-shadow:inset 0 2px 4px rgba(0,0,0,.7),
+                        0 1px 0 rgba(255,255,255,.07);
+             position:relative;flex:none}
+  .slideknob{position:absolute;top:2px;left:2px;width:30px;height:18px;
+             border-radius:9px;
+             background:repeating-linear-gradient(90deg,
+               #cdd0bd 0 2px, #a9ad97 2px 4px);
+             box-shadow:0 1px 2px rgba(0,0,0,.6),
+                        inset 0 1px 0 rgba(255,255,255,.55);
+             transition:transform .16s cubic-bezier(.3,1.4,.5,1)}
+  .slide[data-pos="right"] .slideknob{transform:translateX(28px)}
 
-  /* Both panes share one grid cell, so the case is always exactly the size of
-     the board side and never resizes when the tab changes. The rules sit on
-     top of that box and scroll inside it. */
-  .console{position:relative;display:grid}
-  .pane{grid-area:1/1;visibility:hidden}
-  .pane.on{visibility:visible}
-  #pane-rules{position:absolute;inset:0;overflow-y:auto;padding-right:4px}
+  /* the two readouts share the screen; only one is shown at a time */
+  .view{display:none}
+  .view.on{display:block}
   h1{font-size:18px;margin:0;font-weight:600;letter-spacing:.02em}
   .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
        margin:2px 0 14px;color:var(--muted);font-size:13px}
@@ -122,10 +129,6 @@
                           inset 0 -2px 5px rgba(24,30,16,.32),
                           inset 3px 0 6px rgba(24,30,16,.28),
                           inset -3px 0 6px rgba(24,30,16,.28)}
-  @media (max-width:820px){
-    .cols{flex-direction:column;align-items:center}
-    .col-side{min-width:0;flex:none}
-  }
   .card{background:var(--panel);border:1px solid var(--line);
         border-radius:10px;padding:12px 14px;margin-bottom:12px}
   .card h2{font-size:11px;letter-spacing:.09em;text-transform:uppercase;
@@ -191,16 +194,32 @@
   .scroller::-webkit-scrollbar-thumb:hover{background:#464837}
   .readout h2{font-size:8px;letter-spacing:.06em;color:#4a4e36;
               margin:0 0 10px;font-weight:400;text-transform:uppercase}
-  .readout ol{margin:0;padding:0;list-style:none}
-  .readout li{display:flex;align-items:center;gap:7px;padding:2px 4px;
+  #brief{margin:0;padding:0;list-style:none}
+  #brief li{display:flex;align-items:center;gap:7px;padding:2px 4px;
               margin-bottom:3px;cursor:default;border:2px solid transparent}
-  .readout li .num{flex:none;width:12px;color:#5a5e44}
-  .readout li.ok{color:#1f2a16} .readout li.no{color:#5c2318}
+  #brief li .num{flex:none;width:12px;color:#5a5e44}
+  #brief li.ok{color:#1f2a16} #brief li.no{color:#5c2318}
   /* the selection box of an old menu: a hard frame around the line the pointer
      is on, matching the frame drawn around the squares it refers to */
-  .readout li:hover,.readout li.sel{border-color:var(--pick);color:#141a0c}
+  #brief li:hover,#brief li.sel{border-color:var(--pick);color:#141a0c}
   .readout .status{margin-top:10px;font-size:8px;line-height:1.85;
                    min-height:2.2em}
+  /* the rules now print on the same screen, so they wear the same type */
+  .rulelist{margin:0;padding-inline-start:18px;list-style:decimal}
+  .rulelist li{margin-bottom:9px}
+  .rulelist b{color:#141a0c}
+  .readout .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;
+                   color:#4a4e36;font-size:7.5px;line-height:1.9}
+  .devbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+          margin-top:14px;padding-top:10px;border-top:2px solid #74765a;
+          font-size:7.5px;color:#4a4e36}
+  .devbar select,.devbar input{font-family:inherit;font-size:7.5px;
+          background:#8b8d69;color:#20241a;border:1px solid #5d5f48;
+          border-radius:3px;padding:3px 4px}
+  .devbar input.seed{width:7em}
+  .devbar button{font-family:inherit;font-size:7.5px;padding:4px 7px;
+          background:#5d5f48;color:#e8ead6;border:1px solid #333526;
+          border-radius:3px;cursor:pointer}
   /* the board's own fire at 1:1 — halving it mangled the flame */
   .fuelgroup{display:flex;align-items:center;gap:8px}
   .rowlabel{font-size:8px;color:#4a4e36;text-transform:uppercase;
@@ -414,6 +433,27 @@
   .chip{background:#2a2e36;border:1px solid var(--line);border-radius:999px;
         padding:2px 9px;font-size:12px}
   .busy{color:var(--sel)}
+  /* Phone: the case IS the screen. The board takes the full width as a square
+     and the report screen takes whatever height is left, rather than the whole
+     device being shrunk to fit — which is what made it so small. */
+  @media (max-width:820px){
+    /* a plain block, not a centring grid: the case is meant to fill the screen
+       here, and a percentage height needs an unbroken chain of parents that
+       already know their own height */
+    .stagearea{display:block;padding:6px}
+    .fitter{width:100%;height:100%}
+    .deck{width:100%;height:100%}
+    .console{width:100%}
+    .cols{flex-direction:column;align-items:stretch;gap:8px;height:100%}
+    .col-side{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;
+              gap:8px;min-height:0}
+    .board{width:auto}
+    .boardscreen{width:100%;height:auto;aspect-ratio:1}
+    .card.board .hint{display:none}
+    .sidescreen{flex:1 1 auto;min-height:0;display:flex}
+    .readout{width:100%;height:100%}
+    .card{margin-bottom:0}
+  }
 </style>
 </head>
 <body>
@@ -463,12 +503,7 @@
 <div class="stagearea" id="panes">
   <div class="fitter" id="fitter">
   <div class="deck" id="deck">
-  <div class="tabs">
-    <button class="tab on" data-tab="game">Game</button>
-    <button class="tab" data-tab="rules">Rules</button>
-  </div>
-  <div class="console" id="console">
-  <div class="pane cols on" id="pane-game">
+  <div class="console cols" id="console">
     <div>
       <div class="card board screen">
         <div class="lcd boardscreen" id="boardscreen">
@@ -478,7 +513,14 @@
       </div>
     </div>
     <div class="col-side">
-      <div class="card screen">
+      <div class="card panelplate switchplate">
+        <div class="slide" id="slide" data-pos="right">
+          <button class="slidelabel" data-pos="left">Rules</button>
+          <span class="slideslot"><span class="slideknob"></span></span>
+          <button class="slidelabel" data-pos="right">Report</button>
+        </div>
+      </div>
+      <div class="card screen sidescreen">
         <div class="lcd readout">
           <div class="fuelrow">
             <span class="fuelgroup">
@@ -488,9 +530,25 @@
             <span class="lives" id="lives"></span>
           </div>
           <div class="scroller">
-            <h2 id="testimonyLabel">Survivor testimony</h2>
-            <ol id="brief"></ol>
-            <div class="status" id="status"></div>
+            <div class="view on" id="view-report">
+              <h2 id="testimonyLabel">Survivor testimony</h2>
+              <ol id="brief"></ol>
+              <div class="status" id="status"></div>
+            </div>
+            <div class="view" id="view-rules">
+              <h2>Rules</h2>
+              <ol class="rulelist" id="rules"></ol>
+              <div class="legend" id="legend"></div>
+              <div class="devbar">
+                <span>Stage</span>
+                <select id="stage"></select>
+                <span class="chip" id="diff">—</span>
+                <span>Seed</span>
+                <input class="seed" id="seed" inputmode="numeric">
+                <button id="newLevel">New level</button>
+                <span id="busy"></span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -503,28 +561,10 @@
       </div>
     </div>
   </div>
-
-  <div class="pane" id="pane-rules">
-    <h1 id="title">Mist</h1>
-    <div class="bar">
-      <span>Stage</span>
-      <select id="stage"></select>
-      <span class="chip" id="diff">—</span>
-      <span>Seed</span><input class="seed" id="seed" inputmode="numeric">
-      <button id="newLevel">New level</button>
-      <span id="busy"></span>
-    </div>
-    <div class="card">
-      <h2>Rules</h2>
-      <div class="rules" id="rules"></div>
-      <div class="legend" id="legend"></div>
-    </div>
-  </div>
-
-  </div>
   </div>
   </div>
 </div>
+<h1 id="title" hidden>Mist</h1>
 
 <script src="mist-engine.js"></script>
 <script>
@@ -608,9 +648,11 @@ function paintChrome() {
   el('reset').textContent = s.reset;
   el('reveal').textContent = s.reveal;
   el('newLevel').textContent = s.newLevel;
+  /* an ordered list now, so the screen numbers them the way it numbers the
+     testimony rather than the text carrying its own digits */
   el('rules').innerHTML = [
     s.rule1(P.nfires), s.rule2, s.rule3, s.rule4, s.rule5,
-  ].map((t, n) => `<div><b class="n">${n + 1}.</b> ${t}</div>`).join('');
+  ].map(t => `<li>${t}</li>`).join('');
   const lg = s.legend;
   el('legend').innerHTML =
     `<span>🔥 ${lg.fire}</span><span>👹 ${lg.monster}</span>` +
@@ -1193,6 +1235,10 @@ function fitConsole() {
   fit.style.transform = 'none';
   fit.style.width = '';
   fit.style.height = '';
+  /* On a phone the case is laid out to fill the screen, so there is nothing to
+     shrink — scaling there would only make it small again, which is exactly
+     what went wrong before. */
+  if (matchMedia('(max-width:820px)').matches) { fitBoard(); return; }
   const cs = getComputedStyle(area);
   const availW = area.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   const availH = area.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
@@ -1206,19 +1252,36 @@ function fitConsole() {
      told the scaled size by hand */
   fit.style.width = (w * k) + 'px';
   fit.style.height = (h * k) + 'px';
+  fitBoard();
+}
+
+/* On a phone the board screen is fluid — it takes the full width as a square —
+   while the board itself is built on the art's fixed 64px squares. Scaling the
+   grid into whatever box it is given is what lets the case fill the screen
+   without the squares having to be a whole number of pixels. */
+function fitBoard() {
+  const bs = el('boardscreen'), g = el('grid');
+  const base = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue('--cell')) * 6;
+  const k = bs.clientWidth / base;
+  g.style.transform = Math.abs(k - 1) < 0.002 ? 'none' : `scale(${k})`;
 }
 addEventListener('resize', fitConsole);
 addEventListener('orientationchange', () => setTimeout(fitConsole, 120));
 new ResizeObserver(fitConsole).observe(el('deck'));
 
-/* tabs */
-document.querySelectorAll('.tab').forEach(t => {
-  t.onclick = () => {
-    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
-    document.querySelectorAll('.pane').forEach(p =>
-      p.classList.toggle('on', p.id === 'pane-' + t.dataset.tab));
-  };
+/* the slide switch: left prints the rules on the second screen, right the
+   testimony. Clicking a label throws it that way; clicking the slot flips it. */
+function setSlide(pos) {
+  el('slide').dataset.pos = pos;
+  el('view-rules').classList.toggle('on', pos === 'left');
+  el('view-report').classList.toggle('on', pos === 'right');
+}
+document.querySelectorAll('.slidelabel').forEach(b => {
+  b.onclick = () => setSlide(b.dataset.pos);
 });
+document.querySelector('.slideslot').onclick = () =>
+  setSlide(el('slide').dataset.pos === 'right' ? 'left' : 'right');
 
 /* Long-pressing a square to light a fire was opening the browser's own
    save-image menu on Android, because the squares are drawn with background
