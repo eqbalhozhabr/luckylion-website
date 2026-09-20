@@ -163,8 +163,13 @@
      squares, which is not a whole multiple of the 64px art — so the device
      stays one size and the printed area simply does not always fill it,
      which is how these panels actually looked. */
-  .boardscreen{width:var(--screen-w);height:var(--screen-w);
-               display:grid;place-items:center}
+  /* min-height, not height: the fuel strip lives on the game screen now. A
+     five-wide board has slack to spare, so the screen stays square; a six-wide
+     one fills it, so the screen grows into a rectangle instead of squeezing
+     the board. */
+  .boardscreen{width:var(--screen-w);min-height:var(--screen-w);
+               display:flex;flex-direction:column}
+  .boardwrap{flex:1;min-height:0;display:grid;place-items:center;margin:auto}
   .grid{display:grid;gap:0;width:max-content;touch-action:manipulation}
 
   /* the readout: same glass, same green, set in the blocky type of the old
@@ -180,9 +185,11 @@
            color:#2a2e1e;font-size:8.5px;line-height:1.95}
   /* the fuel and the hearts are the instrument panel, not part of the log, so
      they stay put while only the testimony moves under them */
+  /* printed at the top of the game screen itself, the way a handheld puts its
+     score and lives on the glass rather than on a second panel */
   .fuelrow{display:flex;align-items:center;justify-content:space-between;
-           padding:8px 12px 6px;border-bottom:2px solid #74765a}
-  .scroller{height:calc(100% - 62px);overflow-y:auto;padding:12px 12px 14px;
+           padding:6px 12px 5px;border-bottom:2px solid #74765a;flex:none}
+  .scroller{height:100%;overflow-y:auto;padding:12px 12px 14px;
             scrollbar-width:thin;scrollbar-color:#5d5f48 #8b8d69}
   /* squared off and in the panel's own greens, so the bar belongs to the
      device rather than to the browser */
@@ -448,7 +455,12 @@
     .col-side{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;
               gap:8px;min-height:0}
     .board{width:auto}
-    .boardscreen{width:100%;height:auto;aspect-ratio:1}
+    /* the board keeps the full width of the phone, and the fuel strip is added
+       above it rather than taken out of it — so the screen becomes a tall
+       rectangle and the report below simply gets that much less room. The
+       square belongs to the board alone, which is what the wrap carries. */
+    .boardscreen{width:100%;height:auto;min-height:0;overflow:hidden}
+    .boardwrap{flex:none;width:100%;aspect-ratio:1}
     .card.board .hint{display:none}
     .sidescreen{flex:1 1 auto;min-height:0;display:flex}
     .readout{width:100%;height:100%}
@@ -507,7 +519,16 @@
     <div>
       <div class="card board screen">
         <div class="lcd boardscreen" id="boardscreen">
-          <div class="grid" id="grid"></div>
+          <div class="fuelrow">
+            <span class="fuelgroup">
+              <span class="rowlabel" id="fuelLabel">Fuel</span>
+              <span class="fuel" id="fuel"></span>
+            </span>
+            <span class="lives" id="lives"></span>
+          </div>
+          <div class="boardwrap">
+            <div class="grid" id="grid"></div>
+          </div>
         </div>
         <div class="hint" id="hint"></div>
       </div>
@@ -522,13 +543,6 @@
       </div>
       <div class="card screen sidescreen">
         <div class="lcd readout">
-          <div class="fuelrow">
-            <span class="fuelgroup">
-              <span class="rowlabel" id="fuelLabel">Fuel</span>
-              <span class="fuel" id="fuel"></span>
-            </span>
-            <span class="lives" id="lives"></span>
-          </div>
           <div class="scroller">
             <div class="view on" id="view-report">
               <h2 id="testimonyLabel">Survivor testimony</h2>
@@ -1172,6 +1186,9 @@ function install(level) {
   paintChrome();
   buildBoard();
   render();
+  /* the board's own size changed, and on the phone the case does not, so the
+     resize observer on the deck never hears about it — refit by hand */
+  fitConsole();
   prefetchNext(P.stage);
 }
 
@@ -1261,9 +1278,16 @@ function fitConsole() {
    without the squares having to be a whole number of pixels. */
 function fitBoard() {
   const bs = el('boardscreen'), g = el('grid');
+  const wrap = g.parentElement;
   const base = parseFloat(
     getComputedStyle(document.documentElement).getPropertyValue('--cell')) * 6;
-  const k = bs.clientWidth / base;
+  let k = bs.clientWidth / base;
+  /* On the phone the screen is a fixed square, so the fuel strip's height has
+     to come out of the board's share rather than make the case taller. Nothing
+     here writes to the layout — the scale is a transform only — so this cannot
+     feed back into the resize observer that calls it. */
+  const room = wrap.clientHeight;
+  if (room && g.offsetHeight && g.offsetHeight * k > room) k = room / g.offsetHeight;
   g.style.transform = Math.abs(k - 1) < 0.002 ? 'none' : `scale(${k})`;
 }
 addEventListener('resize', fitConsole);
