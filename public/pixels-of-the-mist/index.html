@@ -243,7 +243,8 @@
   .rulelist{margin:0;padding-inline-start:18px;list-style:decimal}
   .rulelist li{margin-bottom:9px}
   .rulelist b{color:#141a0c}
-  .readout .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;
+  .readout .legend{display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+                   margin-top:12px;
                    color:#4a4e36;font-size:7.5px;line-height:1.9}
   .devbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;
           margin-top:14px;padding-top:10px;border-top:2px solid #74765a;
@@ -450,6 +451,24 @@
          filter:url(#greentone)}
   .ticon.chip{background-size:50% 50%;background-repeat:repeat;filter:none;
               background-color:#8b8d69;box-shadow:inset 0 0 0 1px #5d5f48}
+  /* The creatures are drawn as a four-frame strip, so stretching the file to
+     fill the box printed all four of them side by side. Four times the width
+     puts a single frame in the window at its own size. */
+  .ticon.strip{background-size:400% 100%;background-position:0 0}
+
+  /* the legend names the fire and the creatures, so it shows them rather than
+     borrowing an emoji from the system font — which was the one thing on the
+     panel not drawn in the game's own hand */
+  /* 32px, the same as the pictures beside the testimony: the art is drawn at
+     that size and halving it drops every other pixel */
+  .legend .lgi{flex:none;display:inline-block;width:32px;height:32px;
+               vertical-align:-11px;margin-right:2px;background-repeat:no-repeat;
+               image-rendering:pixelated;filter:url(#greentone)}
+  .legend .lgi.fire{background-image:var(--fire-img);
+                    background-size:400% 100%;background-position:0 0;
+                    filter:none}
+  .legend .lgi.mon{background-image:url(assets/monster_a.png);
+                   background-size:400% 100%;background-position:0 0}
 
   /* Hovering a line of testimony puts the rest of the map in shadow, so the
      ground that line is talking about is the only thing still lit. */
@@ -732,7 +751,8 @@ function paintChrome() {
   ].map(t => `<li>${t}</li>`).join('');
   const lg = s.legend;
   el('legend').innerHTML =
-    `<span>🔥 ${lg.fire}</span><span>👹 ${lg.monster}</span>` +
+    `<span><i class="lgi fire"></i>${lg.fire}</span>` +
+    `<span><i class="lgi mon"></i>${lg.monster}</span>` +
     `<span>${lg.border}</span><span>black — ${lg.rock}</span>`;
   el('hint').innerHTML = s.hintTap + '<br>' + s.hintPreview;
 }
@@ -1012,9 +1032,9 @@ function showPress(e) {
      way the tint moves when the viewing angle or the cell gap changes. Two
      offset ellipses so it is not a perfect circle. */
   pressEl.style.background =
-    `radial-gradient(ellipse 78px 68px at ${x - 8}px ${y + 5}px,` +
+    `radial-gradient(ellipse 132px 116px at ${x - 12}px ${y + 8}px,` +
     ' rgba(120,226,196,.16) 0, rgba(96,190,170,.09) 48%, rgba(0,0,0,0) 74%),' +
-    `radial-gradient(ellipse 94px 86px at ${x}px ${y}px,` +
+    `radial-gradient(ellipse 158px 146px at ${x}px ${y}px,` +
     ' rgba(150,240,212,.34) 0,' +
     ' rgba(116,220,192,.26) 18%,' +
     ' rgba(88,190,170,.17) 34%,' +
@@ -1188,7 +1208,8 @@ function render(justLit) {
       /* a sector's ground is deliberately sparse, so one tile of it at icon
          size is just a few specks — shown as a chip of four, the motif reads */
       b.className = 'ticon' +
-        (k === 'ZONE_FOG' || k === 'ZONE_CLEAR' ? ' chip' : '');
+        (k === 'ZONE_FOG' || k === 'ZONE_CLEAR' ? ' chip'
+         : k === 'COUNT' ? ' strip' : '');
       b.style.backgroundImage = icon;
       li.appendChild(b);
     }
