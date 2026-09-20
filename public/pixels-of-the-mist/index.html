@@ -169,7 +169,13 @@
      the board. */
   .boardscreen{width:var(--screen-w);min-height:var(--screen-w);
                display:flex;flex-direction:column}
-  .boardwrap{flex:1;min-height:0;display:grid;place-items:center;margin:auto}
+  /* the track is pinned to the box rather than left to size itself: an auto
+     track grows to the board's UNSCALED width, and centring inside that track
+     then leaves the scaled board pushed into one corner and hanging off the
+     glass on the other two sides */
+  .boardwrap{flex:1;min-height:0;display:grid;place-items:center;margin:auto;
+             grid-template-columns:minmax(0,1fr);
+             grid-template-rows:minmax(0,1fr)}
   .grid{display:grid;gap:0;width:max-content;touch-action:manipulation}
 
   /* the readout: same glass, same green, set in the blocky type of the old
