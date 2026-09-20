@@ -48,9 +48,28 @@
     --fire-dim-img:url(assets/lcd/fire_dither.png);
   }
   *{box-sizing:border-box}
-  body{margin:0;padding:16px;background:var(--bg);color:var(--ink);
+  /* dvh, not vh: on a phone the browser chrome slides in and out, and vh keeps
+     measuring the taller of the two, which would push the console off-screen */
+  html,body{height:100dvh;overflow:hidden}
+  body{margin:0;padding:0;background:var(--bg);color:var(--ink);
        font:15px/1.6 "Segoe UI",system-ui,sans-serif;
-       -webkit-user-select:none;user-select:none}
+       display:flex;flex-direction:column;
+       -webkit-user-select:none;user-select:none;
+       -webkit-touch-callout:none}
+
+  .tabs{display:flex;gap:2px;flex:none;padding:6px 8px 0;background:#14170f}
+  .tab{font-family:"Press Start 2P","Courier New",monospace;font-size:9px;
+       padding:11px 18px 10px;border:none;cursor:pointer;color:#8b8d69;
+       background:#262a1d;border-radius:8px 8px 0 0}
+  .tab.on{background:#3a3f33;color:#e8ead6}
+  .panes{flex:1;min-height:0;position:relative}
+  .pane{display:none;height:100%}
+  .pane.on{display:block}
+  /* the game screen never scrolls: the console is scaled to whatever room
+     there is, so the device always sits whole on the screen */
+  #pane-game{display:none;place-items:center;overflow:hidden;padding:8px}
+  #pane-game.on{display:grid}
+  #pane-rules{overflow-y:auto;padding:16px}
   h1{font-size:18px;margin:0;font-weight:600;letter-spacing:.02em}
   .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
        margin:2px 0 14px;color:var(--muted);font-size:13px}
@@ -61,10 +80,10 @@
   /* The device is always its own size; when the viewport is too narrow the
      whole thing is scaled down rather than reflowed, because the screens are
      fixed at the art's own 64px grid and cannot be squeezed. */
-  /* Scaled from the top-left corner, and left-aligned like everything above
-     it. Centring was the bug: once the case is wider than the space it has,
-     `margin:0 auto` stops centring and it sits at the left, so scaling about
-     the centre then pushed it off to the right. */
+  /* Scaled from its own top-left and then centred by the grid it sits in.
+     Centring the case with `margin:auto` does not work once it is wider than
+     the space it has — auto margins collapse to zero and it hugs the left,
+     which is what pushed it sideways when it was scaled about a centre. */
   .fitter{transform-origin:top left}
   .console{background:linear-gradient(#3a3f33,#2b2f26);
            border:1px solid #171a13;border-radius:18px;padding:16px;
@@ -319,7 +338,7 @@
      from above. The shell keeps the recess, the button keeps the dome, and
      pressing swaps which of the two highlights you see. */
   .tools{display:flex;gap:14px;flex-wrap:wrap;margin-top:2px;
-         align-items:center}
+         align-items:center;justify-content:center}
   /* scoped to the device's own panel: the stage/seed strip above is a
      developer control, not part of the console */
   .tools button{font-family:"Press Start 2P","Courier New",monospace;font-size:8px;
@@ -424,23 +443,13 @@
   <feBlend mode="screen" in="rg" in2="b"/>
 </filter></svg>
 
-<div class="wrap">
-  <h1 id="title">Mist</h1>
-  <div class="bar">
-    <span>Stage</span>
-    <select id="stage"></select>
-    <span class="chip" id="diff">—</span>
-    <span>Seed</span><input class="seed" id="seed" inputmode="numeric">
-    <button id="newLevel">New level</button>
-    <span id="busy"></span>
-  </div>
+<div class="tabs">
+  <button class="tab on" data-tab="game">Game</button>
+  <button class="tab" data-tab="rules">Rules</button>
+</div>
 
-  <div class="card">
-    <h2>Rules</h2>
-    <div class="rules" id="rules"></div>
-    <div class="legend" id="legend"></div>
-  </div>
-
+<div class="panes" id="panes">
+<section class="pane on" id="pane-game">
   <div class="fitter" id="fitter">
   <div class="cols console" id="console">
     <div>
@@ -478,6 +487,24 @@
     </div>
   </div>
   </div>
+</section>
+
+<section class="pane" id="pane-rules">
+  <h1 id="title">Mist</h1>
+  <div class="bar">
+    <span>Stage</span>
+    <select id="stage"></select>
+    <span class="chip" id="diff">—</span>
+    <span>Seed</span><input class="seed" id="seed" inputmode="numeric">
+    <button id="newLevel">New level</button>
+    <span id="busy"></span>
+  </div>
+  <div class="card">
+    <h2>Rules</h2>
+    <div class="rules" id="rules"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+</section>
 </div>
 
 <script src="mist-engine.js"></script>
@@ -748,6 +775,10 @@ function clueIcon(c) {
   const lm = landmarks[c.args[0]];
   return lm ? `url(assets/${BUILDING[lm]}.png)` : null;
 }
+
+/* the testimony line the player has tapped, which stays lit until they let go
+   of it — the only way this works on a touch screen */
+let pinned = null;
 
 function spotlight(set) {
   const cells = el('grid').children;
@@ -1024,12 +1055,25 @@ function render(justLit) {
       li.appendChild(b);
     }
     li.appendChild(document.createElement('span')).textContent = text;
-    /* the class carries the selection box as well as :hover, so the frame and
-       the squares it points at are always driven by the same event */
-    li.onmouseenter = () => { li.classList.add('sel'); spotlight(clueCells(l.c)); };
-    li.onmouseleave = () => { li.classList.remove('sel'); spotlight(null); };
+    /* Hover is a mouse idea. On a touch screen nothing ever enters or leaves,
+       which is why Safari showed no highlight at all — so a tap pins the line
+       instead, and tapping it again or picking another releases it. */
+    const show = () => {
+      ol.querySelectorAll('li.sel').forEach(x => x.classList.remove('sel'));
+      li.classList.add('sel');
+      spotlight(clueCells(l.c));
+    };
+    const hide = () => { li.classList.remove('sel'); spotlight(null); };
+    li.onmouseenter = (e) => { if (pinned !== li) show(); };
+    li.onmouseleave = () => { if (pinned !== li) hide(); };
+    li.onclick = () => {
+      if (pinned === li) { pinned = null; hide(); }
+      else { pinned = li; show(); }
+    };
     ol.appendChild(li);
   });
+  /* the list is rebuilt from scratch, so whatever was pinned no longer exists */
+  pinned = null;
   spotlight(null);
 
   const s = T().ui;
@@ -1126,18 +1170,41 @@ el('reveal').onclick = () => {
    fits a phone, and it is what holding the thing actually looks like. The
    wrapper's height is set by hand because a transform leaves layout alone. */
 function fitConsole() {
-  const fit = el('fitter'), con = el('console');
+  const fit = el('fitter'), con = el('console'), pane = el('pane-game');
   fit.style.transform = 'none';
+  fit.style.width = '';
   fit.style.height = '';
-  const avail = fit.parentElement.clientWidth;
-  const k = Math.min(1, avail / con.offsetWidth);
-  if (k < 1) {
-    fit.style.transform = `scale(${k})`;
-    fit.style.height = (con.offsetHeight * k) + 'px';
-  }
+  const cs = getComputedStyle(pane);
+  const availW = pane.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const availH = pane.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  const w = con.offsetWidth, h = con.offsetHeight;
+  if (!w || !h) return;
+  /* both axes, so the whole case is on screen rather than just its width */
+  const k = Math.min(1, availW / w, availH / h);
+  fit.style.transform = `scale(${k})`;
+  /* a transform leaves layout alone, so the box the grid centres has to be
+     told the scaled size by hand */
+  fit.style.width = (w * k) + 'px';
+  fit.style.height = (h * k) + 'px';
 }
 addEventListener('resize', fitConsole);
+addEventListener('orientationchange', () => setTimeout(fitConsole, 120));
 new ResizeObserver(fitConsole).observe(el('console'));
+
+/* tabs */
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
+    document.querySelectorAll('.pane').forEach(p =>
+      p.classList.toggle('on', p.id === 'pane-' + t.dataset.tab));
+    if (t.dataset.tab === 'game') fitConsole();
+  };
+});
+
+/* Long-pressing a square to light a fire was opening the browser's own
+   save-image menu on Android, because the squares are drawn with background
+   images. Nothing on the device should ever raise one. */
+el('panes').addEventListener('contextmenu', e => e.preventDefault());
 
 setInterval(() => el('grid').classList.toggle('alt0'), 1500);
 setTimeout(() => setInterval(() => el('grid').classList.toggle('alt1'), 1500), 750);
