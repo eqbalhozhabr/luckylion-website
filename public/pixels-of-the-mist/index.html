@@ -57,26 +57,43 @@
        -webkit-user-select:none;user-select:none;
        -webkit-touch-callout:none}
 
-  .tabs{display:flex;gap:2px;flex:none;padding:6px 8px 0;background:#14170f}
+  /* the game screen never scrolls: the whole device is scaled to whatever room
+     there is, so it always sits on screen in one piece */
+  .stagearea{flex:1;min-height:0;display:grid;place-items:center;
+             overflow:hidden;padding:10px}
+  .deck{width:max-content}
+
+  /* Tabs cut from the same case as the console and sitting on its top edge.
+     The active one is the shell's own colour and overlaps the seam by a pixel,
+     so it reads as one moulding rather than a control floating above it. */
+  .tabs{display:flex;gap:3px;margin-left:16px}
   .tab{font-family:"Press Start 2P","Courier New",monospace;font-size:9px;
-       padding:11px 18px 10px;border:none;cursor:pointer;color:#8b8d69;
-       background:#262a1d;border-radius:8px 8px 0 0}
-  .tab.on{background:#3a3f33;color:#e8ead6}
-  .panes{flex:1;min-height:0;position:relative}
-  .pane{display:none;height:100%}
-  .pane.on{display:block}
-  /* the game screen never scrolls: the console is scaled to whatever room
-     there is, so the device always sits whole on the screen */
-  #pane-game{display:none;place-items:center;overflow:hidden;padding:8px}
-  #pane-game.on{display:grid}
-  #pane-rules{overflow-y:auto;padding:16px}
+       padding:10px 18px 9px;cursor:pointer;color:#7f8468;
+       background:linear-gradient(#2e3227,#23271d);
+       border:1px solid #171a13;border-bottom:none;
+       border-radius:9px 9px 0 0;position:relative;
+       box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+  .tab.on{background:linear-gradient(#41473a,#3a3f33);color:#e8ead6;
+          margin-bottom:-1px;padding-bottom:10px;z-index:2;
+          box-shadow:inset 0 1px 0 rgba(255,255,255,.10)}
+
+  /* Both panes share one grid cell, so the case is always exactly the size of
+     the board side and never resizes when the tab changes. The rules sit on
+     top of that box and scroll inside it. */
+  .console{position:relative;display:grid}
+  .pane{grid-area:1/1;visibility:hidden}
+  .pane.on{visibility:visible}
+  #pane-rules{position:absolute;inset:0;overflow-y:auto;padding-right:4px}
   h1{font-size:18px;margin:0;font-weight:600;letter-spacing:.02em}
   .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
        margin:2px 0 14px;color:var(--muted);font-size:13px}
   .wrap{max-width:1000px;margin:0 auto}
   /* desktop: board on the left, readout on the right. Narrow: the readout
      drops under the board, both inside the same console shell. */
-  .cols{display:flex;gap:16px;align-items:flex-start}
+  .cols{display:flex;gap:16px;align-items:flex-start;
+        /* it shares a grid cell with the rules, so it must still lay itself
+           out as a flex row rather than being collapsed by the grid */
+        justify-self:start}
   /* The device is always its own size; when the viewport is too narrow the
      whole thing is scaled down rather than reflowed, because the screens are
      fixed at the art's own 64px grid and cannot be squeezed. */
@@ -89,7 +106,7 @@
            border:1px solid #171a13;border-radius:18px;padding:16px;
            box-shadow:inset 0 1px 0 rgba(255,255,255,.07),
                       0 10px 26px rgba(0,0,0,.45);
-           width:max-content}
+           width:max-content;border-top-left-radius:0}
   /* the bezel casting onto the glass. This is what separates the panel from
      the shell — without it the screen looks printed on the case rather than
      sunk behind it. */
@@ -443,15 +460,15 @@
   <feBlend mode="screen" in="rg" in2="b"/>
 </filter></svg>
 
-<div class="tabs">
-  <button class="tab on" data-tab="game">Game</button>
-  <button class="tab" data-tab="rules">Rules</button>
-</div>
-
-<div class="panes" id="panes">
-<section class="pane on" id="pane-game">
+<div class="stagearea" id="panes">
   <div class="fitter" id="fitter">
-  <div class="cols console" id="console">
+  <div class="deck" id="deck">
+  <div class="tabs">
+    <button class="tab on" data-tab="game">Game</button>
+    <button class="tab" data-tab="rules">Rules</button>
+  </div>
+  <div class="console" id="console">
+  <div class="pane cols on" id="pane-game">
     <div>
       <div class="card board screen">
         <div class="lcd boardscreen" id="boardscreen">
@@ -486,25 +503,27 @@
       </div>
     </div>
   </div>
-  </div>
-</section>
 
-<section class="pane" id="pane-rules">
-  <h1 id="title">Mist</h1>
-  <div class="bar">
-    <span>Stage</span>
-    <select id="stage"></select>
-    <span class="chip" id="diff">—</span>
-    <span>Seed</span><input class="seed" id="seed" inputmode="numeric">
-    <button id="newLevel">New level</button>
-    <span id="busy"></span>
+  <div class="pane" id="pane-rules">
+    <h1 id="title">Mist</h1>
+    <div class="bar">
+      <span>Stage</span>
+      <select id="stage"></select>
+      <span class="chip" id="diff">—</span>
+      <span>Seed</span><input class="seed" id="seed" inputmode="numeric">
+      <button id="newLevel">New level</button>
+      <span id="busy"></span>
+    </div>
+    <div class="card">
+      <h2>Rules</h2>
+      <div class="rules" id="rules"></div>
+      <div class="legend" id="legend"></div>
+    </div>
   </div>
-  <div class="card">
-    <h2>Rules</h2>
-    <div class="rules" id="rules"></div>
-    <div class="legend" id="legend"></div>
+
   </div>
-</section>
+  </div>
+  </div>
 </div>
 
 <script src="mist-engine.js"></script>
@@ -1170,14 +1189,15 @@ el('reveal').onclick = () => {
    fits a phone, and it is what holding the thing actually looks like. The
    wrapper's height is set by hand because a transform leaves layout alone. */
 function fitConsole() {
-  const fit = el('fitter'), con = el('console'), pane = el('pane-game');
+  const fit = el('fitter'), deck = el('deck'), area = el('panes');
   fit.style.transform = 'none';
   fit.style.width = '';
   fit.style.height = '';
-  const cs = getComputedStyle(pane);
-  const availW = pane.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-  const availH = pane.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
-  const w = con.offsetWidth, h = con.offsetHeight;
+  const cs = getComputedStyle(area);
+  const availW = area.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const availH = area.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  /* the tabs are part of the case now, so the deck is what has to fit */
+  const w = deck.offsetWidth, h = deck.offsetHeight;
   if (!w || !h) return;
   /* both axes, so the whole case is on screen rather than just its width */
   const k = Math.min(1, availW / w, availH / h);
@@ -1189,7 +1209,7 @@ function fitConsole() {
 }
 addEventListener('resize', fitConsole);
 addEventListener('orientationchange', () => setTimeout(fitConsole, 120));
-new ResizeObserver(fitConsole).observe(el('console'));
+new ResizeObserver(fitConsole).observe(el('deck'));
 
 /* tabs */
 document.querySelectorAll('.tab').forEach(t => {
@@ -1197,7 +1217,6 @@ document.querySelectorAll('.tab').forEach(t => {
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
     document.querySelectorAll('.pane').forEach(p =>
       p.classList.toggle('on', p.id === 'pane-' + t.dataset.tab));
-    if (t.dataset.tab === 'game') fitConsole();
   };
 });
 
