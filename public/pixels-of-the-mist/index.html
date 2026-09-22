@@ -176,8 +176,14 @@
      the content, because otherwise the control plate underneath sets the width
      and the column ends up wider than its own glass, with a bare strip of
      bezel down one side. */
+  /* height matches .card.board.screen exactly (same fixed formula) rather
+     than leaning on align-items:stretch — stretch only sizes the box, and a
+     percentage-height testimony list several screens long would still push
+     that box taller from the inside; a real number here is what lets
+     min-height:0 below actually cap it and the scroller take the overflow. */
   .col-side{flex:0 0 auto;min-width:0;min-height:0;
             width:calc(var(--screen-w) + 30px);
+            height:calc(var(--screen-w) + 109px);
             display:flex;flex-direction:column;gap:12px}
   .col-side .card{margin-bottom:0}
   .sidescreen{flex:1 1 auto;min-height:0;display:flex}
@@ -210,11 +216,16 @@
      squares, which is not a whole multiple of the 64px art — so the device
      stays one size and the printed area simply does not always fill it,
      which is how these panels actually looked. */
-  /* min-height, not height: the fuel strip lives on the game screen now. A
-     five-wide board has slack to spare, so the screen stays square; a six-wide
-     one fills it, so the screen grows into a rectangle instead of squeezing
-     the board. */
-  .boardscreen{width:var(--screen-w);min-height:var(--screen-w);
+  /* Fixed at the tallest a desktop view ever needs (the glass plus the hint
+     line under the game view) — not content-driven — so pressing Start never
+     resizes the card, whichever view happens not to fill it. */
+  .card.board.screen{height:calc(var(--screen-w) + 109px)}
+  /* height, not min-height: every screen on the console — this one, the menu,
+     the sector list — is the same fixed glass, so switching between them never
+     resizes the case. The fuel strip's height comes out of the board's own
+     share (boardwrap is the flexible one below) rather than growing the
+     screen past it. */
+  .boardscreen{width:var(--screen-w);height:var(--screen-w);overflow:hidden;
                display:flex;flex-direction:column}
   /* the track is pinned to the box rather than left to size itself: an auto
      track grows to the board's UNSCALED width, and centring inside that track
@@ -233,7 +244,7 @@
      the corner cast are absolutely positioned against this box, and when this
      box was the scrolling one they stretched to the full scroll height and
      rode up with the content. */
-  .readout{width:var(--screen-w);height:100%;min-height:var(--screen-w);
+  .readout{width:var(--screen-w);height:100%;min-height:0;
            overflow:hidden;
            font-family:"Press Start 2P","Courier New",monospace;
            color:#2a2e1e;font-size:8.5px;line-height:1.95}
@@ -448,19 +459,27 @@
          white-space:nowrap;
          padding:8px 10px 9px;border:none;border-radius:999px;
          color:#e8ead6;
-         background:linear-gradient(180deg,#666c56 0%,#4d5342 45%,#393d31 100%);
-         box-shadow:0 2px 0 #23271d,0 3px 4px rgba(0,0,0,.4),
-                    inset 0 1px 0 rgba(255,255,255,.18);
+         background:
+           radial-gradient(circle at 32% 24%,rgba(255,255,255,.4),rgba(255,255,255,0) 45%),
+           radial-gradient(circle at 50% 92%,rgba(0,0,0,.3),rgba(0,0,0,0) 55%),
+           linear-gradient(180deg,#6d735c 0%,#4d5342 42%,#33372b 100%);
+         box-shadow:0 2px 0 #1c1f16,0 4px 6px rgba(0,0,0,.5),
+                    inset 0 1px 1px rgba(255,255,255,.25),
+                    inset 0 -2px 2px rgba(0,0,0,.3);
          transition:transform .04s linear, box-shadow .04s linear}
-  /* the socket: a darker floor let into the panel, with an inset shadow doing
-     the actual carving — sized off the key's own box (inset), so one rule
-     fits the pill and both sizes of circle without per-key tuning */
+  /* the socket: a darker floor let into the panel, sunk with a tight inner
+     shadow at the rim and a soft one further in — the way an actual punched
+     hole reads two depths, not one flat dip — plus a sliver of the panel's
+     own highlight catching the far lip so the hole doesn't read as a flat
+     dark smear. Sized off the key's own box (inset), so one rule fits the
+     pill and both sizes of circle without per-key tuning. */
   .tools button::after{content:"";position:absolute;z-index:-1;
-         inset:-6px;border-radius:inherit;background:#2b2920;
-         box-shadow:inset 0 2px 5px rgba(0,0,0,.6),
-                    inset 0 -1px 0 rgba(255,255,255,.05)}
+         inset:-6px;border-radius:inherit;background:#211f18;
+         box-shadow:inset 0 3px 4px rgba(0,0,0,.75),
+                    inset 0 -2px 5px rgba(0,0,0,.4),
+                    inset 0 -1px 0 rgba(255,255,255,.08)}
   .tools button:active:not(:disabled){transform:translateY(2px);
-         box-shadow:inset 0 2px 3px rgba(0,0,0,.35)}
+         box-shadow:inset 0 2px 3px rgba(0,0,0,.4)}
   .tools button:disabled{opacity:.45;cursor:default}
   /* the red action button of the originals, and the largest key on the plate —
      it is the one the whole puzzle is aimed at. Round rather than the pill of
@@ -470,10 +489,14 @@
             width:52px;height:52px;padding:0;border-radius:50%;
             display:flex;align-items:center;justify-content:center;
             color:#fff2ee;
-            background:linear-gradient(180deg,#c1503a 0%,#aa321f 45%,#7c210f 100%);
-            box-shadow:0 2px 0 #4c120b,0 3px 5px rgba(0,0,0,.45),
-                       inset 0 1px 0 rgba(255,255,255,.25)}
-  .tools button.go:active:not(:disabled){box-shadow:inset 0 2px 4px rgba(0,0,0,.4)}
+            background:
+              radial-gradient(circle at 32% 24%,rgba(255,255,255,.5),rgba(255,255,255,0) 45%),
+              radial-gradient(circle at 50% 92%,rgba(0,0,0,.35),rgba(0,0,0,0) 55%),
+              linear-gradient(180deg,#cb5a42 0%,#aa321f 42%,#711d0e 100%);
+            box-shadow:0 2px 0 #3c0e08,0 4px 7px rgba(0,0,0,.55),
+                       inset 0 1px 1px rgba(255,255,255,.35),
+                       inset 0 -2px 2px rgba(0,0,0,.35)}
+  .tools button.go:active:not(:disabled){box-shadow:inset 0 2px 4px rgba(0,0,0,.45)}
   /* Clear/Reveal: a small blank key, the way LEFT/RIGHT or B/A sit on the
      originals. The key itself is just a small circle now — the same shape
      recipe as Submit — so its centre lines up with the other keys under
@@ -542,7 +565,7 @@
   /* the menu's two screens sit in the exact same glass as the board and the
      testimony — same width, same paper — so switching screens never resizes
      the case */
-  .lcd.menutop{width:var(--screen-w);min-height:var(--screen-w);
+  .lcd.menutop{width:var(--screen-w);height:var(--screen-w);
                display:flex;flex-direction:column;gap:9px;
                padding:14px 12px 12px;color:#2a2e1e;
                font-family:"Press Start 2P","Courier New",monospace}
@@ -553,16 +576,38 @@
               text-shadow:0 1px 0 #cdd0ab,0 -1px 0 #cdd0ab,
                           1px 0 0 #cdd0ab,-1px 0 0 #cdd0ab}
   .menu-title.small{font-size:11px;margin-bottom:8px}
+  /* Anything printed on the glass is pixel content, not vector — a real LCD
+     segment has no anti-aliased curve, so screen UI gets a stepped corner
+     instead of border-radius. One 3-step staircase, shared by every rounded
+     shape on the screen; --pxc is the only thing that changes per element.
+     border-radius:0 first, so a bordered element's straight sides get cut
+     cleanly rather than the clip fighting a curve underneath it. */
+  .pixel-corners{--pxc:2px;border-radius:0;
+    clip-path:polygon(
+      calc(var(--pxc)*3) 0,calc(var(--pxc)*3) var(--pxc),calc(var(--pxc)*2) var(--pxc),
+      calc(var(--pxc)*2) calc(var(--pxc)*2),var(--pxc) calc(var(--pxc)*2),var(--pxc) calc(var(--pxc)*3),
+      0 calc(var(--pxc)*3),0 calc(100% - var(--pxc)*3),var(--pxc) calc(100% - var(--pxc)*3),
+      var(--pxc) calc(100% - var(--pxc)*2),calc(var(--pxc)*2) calc(100% - var(--pxc)*2),
+      calc(var(--pxc)*2) calc(100% - var(--pxc)),calc(var(--pxc)*3) calc(100% - var(--pxc)),calc(var(--pxc)*3) 100%,
+      calc(100% - var(--pxc)*3) 100%,calc(100% - var(--pxc)*3) calc(100% - var(--pxc)),
+      calc(100% - var(--pxc)*2) calc(100% - var(--pxc)),calc(100% - var(--pxc)*2) calc(100% - var(--pxc)*2),
+      calc(100% - var(--pxc)) calc(100% - var(--pxc)*2),calc(100% - var(--pxc)) calc(100% - var(--pxc)*3),
+      100% calc(100% - var(--pxc)*3),100% calc(var(--pxc)*3),calc(100% - var(--pxc)) calc(var(--pxc)*3),
+      calc(100% - var(--pxc)) calc(var(--pxc)*2),calc(100% - var(--pxc)*2) calc(var(--pxc)*2),
+      calc(100% - var(--pxc)*2) var(--pxc),calc(100% - var(--pxc)*3) var(--pxc),calc(100% - var(--pxc)*3) 0
+    )}
   /* same dark ink as the rest of the screen's text, not a printed colour of
      its own — with a dither checkerboard standing in for the shading a real
-     LCD segment would have, at one pattern pixel per two screen pixels so it
-     reads as texture rather than a grid */
-  .menu-cta{font-family:inherit;font-size:10px;letter-spacing:.04em;
-            text-transform:uppercase;cursor:pointer;border:none;border-radius:999px;
+     LCD segment would have. Two axis-aligned stripe grids offset a pixel
+     from each other, not a diagonal gradient — that read as a smooth line at
+     this size instead of the actual square-pixel dither a 1-bit screen
+     would show. */
+  .menu-cta{--pxc:3px;font-family:inherit;font-size:10px;letter-spacing:.04em;
+            text-transform:uppercase;cursor:pointer;border:none;
             padding:11px 14px;color:#cdd0ab;
             background:
-              repeating-conic-gradient(rgba(0,0,0,.18) 0% 25%,transparent 0% 50%)
-                0 0/4px 4px,
+              linear-gradient(90deg,rgba(0,0,0,.24) 50%,transparent 50%) 0 0/4px 4px,
+              linear-gradient(rgba(0,0,0,.24) 50%,transparent 50%) 2px 2px/4px 4px,
               #1a2412;
             box-shadow:0 2px 0 #0c1408;
             transition:transform .04s linear, box-shadow .04s linear}
@@ -572,22 +617,22 @@
   .segbar{display:flex;gap:2px;flex:1;max-width:120px}
   .segbar .seg{flex:1;height:7px;background:#7d7f5f;border-radius:1px}
   .segbar .seg.on{background:#2a2e1e}
-  .menu-btn{font-family:inherit;font-size:8.5px;letter-spacing:.03em;
+  .menu-btn{--pxc:2px;font-family:inherit;font-size:8.5px;letter-spacing:.03em;
             text-transform:uppercase;cursor:pointer;text-align:left;
-            padding:10px 11px;border:1px solid #5d5f48;border-radius:7px;
+            padding:10px 11px;border:1px solid #5d5f48;
             background:#8b8d69;color:#20241a;
             box-shadow:inset 0 -2px 0 rgba(32,36,26,.18)}
   .menu-btn:active{box-shadow:inset 0 2px 0 rgba(32,36,26,.18)}
   .menu-row{display:flex;gap:8px}
   .menu-row .menu-btn{flex:1}
-  .badge-today{display:inline-block;margin-left:5px;padding:2px 5px;
-               font-size:6.5px;border-radius:3px;background:#2a2e1e;color:#cdd0ab;
+  .badge-today{--pxc:1px;display:inline-block;margin-left:5px;padding:2px 5px;
+               font-size:6.5px;background:#2a2e1e;color:#cdd0ab;
                vertical-align:1px}
   .menu-btn.done::after{content:"\2713";margin-left:6px;color:#1f3a16}
   .sector-list{display:flex;flex-direction:column;gap:7px;overflow-y:auto;
                flex:1 1 auto;min-height:0}
-  .sector-row{display:flex;align-items:center;justify-content:space-between;
-              gap:8px;padding:9px 10px;border:1px solid #5d5f48;border-radius:7px;
+  .sector-row{--pxc:2px;display:flex;align-items:center;justify-content:space-between;
+              gap:8px;padding:9px 10px;border:1px solid #5d5f48;
               background:#8b8d69;cursor:pointer}
   .sector-row:active{background:#7d7f5f}
   .sector-name{font-size:9px;text-transform:uppercase}
@@ -613,7 +658,7 @@
   input.lcdrange::-webkit-slider-thumb{-webkit-appearance:none;width:12px;
                  height:12px;border-radius:50%;background:#5d5f48;cursor:pointer}
   input.lcdrange:disabled{opacity:.55;cursor:default}
-  .soon-tag{font-size:6.5px;padding:2px 5px;border-radius:3px;
+  .soon-tag{--pxc:1px;font-size:6.5px;padding:2px 5px;
             background:#7d7f5f;color:#2a2e1e;flex:none}
   .hint-block{font-size:8.5px;line-height:1.9;color:#3a3e2c}
   /* the control plate normally holds the slide + tools as flex siblings; once
@@ -641,8 +686,12 @@
     .deck{width:100%;height:100%}
     .console{width:100%;padding:7px;border-radius:14px}
     .screen{padding:6px}
+    /* the desktop lock is a fixed px value off a fixed --screen-w; on a phone
+       both the screen and the hint's own reserve are already width-relative
+       (aspect-ratio, hint hidden below), so the card just follows its content */
+    .card.board.screen{height:auto}
     .cols{flex-direction:column;align-items:stretch;gap:6px;height:100%}
-    .col-side{min-width:0;flex:1 1 auto;gap:6px;width:100%}
+    .col-side{min-width:0;flex:1 1 auto;gap:6px;width:100%;height:auto}
     /* the board stays at the top of the phone, so the plate goes above the
        readout rather than under it */
     /* wrap is the safety net, not the plan: on anything from a 360px phone up
@@ -664,17 +713,17 @@
     .tools button.round{width:26px;height:26px}
     .tools button.round .key-label{font-size:6px;margin-top:6px}
     .board{width:auto}
-    /* the board keeps the full width of the phone, and the fuel strip is added
-       above it rather than taken out of it — so the screen becomes a tall
-       rectangle and the report below simply gets that much less room. The
-       square belongs to the board alone, which is what the wrap carries. */
-    .boardscreen{width:100%;height:auto;min-height:0;overflow:hidden}
-    .boardwrap{flex:none;width:100%;aspect-ratio:1}
+    /* the board keeps the full width of the phone as a square, the same square
+       the menu screen locks to below — the fuel strip's height now comes out
+       of the board's own share (boardwrap) instead of growing the screen
+       past it, so every screen on the console is this one fixed size. */
+    .boardscreen{width:100%;height:auto;aspect-ratio:1;overflow:hidden}
+    .boardwrap{flex:1 1 auto;min-height:0;width:100%}
     .card.board .hint{display:none}
     .readout{width:100%;height:100%;min-height:0}
-    /* same square as .boardwrap, so switching to the menu screen never
+    /* same square as .boardscreen, so switching to the menu screen never
        changes the size of the console glass */
-    .lcd.menutop{width:100%;min-height:0;aspect-ratio:1;overflow:hidden}
+    .lcd.menutop{width:100%;height:auto;aspect-ratio:1;overflow:hidden}
     .sector-list{max-height:none}
     .card{margin-bottom:0}
   }
@@ -751,15 +800,15 @@
               <span id="menuStageTag">STAGE 1</span>
             </div>
             <h2 class="menu-title" id="menuTitle"></h2>
-            <button class="menu-cta" id="menuContinue">Start</button>
+            <button class="menu-cta pixel-corners" id="menuContinue">Start</button>
             <div class="menu-progress">
               <span id="menuProgressLabel">Solved · 0</span>
               <div class="segbar" id="menuSegbar"></div>
             </div>
-            <button class="menu-btn" id="menuChapterMap">Chapter Map</button>
+            <button class="menu-btn pixel-corners" id="menuChapterMap">Chapter Map</button>
             <div class="menu-row">
-              <button class="menu-btn" id="menuEndless">Endless</button>
-              <button class="menu-btn" id="menuDaily">Daily<span class="badge-today">Today</span></button>
+              <button class="menu-btn pixel-corners" id="menuEndless">Endless</button>
+              <button class="menu-btn pixel-corners" id="menuDaily">Daily<span class="badge-today pixel-corners">Today</span></button>
             </div>
           </div>
         </div>
@@ -812,17 +861,17 @@
                 <div class="slider-row">
                   <span class="rowlabel">Music</span>
                   <input type="range" class="lcdrange" disabled>
-                  <span class="soon-tag">Soon</span>
+                  <span class="soon-tag pixel-corners">Soon</span>
                 </div>
                 <div class="slider-row">
                   <span class="rowlabel">SFX</span>
                   <input type="range" class="lcdrange" disabled>
-                  <span class="soon-tag">Soon</span>
+                  <span class="soon-tag pixel-corners">Soon</span>
                 </div>
                 <div class="slider-row">
                   <span class="rowlabel">Ambience</span>
                   <input type="range" class="lcdrange" disabled>
-                  <span class="soon-tag">Soon</span>
+                  <span class="soon-tag pixel-corners">Soon</span>
                 </div>
               </div>
             </div>
@@ -1720,7 +1769,7 @@ function buildSectorList() {
   box.innerHTML = '';
   LADDER_STAGES().forEach(n => {
     const row = document.createElement('div');
-    row.className = 'sector-row';
+    row.className = 'sector-row pixel-corners';
     const name = document.createElement('span');
     name.className = 'sector-name';
     name.textContent = T().ui.stageLabel(n, T().stage[n]);
