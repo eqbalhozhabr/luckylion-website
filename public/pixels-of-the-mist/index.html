@@ -1118,6 +1118,14 @@ function loadSettings() {
     reduceMotion: !!s.reduceMotion,
     dailyDate: s.dailyDate || '',
     dailyStage: s.dailyStage || 0,
+    /* Consecutive days with a Daily win, shown on the Daily boot screen
+       instead of a level count - Daily is one puzzle a day, not a sequence,
+       so "Level N of 120" never meant anything there. dailyStreakDate is the
+       last date the streak actually advanced, so a second win the same day
+       (there isn't one - Daily locks after one attempt - but belt and
+       braces) never double-counts. */
+    dailyStreak: s.dailyStreak || 0,
+    dailyStreakDate: s.dailyStreakDate || '',
     solved: s.solved || 0,
     /* Endless's position in its 10-slot band rotation, kept per chapter so
        returning to one later continues its own cycle rather than resetting
@@ -1733,6 +1741,9 @@ let endlessMode = false;
    Endless is entered fresh from the menu, advanced alongside the slot
    rotation below so it only moves for an actual new level, never a Retry. */
 let endlessRunCount = 0;
+/* Same idea as endlessMode: Daily is not the chapter it happens to be
+   generated on either, and its boot screen needs to know that too. */
+let dailyMode = false;
 function endlessBand(stage) {
   if (!endlessMode) return null;
   const slot = (settings.endlessSlot[stage] || 0) % ENDLESS_PATTERN.length;
@@ -1773,6 +1784,11 @@ function freshBand(stage) {
    just for a full reload instead of just the solution. */
 function loadLevel(stage, seed, bandOverride) {
   const fresh = seed === undefined;
+  /* Daily's own entry always passes its hashed seed, and Retry always passes
+     P.seed back - neither is ever "fresh". A fresh request only happens once
+     Daily is behind you (Continue, or Next after any result), so this is the
+     one place that reliably knows to drop out of Daily again. */
+  if (fresh) dailyMode = false;
   const band = fresh ? freshBand(stage) : (bandOverride || null);
   if (fresh && prefetch && prefetch.lvl.stage === stage && prefetch.band === band) {
     const lvl = prefetch.lvl; prefetch = null;
@@ -1802,14 +1818,18 @@ function loadLevel(stage, seed, bandOverride) {
 const BOOT_MS = 2200;
 function bootLevel(lvl, band) {
   if (DEV) { install(lvl, band); return; }
-  /* Endless is not a chapter run - showing the chapter's own name here (the
-     same splash a campaign level gets) read as if it were still First Night,
-     and Endless never reaches CHAPTER_LEVEL_COUNT so "Level N of 120" would
-     be a fake denominator. Endless gets its own title and a plain running
-     count instead, off endlessRunCount rather than solvedByStage. */
+  /* Neither Endless nor Daily is a chapter run - showing the chapter's own
+     name here (the same splash a campaign level gets) read as if it were
+     still First Night either way, and neither has a "Level N of 120" to
+     report (Endless has no end; Daily is one puzzle, not a sequence). Each
+     gets its own title and its own line instead: Endless a plain running
+     count off endlessRunCount, Daily the player's current streak. */
   if (endlessMode) {
     el('loadingChapter').textContent = T().ui.endlessLabel;
     el('loadingProgress').textContent = T().ui.endlessLevel(endlessRunCount);
+  } else if (dailyMode) {
+    el('loadingChapter').textContent = T().ui.dailyLabel;
+    el('loadingProgress').textContent = T().ui.dailyStreak(settings.dailyStreak || 0);
   } else {
     el('loadingChapter').textContent = T().stage[lvl.stage];
     const n = Math.min((settings.solvedByStage[lvl.stage] || 0) + 1, CHAPTER_LEVEL_COUNT);
@@ -1859,6 +1879,14 @@ el('submit').onclick = () => {
     settings.solvedByStage[P.stage] = n;
     if (n === CHAPTER_LEVEL_COUNT && !settings.chapterFirstDone[P.stage]) {
       settings.chapterFirstDone[P.stage] = todayStr();
+    }
+    if (dailyMode) {
+      const today = todayStr();
+      if (settings.dailyStreakDate !== today) {
+        const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+        settings.dailyStreak = settings.dailyStreakDate === yesterday ? settings.dailyStreak + 1 : 1;
+        settings.dailyStreakDate = today;
+      }
     }
     saveSettings();
   }
@@ -2010,8 +2038,9 @@ function dailyHash(str, stage) {
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
   return h >>> 0;
 }
-function startGame(stage, seed, endless) {
+function startGame(stage, seed, endless, daily) {
   endlessMode = !!endless;
+  dailyMode = !!daily;
   if (endlessMode) endlessRunCount = 0;
   settings.stage = stage; settings.played = true; saveSettings();
   setScreen('game');
@@ -2146,7 +2175,7 @@ el('menuDaily').onclick = () => {
     return;
   }
   settings.dailyDate = today; settings.dailyStage = settings.stage;
-  startGame(settings.stage, dailyHash(today, settings.stage));
+  startGame(settings.stage, dailyHash(today, settings.stage), false, true);
 };
 el('sectorsBack').onclick = () => setScreen('menu');
 el('toMenu').onclick = () => setScreen('menu');

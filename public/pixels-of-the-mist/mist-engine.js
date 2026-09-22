@@ -95,6 +95,8 @@ const STRINGS = {
       dailyAgain: 'Today’s challenge is done. Come back tomorrow for a new one.',
       endlessLabel: 'Endless Mode',
       endlessLevel: (n) => `Level ${n}`,
+      dailyLabel: 'Daily Challenge',
+      dailyStreak: (n) => n === 1 ? '1 day streak' : `${n} day streak`,
       legend: { fire: 'fire', monster: 'monster',
                 border: 'each colour is a sector', rock: 'rubble, impassable' },
       stageLabel: (n, name) => `Stage ${n} — ${name}`,
