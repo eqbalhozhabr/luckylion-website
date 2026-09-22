@@ -1065,9 +1065,9 @@ function requestAnswer(stage, seed, cb, band) {
 
 /* The next level is generated while the current one is being solved, so
    pressing "New level" never waits on the generator. Tagged with the band it
-   was built for (null outside Endless) so a stale prefetch - built for a
-   different slot than the one actually needed by the time it is used - is
-   never handed out as if it matched. */
+   was built for (null only for an explicit-seed reload, e.g. Daily) so a
+   stale prefetch - built for a different slot than the one actually needed
+   by the time it is used - is never handed out as if it matched. */
 let prefetch = null, prefetching = false;
 function prefetchNext(stage, band) {
   if (prefetching) return;
@@ -1085,13 +1085,16 @@ let fires, preview, submitted, prevLit, countedSolve;
 const MAX_LIVES = 3;
 let lives = MAX_LIVES;
 /* Each chapter's real size: 30 levels per band x 4 bands, the same split
-   content/campaign-levels.xlsx assigns. The campaign itself is not wired to
-   gameplay yet (still a fresh random seed per level, in or out of Endless -
-   see Session_Notes_Code_And_Levels.md §6), so this counts *any* solve in
-   the stage, curated or not — a stand-in for "how far into this chapter do
-   you feel" rather than literal curated-campaign progress, until that
-   wiring exists. Used both for chapterFirstDone below and the "N of 120"
-   shown at the boot screen and in the main menu. */
+   content/campaign-levels.xlsx assigns. The curated ledger itself is not
+   wired to gameplay yet (still a fresh random seed per level, in or out of
+   Endless - see Session_Notes_Code_And_Levels.md §6); campaignBand() below
+   gives regular play that same 30/30/30/30 shape by pinning the generator's
+   band the same way Endless pins its own rotation, so this counts *any*
+   solve in the stage as advancing through that band, curated or not — a
+   stand-in for "how far into this chapter do you feel" rather than literal
+   curated-campaign progress, until real ledger wiring exists. Used both for
+   chapterFirstDone below and the "N of 120" shown at the boot screen and in
+   the main menu. */
 const CHAPTER_LEVEL_COUNT = 120;
 
 /* --------------------------------------------------------------- settings */
@@ -1707,7 +1710,7 @@ function install(level, band) {
   /* the board's own size changed, and on the phone the case does not, so the
      resize observer on the deck never hears about it — refit by hand */
   fitConsole();
-  prefetchNext(P.stage, endlessBand(P.stage));
+  prefetchNext(P.stage, freshBand(P.stage));
 }
 
 /* Endless never runs out because it never draws from a fixed list: every
@@ -1729,6 +1732,26 @@ function advanceEndlessSlot(stage) {
   saveSettings();
 }
 
+/* Regular (non-Endless) play pins the same way, just to the campaign's own
+   30/30/30/30 split instead of Endless's 10-level rotation - so a stage
+   whose own LADDER entry never reaches past "easy" on its own (stage 1) still
+   climbs through medium/hard/veryhard as the chapter's "Level N of 120"
+   counter advances, instead of only ever handing back "easy". Driven
+   straight off solvedByStage rather than its own slot counter, so it needs
+   no separate persisted state and stays in lockstep with the counter the
+   player is actually looking at; it wraps back to "easy" once a chapter's
+   120 are behind you rather than sitting on "veryhard" forever. */
+const CAMPAIGN_BAND_SIZE = CHAPTER_LEVEL_COUNT / 4;
+const CAMPAIGN_PATTERN = ['easy', 'medium', 'hard', 'veryhard'];
+function campaignBand(stage) {
+  const solved = settings.solvedByStage[stage] || 0;
+  const idx = Math.floor((solved % CHAPTER_LEVEL_COUNT) / CAMPAIGN_BAND_SIZE);
+  return CAMPAIGN_PATTERN[idx];
+}
+function freshBand(stage) {
+  return endlessMode ? endlessBand(stage) : campaignBand(stage);
+}
+
 /* bandOverride is how Retry (and anything else reloading a specific seed
    that was originally banded) stays the same puzzle: an explicit seed always
    skips the rotation itself, but generateFrom is not independent of the
@@ -1738,10 +1761,10 @@ function advanceEndlessSlot(stage) {
    just for a full reload instead of just the solution. */
 function loadLevel(stage, seed, bandOverride) {
   const fresh = seed === undefined;
-  const band = fresh ? endlessBand(stage) : (bandOverride || null);
+  const band = fresh ? freshBand(stage) : (bandOverride || null);
   if (fresh && prefetch && prefetch.lvl.stage === stage && prefetch.band === band) {
     const lvl = prefetch.lvl; prefetch = null;
-    if (band) advanceEndlessSlot(stage);
+    if (fresh && endlessMode && band) advanceEndlessSlot(stage);
     bootLevel(lvl, band);
     return;
   }
@@ -1752,7 +1775,7 @@ function loadLevel(stage, seed, bandOverride) {
       el('busy').textContent = ms > 0 ? `built in ${ms} ms` : '';
       el('busy').className = '';
       if (lvl) {
-        if (band) advanceEndlessSlot(stage);
+        if (fresh && endlessMode && band) advanceEndlessSlot(stage);
         bootLevel(lvl, band);
       } else el('status').textContent = 'The generator could not build a level.';
     }, band);
