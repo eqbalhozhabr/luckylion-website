@@ -667,6 +667,16 @@
 'use strict';
 const el = id => document.getElementById(id);
 
+/* The stage picker, the seed box and the build timing are development
+   controls, not part of the game: left on the public page they hand every
+   visitor a jump to any stage and a way to re-roll any level. They stay one
+   query string away so a playtester can still be sent straight to a stage,
+   and they are always on when the page is served from a local machine.
+   This closes the door on the page; it does NOT hide anything from DevTools,
+   which is a separate job — see the note at the bottom of this file. */
+const DEV = /[?&]dev=1/.test(location.search) ||
+            ['localhost', '127.0.0.1', ''].includes(location.hostname);
+
 /* ------------------------------------------------ level supply (worker) */
 const worker = new Worker('mist-worker.js');
 let reqId = 0;
@@ -1374,6 +1384,11 @@ function fitBoard() {
   if (room && g.offsetHeight && g.offsetHeight * k > room) k = room / g.offsetHeight;
   g.style.transform = Math.abs(k - 1) < 0.002 ? 'none' : `scale(${k})`;
 }
+/* The controls stay in the document so everything that writes to them — the
+   seed box, the difficulty chip, the "generating…" note — keeps working
+   untouched; only the strip itself is taken off the panel. */
+if (!DEV) document.querySelector('.devbar').style.display = 'none';
+
 addEventListener('resize', fitConsole);
 addEventListener('orientationchange', () => setTimeout(fitConsole, 120));
 new ResizeObserver(fitConsole).observe(el('deck'));
