@@ -121,35 +121,28 @@
      the space it has — auto margins collapse to zero and it hugs the left,
      which is what pushed it sideways when it was scaled about a centre. */
   .fitter{transform-origin:top left}
-  /* worn iron shell: a steel base, faint brushed scratches at two angles, and a
-     scatter of rust patina blotches — all backgrounds, so none of it touches the
-     box's own size (padding/radius/width stay exactly as before) */
+  /* worn iron shell: a steel base, brushed scratches at three angles, and a
+     faint scatter of rust patina — all backgrounds, so none of it touches the
+     box's own size (padding/radius/width stay exactly as before). Cooler and
+     more matte than a fresh coat: less glow in the rust, more visible grain,
+     the way a case actually reads after years of handling rather than paint. */
   .console{position:relative;
-           background-color:#403c34;
+           background-color:#39372f;
            background-image:
-             linear-gradient(160deg,#6f6656 0%,#4c4739 32%,#38352c 68%,#231f1a 100%),
-             repeating-linear-gradient(112deg,rgba(255,255,255,.05) 0 1px,transparent 1px 7px),
-             repeating-linear-gradient(24deg,rgba(0,0,0,.06) 0 1px,transparent 1px 11px),
-             radial-gradient(60px 46px at 14% 22%,rgba(120,58,22,.35),transparent 70%),
-             radial-gradient(90px 70px at 82% 74%,rgba(96,46,18,.30),transparent 70%),
-             radial-gradient(50px 40px at 70% 12%,rgba(133,66,26,.22),transparent 70%),
-             radial-gradient(70px 55px at 22% 88%,rgba(88,42,16,.28),transparent 70%);
-           background-blend-mode:normal,overlay,overlay,multiply,multiply,multiply,multiply;
-           border:1px solid #171a13;border-radius:18px;padding:16px;
-           box-shadow:inset 0 1px 0 rgba(255,255,255,.07),
-                      inset 0 0 30px rgba(0,0,0,.35),
+             linear-gradient(160deg,#605c4d 0%,#403d33 32%,#302e26 68%,#1c1b17 100%),
+             repeating-linear-gradient(112deg,rgba(255,255,255,.05) 0 1px,transparent 1px 6px),
+             repeating-linear-gradient(24deg,rgba(0,0,0,.09) 0 1px,transparent 1px 9px),
+             repeating-linear-gradient(68deg,rgba(0,0,0,.05) 0 1px,transparent 1px 15px),
+             radial-gradient(60px 46px at 14% 22%,rgba(110,60,26,.20),transparent 70%),
+             radial-gradient(90px 70px at 82% 74%,rgba(90,50,22,.18),transparent 70%),
+             radial-gradient(50px 40px at 70% 12%,rgba(120,68,30,.14),transparent 70%),
+             radial-gradient(70px 55px at 22% 88%,rgba(80,44,20,.16),transparent 70%);
+           background-blend-mode:normal,overlay,overlay,overlay,multiply,multiply,multiply,multiply;
+           border:1px solid #14160f;border-radius:18px;padding:16px;
+           box-shadow:inset 0 1px 0 rgba(255,255,255,.06),
+                      inset 0 0 30px rgba(0,0,0,.4),
                       0 10px 26px rgba(0,0,0,.45);
            width:max-content;border-top-left-radius:0}
-  /* four bolt heads at the case corners: a tight highlight over a dark ring.
-     Absolutely positioned against the case itself, so they add no layout size
-     and survive the flex row of .cols without becoming flex items. */
-  .rivet{position:absolute;width:9px;height:9px;border-radius:50%;
-         background:radial-gradient(circle at 35% 30%,#cfc9ba 0%,#8c8672 30%,
-                     #4a4638 62%,#25231b 100%);
-         box-shadow:0 1px 2px rgba(0,0,0,.6),inset 0 0 0 1px rgba(0,0,0,.5);
-         pointer-events:none;z-index:5}
-  .rivet.tl{top:8px;left:8px} .rivet.tr{top:8px;right:8px}
-  .rivet.bl{bottom:8px;left:8px} .rivet.br{bottom:8px;right:8px}
   /* the bezel casting onto the glass. This is what separates the panel from
      the shell — without it the screen looks printed on the case rather than
      sunk behind it. */
@@ -159,14 +152,15 @@
   /* the brushed plate the buttons are set into */
   /* the same worn shell in a lighter value, so the plate still reads as part of
      one case rather than a different material bolted onto it */
-  .panelplate{background-color:#4a4539;
+  .panelplate{background-color:#453f34;
               background-image:
-                linear-gradient(180deg,#847a63 0%,#5c5646 45%,#403c30 100%),
+                linear-gradient(180deg,#726a58 0%,#524c40 45%,#38352b 100%),
                 repeating-linear-gradient(100deg,rgba(255,255,255,.05) 0 1px,transparent 1px 7px),
-                radial-gradient(70px 40px at 20% 30%,rgba(120,58,22,.22),transparent 70%),
-                radial-gradient(60px 40px at 84% 70%,rgba(96,46,18,.20),transparent 70%);
-              background-blend-mode:normal,overlay,multiply,multiply;
-              border-color:#20241a;padding:10px 14px;
+                repeating-linear-gradient(20deg,rgba(0,0,0,.08) 0 1px,transparent 1px 10px),
+                radial-gradient(70px 40px at 20% 30%,rgba(110,60,26,.16),transparent 70%),
+                radial-gradient(60px 40px at 84% 70%,rgba(90,50,22,.14),transparent 70%);
+              background-blend-mode:normal,overlay,overlay,multiply,multiply;
+              border-color:#1c1a15;padding:10px 14px;
               box-shadow:inset 0 1px 0 rgba(255,255,255,.10),
                          inset 0 -1px 0 rgba(0,0,0,.35)}
   .screen .lcd{box-shadow:inset 0 3px 7px rgba(24,30,16,.5),
@@ -441,8 +435,8 @@
   /* Handheld buttons: each one is a pill sunk into a slot in the case, lit
      from above. The shell keeps the recess, the button keeps the dome, and
      pressing swaps which of the two highlights you see. */
-  .tools{display:flex;gap:7px;margin-top:0;
-         align-items:center;justify-content:flex-end}
+  .tools{display:flex;gap:10px;margin-top:0;
+         align-items:flex-end;justify-content:flex-end}
   /* scoped to the device's own panel: the stage/seed strip above is a
      developer control, not part of the console */
   .tools button{font-family:"Press Start 2P","Courier New",monospace;font-size:7.5px;
@@ -456,11 +450,29 @@
          box-shadow:none}
   .tools button:disabled{opacity:.45;cursor:default}
   /* the red action button of the originals, and the largest key on the plate —
-     it is the one the whole puzzle is aimed at */
-  .tools button.go{font-size:9px;padding:10px 13px 11px;
+     it is the one the whole puzzle is aimed at. Round rather than the pill of
+     the rest: on the real handhelds the primary key was always the one that
+     broke from the row's own shape. */
+  .tools button.go{font-size:7.5px;letter-spacing:.02em;
+            width:52px;height:52px;padding:0;border-radius:50%;
+            display:flex;align-items:center;justify-content:center;
             color:#fff2ee;background:#aa321f;
             box-shadow:0 2px 0 #4c120b}
   .tools button.go:active:not(:disabled){box-shadow:none}
+  /* Clear/Reveal: a small blank key, the way LEFT/RIGHT or B/A sit on the
+     originals — the button itself carries no colour or shadow any more, the
+     circle is a ::before so the label (still the same JS-set text node,
+     paintChrome() only ever touches the button's own text) can sit below it
+     rather than inside it. */
+  .tools button.round{background:none;box-shadow:none;border-radius:0;
+            width:auto;padding:0;
+            display:flex;flex-direction:column;align-items:center;gap:4px;
+            font-size:6.5px;letter-spacing:.02em;color:#c7c9b6}
+  .tools button.round::before{content:"";display:block;
+            width:30px;height:30px;border-radius:50%;
+            background:#4d5342;box-shadow:0 2px 0 #23271d;
+            transition:box-shadow .04s linear}
+  .tools button.round:active:not(:disabled)::before{box-shadow:none}
   ol.brief{margin:0;padding-inline-start:20px}
   /* the flex row lives inside the item, not on it: making the li itself a flex
      container drops the list marker */
@@ -628,9 +640,11 @@
     .slideslot{width:42px;height:18px}
     .slideknob{width:22px;height:14px}
     .slide[data-pos="right"] .slideknob{transform:translateX(16px)}
-    .tools{gap:6px}
+    .tools{gap:8px}
     .tools button{font-size:7px;padding:7px 9px 8px}
-    .tools button.go{font-size:8px;padding:8px 11px 9px}
+    .tools button.go{font-size:7px;width:46px;height:46px}
+    .tools button.round{font-size:6px}
+    .tools button.round::before{width:26px;height:26px}
     .board{width:auto}
     /* the board keeps the full width of the phone, and the fuel strip is added
        above it rather than taken out of it — so the screen becomes a tall
@@ -654,9 +668,11 @@
     .slideslot{width:34px;height:16px}
     .slideknob{width:18px;height:12px}
     .slide[data-pos="right"] .slideknob{transform:translateX(12px)}
-    .tools{gap:5px}
+    .tools{gap:6px}
     .tools button{font-size:6px;padding:6px 7px 7px}
-    .tools button.go{font-size:7px;padding:7px 9px 8px}
+    .tools button.go{font-size:6.5px;width:40px;height:40px}
+    .tools button.round{font-size:5.5px}
+    .tools button.round::before{width:24px;height:24px}
   }
 </style>
 </head>
@@ -708,8 +724,6 @@
   <div class="fitter" id="fitter">
   <div class="deck" id="deck">
   <div class="console cols" id="console" data-screen="menu">
-    <span class="rivet tl"></span><span class="rivet tr"></span>
-    <span class="rivet bl"></span><span class="rivet br"></span>
     <div>
       <div class="card board screen" id="topScreen">
         <div class="view on" id="view-top-menu">
@@ -851,8 +865,8 @@
           <div class="tools">
             <button id="toMenu">Menu</button>
             <button id="submit" class="go">Submit</button>
-            <button id="reset">Clear</button>
-            <button id="reveal">Reveal</button>
+            <button id="reset" class="round">Clear</button>
+            <button id="reveal" class="round">Reveal</button>
           </div>
         </div>
       </div>
