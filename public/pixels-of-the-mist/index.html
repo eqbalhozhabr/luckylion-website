@@ -435,19 +435,32 @@
   /* Handheld buttons: each one is a pill sunk into a slot in the case, lit
      from above. The shell keeps the recess, the button keeps the dome, and
      pressing swaps which of the two highlights you see. */
-  .tools{display:flex;gap:10px;margin-top:0;
-         align-items:flex-end;justify-content:flex-end}
-  /* scoped to the device's own panel: the stage/seed strip above is a
-     developer control, not part of the console */
-  .tools button{font-family:"Press Start 2P","Courier New",monospace;font-size:7.5px;
+  .tools{display:flex;gap:14px;margin-top:0;
+         align-items:center;justify-content:flex-end}
+  /* Physical keys, moulded into the plate — raised and gradient-lit, each one
+     sunk in its own recessed socket (the ::after, punched into the panel and
+     always a little bigger than the key sitting in it). This is deliberately
+     the opposite of the LCD's own buttons (.menu-cta/.menu-btn): those are
+     printed on the glass and stay flat, these are real plastic and stay 3D. */
+  .tools button{position:relative;
+         font-family:"Press Start 2P","Courier New",monospace;font-size:7.5px;
          letter-spacing:.04em;text-transform:uppercase;cursor:pointer;
          white-space:nowrap;
          padding:8px 10px 9px;border:none;border-radius:999px;
-         color:#e8ead6;background:#4d5342;
-         box-shadow:0 2px 0 #23271d;
+         color:#e8ead6;
+         background:linear-gradient(180deg,#666c56 0%,#4d5342 45%,#393d31 100%);
+         box-shadow:0 2px 0 #23271d,0 3px 4px rgba(0,0,0,.4),
+                    inset 0 1px 0 rgba(255,255,255,.18);
          transition:transform .04s linear, box-shadow .04s linear}
+  /* the socket: a darker floor let into the panel, with an inset shadow doing
+     the actual carving — sized off the key's own box (inset), so one rule
+     fits the pill and both sizes of circle without per-key tuning */
+  .tools button::after{content:"";position:absolute;z-index:-1;
+         inset:-6px;border-radius:inherit;background:#2b2920;
+         box-shadow:inset 0 2px 5px rgba(0,0,0,.6),
+                    inset 0 -1px 0 rgba(255,255,255,.05)}
   .tools button:active:not(:disabled){transform:translateY(2px);
-         box-shadow:none}
+         box-shadow:inset 0 2px 3px rgba(0,0,0,.35)}
   .tools button:disabled{opacity:.45;cursor:default}
   /* the red action button of the originals, and the largest key on the plate —
      it is the one the whole puzzle is aimed at. Round rather than the pill of
@@ -456,23 +469,21 @@
   .tools button.go{font-size:7.5px;letter-spacing:.02em;
             width:52px;height:52px;padding:0;border-radius:50%;
             display:flex;align-items:center;justify-content:center;
-            color:#fff2ee;background:#aa321f;
-            box-shadow:0 2px 0 #4c120b}
-  .tools button.go:active:not(:disabled){box-shadow:none}
+            color:#fff2ee;
+            background:linear-gradient(180deg,#c1503a 0%,#aa321f 45%,#7c210f 100%);
+            box-shadow:0 2px 0 #4c120b,0 3px 5px rgba(0,0,0,.45),
+                       inset 0 1px 0 rgba(255,255,255,.25)}
+  .tools button.go:active:not(:disabled){box-shadow:inset 0 2px 4px rgba(0,0,0,.4)}
   /* Clear/Reveal: a small blank key, the way LEFT/RIGHT or B/A sit on the
-     originals — the button itself carries no colour or shadow any more, the
-     circle is a ::before so the label (still the same JS-set text node,
-     paintChrome() only ever touches the button's own text) can sit below it
-     rather than inside it. */
-  .tools button.round{background:none;box-shadow:none;border-radius:0;
-            width:auto;padding:0;
-            display:flex;flex-direction:column;align-items:center;gap:4px;
-            font-size:6.5px;letter-spacing:.02em;color:#c7c9b6}
-  .tools button.round::before{content:"";display:block;
-            width:30px;height:30px;border-radius:50%;
-            background:#4d5342;box-shadow:0 2px 0 #23271d;
-            transition:box-shadow .04s linear}
-  .tools button.round:active:not(:disabled)::before{box-shadow:none}
+     originals. The key itself is just a small circle now — the same shape
+     recipe as Submit — so its centre lines up with the other keys under
+     plain align-items:center; the label is a separate absolutely-positioned
+     span below it (paintChrome() fills .key-label, not the button), so the
+     extra text never adds to the button's own box height. */
+  .tools button.round{width:30px;height:30px;padding:0}
+  .tools button.round .key-label{position:absolute;top:100%;left:50%;
+            transform:translateX(-50%);margin-top:7px;
+            letter-spacing:.02em;color:#c7c9b6;white-space:nowrap}
   ol.brief{margin:0;padding-inline-start:20px}
   /* the flex row lives inside the item, not on it: making the li itself a flex
      container drops the list marker */
@@ -542,11 +553,18 @@
               text-shadow:0 1px 0 #cdd0ab,0 -1px 0 #cdd0ab,
                           1px 0 0 #cdd0ab,-1px 0 0 #cdd0ab}
   .menu-title.small{font-size:11px;margin-bottom:8px}
+  /* same dark ink as the rest of the screen's text, not a printed colour of
+     its own — with a dither checkerboard standing in for the shading a real
+     LCD segment would have, at one pattern pixel per two screen pixels so it
+     reads as texture rather than a grid */
   .menu-cta{font-family:inherit;font-size:10px;letter-spacing:.04em;
             text-transform:uppercase;cursor:pointer;border:none;border-radius:999px;
-            padding:11px 14px;color:#fff2ee;
-            background:#aa321f;
-            box-shadow:0 2px 0 #4c120b;
+            padding:11px 14px;color:#cdd0ab;
+            background:
+              repeating-conic-gradient(rgba(0,0,0,.18) 0% 25%,transparent 0% 50%)
+                0 0/4px 4px,
+              #1a2412;
+            box-shadow:0 2px 0 #0c1408;
             transition:transform .04s linear, box-shadow .04s linear}
   .menu-cta:active{transform:translateY(2px);box-shadow:none}
   .menu-progress{display:flex;align-items:center;justify-content:space-between;
@@ -640,11 +658,11 @@
     .slideslot{width:42px;height:18px}
     .slideknob{width:22px;height:14px}
     .slide[data-pos="right"] .slideknob{transform:translateX(16px)}
-    .tools{gap:8px}
+    .tools{gap:10px}
     .tools button{font-size:7px;padding:7px 9px 8px}
     .tools button.go{font-size:7px;width:46px;height:46px}
-    .tools button.round{font-size:6px}
-    .tools button.round::before{width:26px;height:26px}
+    .tools button.round{width:26px;height:26px}
+    .tools button.round .key-label{font-size:6px;margin-top:6px}
     .board{width:auto}
     /* the board keeps the full width of the phone, and the fuel strip is added
        above it rather than taken out of it — so the screen becomes a tall
@@ -668,11 +686,11 @@
     .slideslot{width:34px;height:16px}
     .slideknob{width:18px;height:12px}
     .slide[data-pos="right"] .slideknob{transform:translateX(12px)}
-    .tools{gap:6px}
+    .tools{gap:8px}
     .tools button{font-size:6px;padding:6px 7px 7px}
     .tools button.go{font-size:6.5px;width:40px;height:40px}
-    .tools button.round{font-size:5.5px}
-    .tools button.round::before{width:24px;height:24px}
+    .tools button.round{width:24px;height:24px}
+    .tools button.round .key-label{font-size:5.5px;margin-top:5px}
   }
 </style>
 </head>
@@ -865,8 +883,8 @@
           <div class="tools">
             <button id="toMenu">Menu</button>
             <button id="submit" class="go">Submit</button>
-            <button id="reset" class="round">Clear</button>
-            <button id="reveal" class="round">Reveal</button>
+            <button id="reset" class="round"><span class="key-label">Clear</span></button>
+            <button id="reveal" class="round"><span class="key-label">Reveal</span></button>
           </div>
         </div>
       </div>
@@ -996,8 +1014,8 @@ function paintChrome() {
   el('fuelLabel').textContent = s.fuel;
   el('testimonyLabel').textContent = s.testimony;
   el('submit').textContent = s.submit;
-  el('reset').textContent = s.reset;
-  el('reveal').textContent = s.reveal;
+  el('reset').querySelector('.key-label').textContent = s.reset;
+  el('reveal').querySelector('.key-label').textContent = s.reveal;
   el('newLevel').textContent = s.newLevel;
   /* an ordered list now, so the screen numbers them the way it numbers the
      testimony rather than the text carrying its own digits */
