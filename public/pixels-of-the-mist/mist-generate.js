@@ -604,7 +604,35 @@ function generateFrom(stage, seed, maxSeeds) {
   return null;
 }
 
+/* Endless pins a stage to one difficulty band per slot in its 10-level
+   rotation (3 easy, 3 medium, 3 hard, 1 "very hard") instead of that stage's
+   usual range, the same trick tools/ledger.js uses to fill a campaign band a
+   stage does not normally reach. "veryhard" is a range rather than a single
+   pin: an exact `expert` grade is genuinely rare for stages 1-2 (roughly one
+   seed in 300), which would stall a live request; hard-or-expert keeps every
+   stage's very-hard slot fast while still landing on a real expert whenever
+   the seed cooperates - common for stages 3-4, where it is not rare at all.
+   maxSeeds defaults far higher than generateFrom's: pinning to one band
+   is inherently less likely per seed than the stage's own open range. */
+const ENDLESS_BAND_RANGE = {
+  easy: ['easy', 'easy'], medium: ['medium', 'medium'], hard: ['hard', 'hard'],
+  veryhard: ['hard', 'expert'],
+};
+function generateFromBanded(stage, seed, bandKey, maxSeeds) {
+  const range = ENDLESS_BAND_RANGE[bandKey];
+  if (!range) return generateFrom(stage, seed, maxSeeds);
+  const cfg = LADDER.find(c => c.stage === stage);
+  if (!cfg) return null;
+  const restore = { minDiff: cfg.minDiff, maxDiff: cfg.maxDiff };
+  cfg.minDiff = range[0]; cfg.maxDiff = range[1];
+  try {
+    return generateFrom(stage, seed, maxSeeds || 600);
+  } finally {
+    Object.assign(cfg, restore);
+  }
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { legalSolutions, harvest, Deduce, buildBrief, grade,
-                     generateLevel, generateFrom, LADDER, tierOf };
+                     generateLevel, generateFrom, generateFromBanded, LADDER, tierOf };
 }
