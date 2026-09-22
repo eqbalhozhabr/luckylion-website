@@ -636,6 +636,8 @@
                font-size:6.5px;background:#2a2e1e;color:#cdd0ab;
                vertical-align:1px}
   .menu-btn.done::after{content:"\2713";margin-left:6px;color:#1f3a16}
+  .menu-hint{font-size:7px;color:#4a4e36;letter-spacing:.03em;text-align:center;
+             min-height:9px}
   /* Two square tiles per row, scrollable past however many fit — ten slots
      exist on the map today, only the first with a chapter behind it. Each
      tile is its own little screen: a flat colour, one centred pixel-art
@@ -864,6 +866,7 @@
               <button class="menu-btn pixel-corners" id="menuEndless">Endless</button>
               <button class="menu-btn pixel-corners" id="menuDaily">Daily<span class="badge-today pixel-corners">Today</span></button>
             </div>
+            <div class="menu-hint" id="menuDailyHint"></div>
           </div>
         </div>
         <div class="view" id="view-top-sectors">
@@ -2073,6 +2076,7 @@ function refreshMenu() {
   }
   const doneToday = settings.dailyDate === todayStr() && settings.dailyStage === settings.stage;
   el('menuDaily').classList.toggle('done', doneToday);
+  if (!doneToday) el('menuDailyHint').textContent = '';
 }
 /* One console, three swappable screens: menu, the interim sector picker
    (standing in for the chapter map until the level ledger is wired into the
@@ -2101,6 +2105,10 @@ el('menuChapterMap').onclick = () => setScreen('sectors');
 el('menuEndless').onclick = () => startGame(settings.stage, undefined, true);
 el('menuDaily').onclick = () => {
   const today = todayStr();
+  if (settings.dailyDate === today && settings.dailyStage === settings.stage) {
+    el('menuDailyHint').textContent = T().ui.dailyAgain;
+    return;
+  }
   settings.dailyDate = today; settings.dailyStage = settings.stage;
   startGame(settings.stage, dailyHash(today, settings.stage));
 };

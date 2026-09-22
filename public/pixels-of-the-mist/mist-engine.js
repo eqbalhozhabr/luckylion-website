@@ -92,6 +92,7 @@ const STRINGS = {
       lockComplete: (name) => `Complete ${name} to unlock this chapter.`,
       lockPurchase: (name) => `${name} is a one-time purchase — buy it to unlock.`,
       levelOf: (n, total) => `Level ${n} of ${total}`,
+      dailyAgain: 'Today’s challenge is done. Come back tomorrow for a new one.',
       legend: { fire: 'fire', monster: 'monster',
                 border: 'each colour is a sector', rock: 'rubble, impassable' },
       stageLabel: (n, name) => `Stage ${n} — ${name}`,
