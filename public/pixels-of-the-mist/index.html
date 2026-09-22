@@ -271,6 +271,11 @@
               margin-bottom:3px;cursor:default;border:2px solid transparent}
   #brief li .num{flex:none;width:12px;color:#5a5e44}
   #brief li.ok{color:#1f2a16} #brief li.no{color:#5c2318}
+  /* the tutorial's own instruction line, standing in for the numbered clue
+     rows it sits above - bordered so it never gets mistaken for testimony */
+  #brief li.tut-caption{display:block;border:1px solid #5d5f48;
+    background:#8b8d69;color:#20241a;padding:6px 8px;margin-bottom:8px;
+    line-height:1.5}
   /* the selection box of an old menu: a hard frame around the line the pointer
      is on, matching the frame drawn around the squares it refers to */
   #brief li:hover,#brief li.sel{border-color:var(--pick);color:#141a0c}
@@ -278,6 +283,7 @@
                    min-height:2.2em}
   /* the rules now print on the same screen, so they wear the same type */
   .rulelist{margin:0;padding-inline-start:18px;list-style:decimal}
+  #startTutorial{margin-top:12px;width:100%}
   .rulelist li{margin-bottom:9px}
   .rulelist b{color:#141a0c}
   .readout .legend{display:flex;flex-wrap:wrap;align-items:center;gap:8px;
@@ -925,6 +931,7 @@
                   <li>Tap a lit fire to take it back — nothing is final until Submit.</li>
                   <li>Three wrong submissions reset the level. No timers, no penalty beyond that.</li>
                 </ol>
+                <button class="menu-btn pixel-corners" id="startTutorial">Play Tutorial</button>
               </div>
               <div class="view" id="view-setup">
                 <h2>Setup</h2>
@@ -1115,6 +1122,7 @@ function loadSettings() {
   return {
     stage: s.stage || 1,
     played: !!s.played,
+    onboardingDone: !!s.onboardingDone,
     reduceMotion: !!s.reduceMotion,
     dailyDate: s.dailyDate || '',
     dailyStage: s.dailyStage || 0,
@@ -1679,6 +1687,12 @@ function render(justLit) {
   /* the list is rebuilt from scratch, so whatever was pinned no longer exists */
   pinned = null;
   spotlight(null);
+  if (tutorialMode) {
+    const cap = document.createElement('li');
+    cap.className = 'tut-caption';
+    cap.innerHTML = TUTORIAL_STEPS[tutorialIdx].caption;
+    ol.insertBefore(cap, ol.firstChild);
+  }
 
   const s = T().ui;
   const over = overIds.map(z => T().zone[z] || ('T' + z));
@@ -1696,6 +1710,7 @@ function render(justLit) {
   } else {
     st.textContent = s.win; st.style.color = '#1f3a16';
   }
+  if (tutorialMode) tutorialAfterRender();
 }
 
 /* -------------------------------------------------------------- loading */
@@ -1870,6 +1885,7 @@ function answerIsRight() {
   return P.clues.every(c => testClue(mpView, c, set, F));
 }
 el('submit').onclick = () => {
+  if (tutorialMode) { tutorialSubmit(); return; }
   const right = answerIsRight();
   const wasSubmitted = submitted;
   if (!wasSubmitted && !right && lives > 0) lives--;
@@ -2178,7 +2194,10 @@ el('menuDaily').onclick = () => {
   startGame(settings.stage, dailyHash(today, settings.stage), false, true);
 };
 el('sectorsBack').onclick = () => setScreen('menu');
-el('toMenu').onclick = () => setScreen('menu');
+el('toMenu').onclick = () => {
+  if (tutorialMode) { tutorialMode = false; settings.onboardingDone = true; saveSettings(); }
+  setScreen('menu');
+};
 el('setupFlicker').checked = settings.reduceMotion;
 el('setupFlicker').onchange = (e) => {
   settings.reduceMotion = e.target.checked;
@@ -2186,9 +2205,145 @@ el('setupFlicker').onchange = (e) => {
   document.body.classList.toggle('reduce-fx', settings.reduceMotion);
 };
 
+/* -------------------------------------------------------------- tutorial */
+/* Nine tiny hand-authored boards rather than generated ones, because a
+   lesson needs an exact, guaranteed-small example of the one thing it is
+   teaching - a generated level's difficulty band controls how HARD a puzzle
+   is, not which single clue kind it happens to lean on. Every board here
+   reuses the real engine unchanged (makeMap/testClue/answerIsRight, the same
+   tap-preview/hold-light/Submit flow as a real level), so nothing about
+   solving is special-cased - only how the board gets built and what happens
+   between steps. Landmark letters follow the existing convention
+   (C/M/G/S/W = Shelter/Workshop/Depot/Memorial/Pump) from mist-engine.js's
+   LANDMARK_CHARS. Each step's clue(s) were checked against every open cell
+   in its own board with testClue before being written here, so the "right"
+   answer really is the only one that fits.
+
+   `label`/`total` are what the player sees ("Step 4 of 7"); several steps
+   share a label because a pair of opposite clues (Safe/Fogged and so on) is
+   one lesson told in two small boards, not two lessons. `goal` is how
+   tutorialAfterRender() below knows a step is done without the player ever
+   touching Submit - 'submit' is the one exception, the last step, where
+   Submit itself is the thing being taught. */
+const TUTORIAL_STEPS = [
+  { label: 1, total: 7, rows: ['..'], nfires: 1, clues: [], goal: 'preview',
+    caption: 'Tap a square to <b>preview</b> a fire. It costs nothing — hold as many as you like while you think.' },
+  { label: 2, total: 7, rows: ['..'], nfires: 1, clues: [], goal: 'light',
+    caption: 'Now hold it down — or double-tap — to actually <b>light</b> it. Watch the mist pull back.' },
+  { label: 3, total: 7, rows: ['..'], nfires: 1, clues: [], goal: 'undo',
+    caption: 'Changed your mind? Tap a lit fire to take it back, then light it again.' },
+  { label: 4, total: 7, rows: ['C..S'], nfires: 1,
+    clues: [{ kind: 'SAFE', args: [0] }, { kind: 'FOGGED', args: [3] }], goal: 'clue',
+    caption: 'Two lines of testimony, one square to place. Read both, then light the one that fits.' },
+  { label: 5, total: 7, rows: ['M..', '.##', '###'], nfires: 1,
+    clues: [{ kind: 'NEAR_MONSTER', args: [0] }], goal: 'clue',
+    caption: '<b>Near</b> means the four squares that touch a place — up, down, left, right.' },
+  { label: 5, total: 7, rows: ['M..', '.##', '###'], nfires: 1,
+    clues: [{ kind: 'NO_MONSTER_NEAR', args: [0] }], goal: 'clue',
+    caption: 'Its opposite: none of those four squares hid anything.' },
+  { label: 6, total: 7, rows: ['W..'], nfires: 1,
+    clues: [{ kind: 'FIRE_BESIDE', args: [0] }], goal: 'clue',
+    caption: '<b>Around</b> is wider — all eight squares touching a place, corners included.' },
+  { label: 6, total: 7, rows: ['W..'], nfires: 1,
+    clues: [{ kind: 'NO_FIRE_BESIDE', args: [0] }], goal: 'clue',
+    caption: 'And its opposite: no fire anywhere in those eight.' },
+  { label: 7, total: 7, rows: ['C..S'], nfires: 1,
+    clues: [{ kind: 'SAFE', args: [0] }, { kind: 'FOGGED', args: [3] }], goal: 'submit',
+    caption: 'One more — but this time press <b>Submit</b> when you’re happy. Not sure? <b>Reveal</b> never costs you anything, and three wrong guesses just reset the level.' },
+];
+let tutorialMode = false, tutorialIdx = 0, tutorialBusy = false;
+let tutorialWasLit = false, tutorialUndoSeen = false;
+
+function startTutorial() {
+  tutorialMode = true;
+  tutorialIdx = 0;
+  setScreen('game');
+  installTutorialFrame(0);
+}
+function installTutorialFrame(idx) {
+  tutorialBusy = false;
+  tutorialWasLit = false;
+  tutorialUndoSeen = false;
+  const frame = TUTORIAL_STEPS[idx];
+  const rows = frame.rows, h = rows.length, w = rows[0].length;
+  const flat = rows.join('');
+  const lmk = {};
+  for (let i = 0; i < flat.length; i++) if ('CMGSW'.includes(flat[i])) lmk[i] = flat[i];
+  hideResult();
+  P = {
+    stage: 0, seed: 0, map: { w, h, rows }, zones: Array(w * h).fill(0),
+    landmarks: lmk, nfires: frame.nfires, clues: frame.clues,
+    difficulty: 'easy', genBand: null,
+  };
+  W = w; H = h; grid = flat;
+  zones = P.zones;
+  landmarks = {};
+  for (const k in P.landmarks) landmarks[+k] = P.landmarks[k];
+  scorch = {};
+  fires = new Set(); preview = new Set(); submitted = false; prevLit = new Set();
+  lives = MAX_LIVES;
+  countedSolve = false;
+  buildMpView();
+  paintChrome();
+  el('testimonyLabel').textContent = T().ui.tutorialStepOf(frame.label, frame.total);
+  el('reveal').disabled = true;              // Reveal asks the worker for P.stage/seed, which are fake here
+  buildBoard();
+  render();
+  fitConsole();
+}
+function tutorialGoalMet() {
+  const frame = TUTORIAL_STEPS[tutorialIdx];
+  /* fires.size also counts: a player who holds immediately instead of
+     tapping first has skipped ahead to step 2's gesture, not failed step 1's
+     - the next frame resets fires to empty regardless, so nothing carries
+     over and gets a free pass. */
+  if (frame.goal === 'preview') return preview.size > 0 || fires.size > 0;
+  if (frame.goal === 'light') return fires.size === 1;
+  if (frame.goal === 'undo') {
+    if (fires.size === 0 && tutorialWasLit) tutorialUndoSeen = true;
+    if (fires.size === 1) tutorialWasLit = true;
+    return tutorialUndoSeen && fires.size === 1;
+  }
+  if (frame.goal === 'clue') return fires.size === P.nfires && answerIsRight();
+  return false;                              // 'submit' advances from the Submit handler instead
+}
+function tutorialAfterRender() {
+  if (tutorialBusy || TUTORIAL_STEPS[tutorialIdx].goal === 'submit') return;
+  if (tutorialGoalMet()) {
+    tutorialBusy = true;
+    setTimeout(tutorialAdvance, 650);
+  }
+}
+function tutorialAdvance() {
+  const next = tutorialIdx + 1;
+  if (next >= TUTORIAL_STEPS.length) { finishTutorial(); return; }
+  tutorialIdx = next;
+  installTutorialFrame(next);
+}
+function tutorialSubmit() {
+  if (fires.size !== P.nfires) return;
+  const right = answerIsRight();
+  submitted = true;
+  render();
+  if (right) {
+    tutorialBusy = true;
+    setTimeout(tutorialAdvance, 900);
+  } else {
+    setTimeout(() => { submitted = false; render(); }, 1100);
+  }
+}
+function finishTutorial() {
+  tutorialMode = false;
+  settings.onboardingDone = true;
+  saveSettings();
+  setScreen('menu');
+}
+el('startTutorial').onclick = () => startTutorial();
+
 buildChapterGrid();
 prefetchNext(settings.stage);
 setScreen('menu');
+if (!settings.onboardingDone) startTutorial();
 </script>
 </body>
 </html>
