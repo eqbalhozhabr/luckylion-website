@@ -97,6 +97,7 @@ const STRINGS = {
       endlessLevel: (n) => `Level ${n}`,
       dailyLabel: 'Daily Challenge',
       dailyStreak: (n) => n === 1 ? '1 day streak' : `${n} day streak`,
+      tutorialStepOf: (n, total) => `Step ${n} of ${total}`,
       legend: { fire: 'fire', monster: 'monster',
                 border: 'each colour is a sector', rock: 'rubble, impassable' },
       stageLabel: (n, name) => `Stage ${n} — ${name}`,
