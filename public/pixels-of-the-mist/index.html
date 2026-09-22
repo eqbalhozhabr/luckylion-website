@@ -682,16 +682,24 @@ const worker = new Worker('mist-worker.js');
 let reqId = 0;
 const pending = new Map();
 worker.onmessage = (e) => {
-  const { id, level, error, ms } = e.data;
+  const { id, level, fires, error, ms } = e.data;
   const cb = pending.get(id);
   pending.delete(id);
   if (error) console.error('generator:', error);
-  if (cb) cb(level, ms);
+  if (cb) cb(level !== undefined ? level : fires, ms);
 };
 function requestLevel(stage, seed, cb) {
   const id = ++reqId;
   pending.set(id, cb);
   worker.postMessage({ id, stage, seed });
+}
+/* The answer is not kept in the page. Generation is deterministic in the seed,
+   so asking for it rebuilds the level in the worker and hands back only the
+   fires — which is all Reveal ever wanted. */
+function requestAnswer(stage, seed, cb) {
+  const id = ++reqId;
+  pending.set(id, cb);
+  worker.postMessage({ id, op: 'reveal', stage, seed });
 }
 
 /* The next level is generated while the current one is being solved, so
@@ -1334,7 +1342,13 @@ el('submit').onclick = () => {
 };
 el('reset').onclick = () => { fires = new Set(); preview = new Set(); submitted = false; render(); };
 el('reveal').onclick = () => {
-  fires = new Set(P.solution); preview = new Set(); submitted = true; render();
+  const b = el('reveal');
+  b.disabled = true;
+  requestAnswer(P.stage, P.seed, (got) => {
+    b.disabled = false;
+    if (!got) return;                  // a failed rebuild leaves the board alone
+    fires = new Set(got); preview = new Set(); submitted = true; render();
+  });
 };
 
 /* Shrink the whole device to fit a narrow screen. The board is locked to the
