@@ -713,6 +713,7 @@
                              1px 0 0 #cdd0ab,-1px 0 0 #cdd0ab}
   .loading-chapter{font-size:9px;letter-spacing:.05em;color:#4a4e36;
                    text-transform:uppercase}
+  .loading-progress{font-size:7px;letter-spacing:.04em;color:#5a5e44}
   .loading-band{--pxc:2px;margin-top:6px;padding:6px 16px;font-size:7.5px;
                letter-spacing:.05em;text-transform:uppercase;
                background:#8b8d69;color:#20241a;border:1px solid #5d5f48}
@@ -896,6 +897,7 @@
           <div class="lcd loadingscreen">
             <div class="loading-stage" id="loadingStage"></div>
             <div class="loading-chapter" id="loadingChapter"></div>
+            <div class="loading-progress" id="loadingProgress"></div>
             <div class="loading-band pixel-corners" id="loadingBand"></div>
           </div>
         </div>
@@ -1083,10 +1085,15 @@ let fires, preview, submitted, prevLit, countedSolve;
 /* a wrong submission costs a heart; what happens at zero is still open */
 const MAX_LIVES = 3;
 let lives = MAX_LIVES;
-/* placeholder "a chapter is done" milestone for chapterFirstDone below, since
-   there is no ledger-driven campaign length live yet to measure against -
-   swap for the real count once that lands. */
-const ACHIEVEMENT_CHAPTER_LEVELS = 10;
+/* Each chapter's real size: 30 levels per band x 4 bands, the same split
+   content/campaign-levels.xlsx assigns. The campaign itself is not wired to
+   gameplay yet (still a fresh random seed per level, in or out of Endless -
+   see Session_Notes_Code_And_Levels.md §6), so this counts *any* solve in
+   the stage, curated or not — a stand-in for "how far into this chapter do
+   you feel" rather than literal curated-campaign progress, until that
+   wiring exists. Used both for chapterFirstDone below and the "N of 120"
+   shown at the boot screen and in the main menu. */
+const CHAPTER_LEVEL_COUNT = 120;
 
 /* --------------------------------------------------------------- settings */
 /* the last sector played, the flicker preference, today's Daily state and a
@@ -1107,9 +1114,9 @@ function loadSettings() {
        it. Not itself an achievement - just state an achievement system can
        read later without more plumbing than this. */
     endlessSlot: s.endlessSlot || {},
-    /* ditto for "finished a chapter": a per-stage solved count and the date
-       each one first reached ACHIEVEMENT_CHAPTER_LEVELS, both unused by
-       anything today. */
+    /* ditto for "finished a chapter": a per-stage solved count (also what
+       drives the "N of 120" progress line) and the date each one first
+       reached CHAPTER_LEVEL_COUNT — that date is unused by anything today. */
     solvedByStage: s.solvedByStage || {},
     chapterFirstDone: s.chapterFirstDone || {},
   };
@@ -1763,6 +1770,8 @@ function bootLevel(lvl, band) {
   if (DEV) { install(lvl, band); return; }
   el('loadingStage').textContent = 'STAGE ' + lvl.stage;
   el('loadingChapter').textContent = T().stage[lvl.stage];
+  const n = Math.min((settings.solvedByStage[lvl.stage] || 0) + 1, CHAPTER_LEVEL_COUNT);
+  el('loadingProgress').textContent = T().ui.levelOf(n, CHAPTER_LEVEL_COUNT);
   el('loadingBand').textContent = T().difficulty[lvl.difficulty] || lvl.difficulty;
   el('view-top-game').classList.remove('on');
   el('view-top-loading').classList.add('on');
@@ -1805,7 +1814,7 @@ el('submit').onclick = () => {
     countedSolve = true; settings.solved++;
     const n = (settings.solvedByStage[P.stage] || 0) + 1;
     settings.solvedByStage[P.stage] = n;
-    if (n === ACHIEVEMENT_CHAPTER_LEVELS && !settings.chapterFirstDone[P.stage]) {
+    if (n === CHAPTER_LEVEL_COUNT && !settings.chapterFirstDone[P.stage]) {
       settings.chapterFirstDone[P.stage] = todayStr();
     }
     saveSettings();
@@ -1971,7 +1980,7 @@ function startGame(stage, seed, endless) {
    a level pool behind them (see content/levels.ledger.json), just not a
    theme yet, so they are locked the same as the fully unbuilt slots 5-10.
    'complete' (gated on settings.chapterFirstDone, the same state
-   ACHIEVEMENT_CHAPTER_LEVELS already tracks) and 'purchase' are wired up
+   CHAPTER_LEVEL_COUNT already tracks) and 'purchase' are wired up
    for whenever a chapter is ready to use them — flipping a chapter's
    `unlock` is then a data change here, not new code. */
 const CHAPTERS = [
@@ -2028,10 +2037,14 @@ function refreshMenu() {
   el('menuTitle').textContent = T().ui.title;
   el('menuStageTag').textContent = 'STAGE ' + settings.stage;
   el('menuContinue').textContent = settings.played ? 'Continue' : 'Start';
-  el('menuProgressLabel').textContent = 'Solved · ' + settings.solved;
+  /* per-chapter now, not the old global count, so the number actually moves
+     while you play one chapter instead of sitting there until you switch
+     stages — same solvedByStage the boot screen's "Level N of 120" reads */
+  const solvedHere = Math.min(settings.solvedByStage[settings.stage] || 0, CHAPTER_LEVEL_COUNT);
+  el('menuProgressLabel').textContent = 'Solved · ' + solvedHere + '/' + CHAPTER_LEVEL_COUNT;
   const seg = el('menuSegbar');
   seg.innerHTML = '';
-  const filled = settings.solved % 10;
+  const filled = Math.floor((solvedHere / CHAPTER_LEVEL_COUNT) * 10);
   for (let k = 0; k < 10; k++) {
     const s = document.createElement('span');
     s.className = 'seg' + (k < filled ? ' on' : '');
