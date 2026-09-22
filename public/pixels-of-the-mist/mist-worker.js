@@ -27,13 +27,18 @@ function withoutAnswer(level) {
 }
 
 self.onmessage = function (e) {
-  const { id, op, stage, seed } = e.data;
+  const { id, op, stage, seed, band } = e.data;
   const t0 = Date.now();
+  /* Endless passes a band key (see generateFromBanded in mist-generate.js);
+     everything else - the campaign, sectors, dev New level - leaves it
+     unset and gets that stage's own ordinary range, exactly as before. */
+  const build = () => band ? generateFromBanded(stage, seed >>> 0, band)
+                            : generateFrom(stage, seed >>> 0);
 
   if (op === 'reveal') {
     let fires = null, error = null;
     try {
-      const lvl = generateFrom(stage, seed >>> 0);
+      const lvl = build();
       fires = lvl && lvl.solution;
     } catch (err) {
       error = String(err && err.stack || err);
@@ -44,7 +49,7 @@ self.onmessage = function (e) {
 
   let level = null, error = null;
   try {
-    level = withoutAnswer(generateFrom(stage, seed >>> 0));
+    level = withoutAnswer(build());
   } catch (err) {
     error = String(err && err.stack || err);
   }

@@ -225,7 +225,7 @@
      resizes the case. The fuel strip's height comes out of the board's own
      share (boardwrap is the flexible one below) rather than growing the
      screen past it. */
-  .boardscreen{width:var(--screen-w);height:var(--screen-w);overflow:hidden;
+  .boardscreen,.loadingscreen{width:var(--screen-w);height:var(--screen-w);overflow:hidden;
                display:flex;flex-direction:column}
   /* the track is pinned to the box rather than left to size itself: an auto
      track grows to the board's UNSCALED width, and centring inside that track
@@ -666,6 +666,22 @@
   .soon-tag{--pxc:1px;font-size:6.5px;padding:2px 5px;
             background:#7d7f5f;color:#2a2e1e;flex:none}
   .hint-block{font-size:8.5px;line-height:1.9;color:#3a3e2c}
+  /* the between-levels screen: same glass, printed rather than drawn — a
+     big stage number the way an old cartridge splash gave you one, the
+     chapter name under it, and the difficulty as a little key-shaped chip
+     since that reads as "printed", not "clickable", on this screen */
+  .loadingscreen{align-items:center;justify-content:center;gap:10px;
+                 padding:14px 12px;color:#2a2e1e;text-align:center;
+                 font-family:"Press Start 2P","Courier New",monospace}
+  .loading-stage{font-size:15px;font-weight:700;text-transform:uppercase;
+                 color:#1a2412;letter-spacing:.03em;
+                 text-shadow:0 1px 0 #cdd0ab,0 -1px 0 #cdd0ab,
+                             1px 0 0 #cdd0ab,-1px 0 0 #cdd0ab}
+  .loading-chapter{font-size:9px;letter-spacing:.05em;color:#4a4e36;
+                   text-transform:uppercase}
+  .loading-band{--pxc:2px;margin-top:6px;padding:6px 16px;font-size:7.5px;
+               letter-spacing:.05em;text-transform:uppercase;
+               background:#8b8d69;color:#20241a;border:1px solid #5d5f48}
   /* the control plate normally holds the slide + tools as flex siblings; once
      it holds one swappable view per screen instead, that view has to become
      the flex row itself when it is the one showing */
@@ -722,7 +738,7 @@
        the menu screen locks to below — the fuel strip's height now comes out
        of the board's own share (boardwrap) instead of growing the screen
        past it, so every screen on the console is this one fixed size. */
-    .boardscreen{width:100%;height:auto;aspect-ratio:1;overflow:hidden}
+    .boardscreen,.loadingscreen{width:100%;height:auto;aspect-ratio:1;overflow:hidden}
     .boardwrap{flex:1 1 auto;min-height:0;width:100%}
     .card.board .hint{display:none}
     .readout{width:100%;height:100%;min-height:0}
@@ -837,6 +853,18 @@
             </div>
           </div>
           <div class="hint" id="hint"></div>
+        </div>
+        <!-- shown for a couple of seconds between levels — the worker
+             already has the real level (and so its real difficulty) by the
+             time this appears, it is just held back from view.on briefly so
+             the console reads as booting the next night rather than
+             cutting instantly. -->
+        <div class="view" id="view-top-loading">
+          <div class="lcd loadingscreen">
+            <div class="loading-stage" id="loadingStage"></div>
+            <div class="loading-chapter" id="loadingChapter"></div>
+            <div class="loading-band pixel-corners" id="loadingBand"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -987,30 +1015,33 @@ worker.onmessage = (e) => {
   if (error) console.error('generator:', error);
   if (cb) cb(level !== undefined ? level : fires, ms);
 };
-function requestLevel(stage, seed, cb) {
+function requestLevel(stage, seed, cb, band) {
   const id = ++reqId;
   pending.set(id, cb);
-  worker.postMessage({ id, stage, seed });
+  worker.postMessage({ id, stage, seed, band });
 }
 /* The answer is not kept in the page. Generation is deterministic in the seed,
    so asking for it rebuilds the level in the worker and hands back only the
    fires — which is all Reveal ever wanted. */
-function requestAnswer(stage, seed, cb) {
+function requestAnswer(stage, seed, cb, band) {
   const id = ++reqId;
   pending.set(id, cb);
-  worker.postMessage({ id, op: 'reveal', stage, seed });
+  worker.postMessage({ id, op: 'reveal', stage, seed, band });
 }
 
 /* The next level is generated while the current one is being solved, so
-   pressing "New level" never waits on the generator. */
+   pressing "New level" never waits on the generator. Tagged with the band it
+   was built for (null outside Endless) so a stale prefetch - built for a
+   different slot than the one actually needed by the time it is used - is
+   never handed out as if it matched. */
 let prefetch = null, prefetching = false;
-function prefetchNext(stage) {
+function prefetchNext(stage, band) {
   if (prefetching) return;
   prefetching = true;
   requestLevel(stage, (Math.random() * 0xffffffff) >>> 0, (lvl) => {
     prefetching = false;
-    prefetch = lvl && lvl.stage === stage ? lvl : null;
-  });
+    prefetch = lvl && lvl.stage === stage ? { lvl, band: band || null } : null;
+  }, band);
 }
 
 /* --------------------------------------------------------------- state */
@@ -1019,6 +1050,10 @@ let fires, preview, submitted, prevLit, countedSolve;
 /* a wrong submission costs a heart; what happens at zero is still open */
 const MAX_LIVES = 3;
 let lives = MAX_LIVES;
+/* placeholder "a chapter is done" milestone for chapterFirstDone below, since
+   there is no ledger-driven campaign length live yet to measure against -
+   swap for the real count once that lands. */
+const ACHIEVEMENT_CHAPTER_LEVELS = 10;
 
 /* --------------------------------------------------------------- settings */
 /* the last sector played, the flicker preference, today's Daily state and a
@@ -1034,6 +1069,16 @@ function loadSettings() {
     dailyDate: s.dailyDate || '',
     dailyStage: s.dailyStage || 0,
     solved: s.solved || 0,
+    /* Endless's position in its 10-slot band rotation, kept per chapter so
+       returning to one later continues its own cycle rather than resetting
+       it. Not itself an achievement - just state an achievement system can
+       read later without more plumbing than this. */
+    endlessSlot: s.endlessSlot || {},
+    /* ditto for "finished a chapter": a per-stage solved count and the date
+       each one first reached ACHIEVEMENT_CHAPTER_LEVELS, both unused by
+       anything today. */
+    solvedByStage: s.solvedByStage || {},
+    chapterFirstDone: s.chapterFirstDone || {},
   };
 }
 function saveSettings() {
@@ -1596,9 +1641,15 @@ function render(justLit) {
 }
 
 /* -------------------------------------------------------------- loading */
-function install(level) {
+function install(level, band) {
   hideResult();
   P = level;
+  /* Reveal has to rebuild this exact seed later - if it was pinned to a band
+     to get here (Endless), generateFrom alone would pad it toward this
+     stage's ordinary cap/floor instead and hand back a different brief for
+     the "same" seed. Carried on P, the same fix as gen_band in
+     tools/ledger.js and for the same reason. */
+  P.genBand = band || null;
   W = P.map.w; H = P.map.h; grid = P.map.rows.join('');
   zones = P.zones;
   landmarks = {};
@@ -1617,24 +1668,76 @@ function install(level) {
   /* the board's own size changed, and on the phone the case does not, so the
      resize observer on the deck never hears about it — refit by hand */
   fitConsole();
-  prefetchNext(P.stage);
+  prefetchNext(P.stage, endlessBand(P.stage));
 }
 
-function loadLevel(stage, seed) {
-  if (seed === undefined && prefetch && prefetch.stage === stage) {
-    const lvl = prefetch; prefetch = null;
-    install(lvl);
+/* Endless never runs out because it never draws from a fixed list: every
+   fresh level asks the worker for a random seed pinned to whatever band this
+   chapter's rotation is on right now (3 easy, 3 medium, 3 hard, 1 very hard,
+   endlessly repeating). Retrying or resuming a specific seed (Retry, the
+   seed box) always passes its own seed, so it never touches the rotation. */
+const ENDLESS_PATTERN = ['easy', 'easy', 'easy', 'medium', 'medium', 'medium',
+                         'hard', 'hard', 'hard', 'veryhard'];
+let endlessMode = false;
+function endlessBand(stage) {
+  if (!endlessMode) return null;
+  const slot = (settings.endlessSlot[stage] || 0) % ENDLESS_PATTERN.length;
+  return ENDLESS_PATTERN[slot];
+}
+function advanceEndlessSlot(stage) {
+  const n = ENDLESS_PATTERN.length;
+  settings.endlessSlot[stage] = ((settings.endlessSlot[stage] || 0) + 1) % n;
+  saveSettings();
+}
+
+/* bandOverride is how Retry (and anything else reloading a specific seed
+   that was originally banded) stays the same puzzle: an explicit seed always
+   skips the rotation itself, but generateFrom is not independent of the
+   band it was built under (the padding step depends on it), so replaying
+   that exact seed still needs the same band passed back in, or it silently
+   rebuilds a different brief for it - the same bug this fixes for Reveal,
+   just for a full reload instead of just the solution. */
+function loadLevel(stage, seed, bandOverride) {
+  const fresh = seed === undefined;
+  const band = fresh ? endlessBand(stage) : (bandOverride || null);
+  if (fresh && prefetch && prefetch.lvl.stage === stage && prefetch.band === band) {
+    const lvl = prefetch.lvl; prefetch = null;
+    if (band) advanceEndlessSlot(stage);
+    bootLevel(lvl, band);
     return;
   }
   el('busy').textContent = 'generating…';
   el('busy').className = 'busy';
-  requestLevel(stage, seed === undefined ? (Math.random() * 0xffffffff) >>> 0 : seed,
+  requestLevel(stage, fresh ? (Math.random() * 0xffffffff) >>> 0 : seed,
     (lvl, ms) => {
       el('busy').textContent = ms > 0 ? `built in ${ms} ms` : '';
       el('busy').className = '';
-      if (lvl) install(lvl);
-      else el('status').textContent = 'The generator could not build a level.';
-    });
+      if (lvl) {
+        if (band) advanceEndlessSlot(stage);
+        bootLevel(lvl, band);
+      } else el('status').textContent = 'The generator could not build a level.';
+    }, band);
+}
+
+/* Held on a "STAGE N" screen for a beat before install() actually draws the
+   board — the level (and so its real difficulty, shown here rather than a
+   placeholder) is already sitting in hand by this point, same as a
+   cartridge's splash held the screen a moment after the read had finished.
+   Skipped in DEV, where the seed/stage devbar is for fast iteration, not
+   for playing. */
+const BOOT_MS = 2200;
+function bootLevel(lvl, band) {
+  if (DEV) { install(lvl, band); return; }
+  el('loadingStage').textContent = 'STAGE ' + lvl.stage;
+  el('loadingChapter').textContent = T().stage[lvl.stage];
+  el('loadingBand').textContent = T().difficulty[lvl.difficulty] || lvl.difficulty;
+  el('view-top-game').classList.remove('on');
+  el('view-top-loading').classList.add('on');
+  setTimeout(() => {
+    el('view-top-loading').classList.remove('on');
+    el('view-top-game').classList.add('on');
+    install(lvl, band);
+  }, BOOT_MS);
 }
 
 const stageSel = el('stage');
@@ -1665,7 +1768,15 @@ el('submit').onclick = () => {
   const right = answerIsRight();
   const wasSubmitted = submitted;
   if (!wasSubmitted && !right && lives > 0) lives--;
-  if (right && !countedSolve) { countedSolve = true; settings.solved++; saveSettings(); }
+  if (right && !countedSolve) {
+    countedSolve = true; settings.solved++;
+    const n = (settings.solvedByStage[P.stage] || 0) + 1;
+    settings.solvedByStage[P.stage] = n;
+    if (n === ACHIEVEMENT_CHAPTER_LEVELS && !settings.chapterFirstDone[P.stage]) {
+      settings.chapterFirstDone[P.stage] = todayStr();
+    }
+    saveSettings();
+  }
   submitted = true;
   render();
   if (right) showResult('win');
@@ -1703,7 +1814,7 @@ function hideResult() {
   el('reveal').disabled = false;
 }
 el('resultNext').onclick = () => loadLevel(P.stage);
-el('resultRetry').onclick = () => loadLevel(P.stage, P.seed);
+el('resultRetry').onclick = () => loadLevel(P.stage, P.seed, P.genBand);
 el('resultMenu').onclick = () => setScreen('menu');
 el('reset').onclick = () => { fires = new Set(); preview = new Set(); submitted = false; render(); };
 el('reveal').onclick = () => {
@@ -1713,7 +1824,7 @@ el('reveal').onclick = () => {
     b.disabled = false;
     if (!got) return;                  // a failed rebuild leaves the board alone
     fires = new Set(got); preview = new Set(); submitted = true; render();
-  });
+  }, P.genBand);
 };
 
 /* Shrink the whole device to fit a narrow screen. The board is locked to the
@@ -1817,7 +1928,8 @@ function dailyHash(str, stage) {
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
   return h >>> 0;
 }
-function startGame(stage, seed) {
+function startGame(stage, seed, endless) {
+  endlessMode = !!endless;
   settings.stage = stage; settings.played = true; saveSettings();
   setScreen('game');
   loadLevel(stage, seed);
@@ -1873,7 +1985,7 @@ function setScreen(name) {
 
 el('menuContinue').onclick = () => startGame(settings.stage);
 el('menuChapterMap').onclick = () => setScreen('sectors');
-el('menuEndless').onclick = () => startGame(settings.stage, (Math.random() * 0xffffffff) >>> 0);
+el('menuEndless').onclick = () => startGame(settings.stage, undefined, true);
 el('menuDaily').onclick = () => {
   const today = todayStr();
   settings.dailyDate = today; settings.dailyStage = settings.stage;
