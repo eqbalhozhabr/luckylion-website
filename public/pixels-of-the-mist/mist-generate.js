@@ -134,6 +134,22 @@ class Deduce {
     for (const f of mp.placeable) this.fire.set(f, undefined);
     for (const c of mp.foggable) this.dark.set(c, undefined);
     this.moves = [];
+    /* A second, richer record of the same moves, purely additive - grade()
+       only ever reads this.moves (a flat list of tags, filtered by ===
+       'FORWARD') and must keep seeing exactly that, unchanged, so a level's
+       difficulty score never shifts under it. This is for Hint: which
+       cell(s) a step resolved, to what, and which clue (if any) justifies it
+       - a hint is just "show the next entry the real solver already found",
+       never a guess of its own. */
+    this.trace = [];
+  }
+  note(cells, field, value, move, clue) {
+    /* The clue's index into this.clues, not the object itself - it has to
+       survive a worker postMessage's structured clone and still point at the
+       matching entry in the level's own clues array on the other side. */
+    this.trace.push({ cells: Array.isArray(cells) ? cells : [cells],
+                       field, value, move,
+                       clueIdx: clue ? this.clues.indexOf(clue) : -1 });
   }
 
   /* Return true only when something actually changed. Reporting "changed" for
@@ -189,7 +205,10 @@ class Deduce {
           if (v !== undefined) continue;
           let any = false;
           for (const f of this.sight[c]) if (this.fire.get(f) !== false) { any = true; break; }
-          if (!any) { this.dark.set(c, true); round = true; this.moves.push('FORCED_FOG'); }
+          if (!any) {
+            this.dark.set(c, true); round = true; this.moves.push('FORCED_FOG');
+            this.note(c, 'dark', true, 'FORCED_FOG');
+          }
         }
         // it must be lit -> where from?
         for (const [c, v] of this.dark) {
@@ -199,6 +218,7 @@ class Deduce {
           if (live.length === 1 && this.fire.get(live[0]) === undefined) {
             this.fire.set(live[0], true); round = true;
             this.moves.push('ONLY_SOURCE');
+            this.note(live[0], 'fire', true, 'ONLY_SOURCE');
           }
         }
         // it is mist -> no fire may see it
@@ -226,6 +246,7 @@ class Deduce {
             if (live.length === 1 && this.fire.get(live[0]) === undefined) {
               this.fire.set(live[0], true); round = true;
               this.moves.push('LAST_STANDING');
+              this.note(live[0], 'fire', true, 'LAST_STANDING', cl);
             }
             continue;
           }
@@ -241,6 +262,7 @@ class Deduce {
           if (live.length === 1) {
             this.dark.set(live[0], true); round = true;
             this.moves.push('LAST_STANDING');
+            this.note(live[0], 'dark', true, 'LAST_STANDING', cl);
           }
         }
         // counting the fuel
@@ -252,9 +274,11 @@ class Deduce {
         if (yes === this.n && unk.length) {
           for (const c of unk) this.fire.set(c, false);
           round = true; this.moves.push('FUEL_SPENT');
+          this.note(unk.slice(), 'fire', false, 'FUEL_SPENT');
         } else if (yes + unk.length === this.n && unk.length) {
           for (const c of unk) this.fire.set(c, true);
           round = true; this.moves.push('FUEL_FORCED');
+          this.note(unk.slice(), 'fire', true, 'FUEL_FORCED');
         }
         // counting the monsters
         for (const cl of this.clues) {
@@ -268,9 +292,11 @@ class Deduce {
           if (dy === want && du.length) {
             for (const c of du) this.dark.set(c, false);
             round = true; this.moves.push('MONSTER_COUNT');
+            this.note(du.slice(), 'dark', false, 'MONSTER_COUNT', cl);
           } else if (dy + du.length === want && du.length) {
             for (const c of du) this.dark.set(c, true);
             round = true; this.moves.push('MONSTER_COUNT');
+            this.note(du.slice(), 'dark', true, 'MONSTER_COUNT', cl);
           }
         }
         // scorch marks
@@ -284,9 +310,11 @@ class Deduce {
           if (y2 === want && u2.length) {
             for (const j of u2) this.fire.set(j, false);
             round = true; this.moves.push('SCORCH');
+            this.note(u2.slice(), 'fire', false, 'SCORCH', cl);
           } else if (y2 + u2.length === want && u2.length) {
             for (const j of u2) this.fire.set(j, true);
             round = true; this.moves.push('SCORCH');
+            this.note(u2.slice(), 'fire', true, 'SCORCH', cl);
           }
         }
       } catch (e) {
@@ -336,10 +364,14 @@ class Deduce {
     if (chosen.length > left) return 'bad';
     if (chosen.length < left) return false;
     let changed = false;
+    const resolved = [];
     for (const [c, v] of this.fire) {
-      if (v === undefined && !used.has(c)) { this.fire.set(c, false); changed = true; }
+      if (v === undefined && !used.has(c)) { this.fire.set(c, false); changed = true; resolved.push(c); }
     }
-    if (changed) this.moves.push('DISJOINT');
+    if (changed) {
+      this.moves.push('DISJOINT');
+      this.note(resolved, 'fire', false, 'DISJOINT');
+    }
     return changed;
   }
 
@@ -360,6 +392,7 @@ class Deduce {
           this.fire.set(c, !guess);
           changed = true;
           this.moves.push('FORWARD');
+          this.note(c, 'fire', !guess, 'FORWARD');
           if (this.propagate() === 'bad') return 'bad';
           break;
         }
@@ -372,17 +405,17 @@ class Deduce {
     let rounds = 0;
     for (;;) {
       rounds++;
-      if (rounds > 40) return { fires: null, rounds, moves: this.moves };
-      if (this.propagate() === 'bad') return { fires: null, rounds, moves: this.moves };
+      if (rounds > 40) return { fires: null, rounds, moves: this.moves, trace: this.trace };
+      if (this.propagate() === 'bad') return { fires: null, rounds, moves: this.moves, trace: this.trace };
       let allSet = true;
       for (const [, v] of this.fire) if (v === undefined) { allSet = false; break; }
       if (allSet) {
         const got = [...this.fire].filter(([, v]) => v === true).map(([c]) => c);
         return { fires: got.length === this.n ? got.sort((a, b) => a - b) : null,
-                 rounds, moves: this.moves };
+                 rounds, moves: this.moves, trace: this.trace };
       }
       const r = this.forward();
-      if (r === 'bad' || !r) return { fires: null, rounds, moves: this.moves };
+      if (r === 'bad' || !r) return { fires: null, rounds, moves: this.moves, trace: this.trace };
     }
   }
 }
@@ -582,6 +615,11 @@ function generateLevel(stage, seed, maxAttempts, tierStage) {
       clues,
       solution: target,
       monsters: fog,
+      /* The solve trace behind the final (possibly padded) clue set - Hint's
+         only source of truth, never sent to the page on an ordinary level
+         request (withoutAnswer() in mist-worker.js strips it the same as
+         solution/monsters); only the 'hint' op reads it, one cell at a time. */
+      trace: res.trace,
       legal: every.length,
       difficulty: g.difficulty,
       score: g.score,
