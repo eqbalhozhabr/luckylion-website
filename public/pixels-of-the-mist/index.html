@@ -568,6 +568,19 @@
     background:rgba(8,10,14,.68);pointer-events:none}
   .grid.dimmed .cell.clue::after{background:transparent;
     box-shadow:inset 0 0 0 2px var(--pick)}
+  /* Hint's exact square, distinct from the rest of its clue's highlighted
+     neighbourhood - a wide clue like Near or Around lights up several
+     squares, and without this a player has no way to tell which one in that
+     group is the actual fact the hint gave them. */
+  .grid.dimmed .cell.clue.hint-target::after{background:rgba(203,90,66,.25);
+    box-shadow:inset 0 0 0 3px #cb5a42}
+  .hint-mark{position:absolute;top:2px;right:2px;width:15px;height:15px;
+    border-radius:50%;z-index:9;background:#cb5a42;color:#fff2ee;
+    font-size:10px;font-weight:900;line-height:15px;text-align:center;
+    box-shadow:0 1px 0 #3c0e08;pointer-events:none;
+    animation:hintPulse 1.1s ease-in-out infinite}
+  @keyframes hintPulse{0%,100%{opacity:.6;transform:scale(.85)}
+    50%{opacity:1;transform:scale(1.08)}}
   ol.brief li.ok{color:var(--ok)} ol.brief li.no{color:var(--bad)}
   .status{margin-top:10px;font-size:14px;font-weight:600;min-height:1.4em}
   select,input{font:inherit;font-size:13px;padding:4px 6px;background:#2a2e36;
@@ -1619,8 +1632,8 @@ function render(justLit) {
     // a failed scorch mark is the only clue with no line in the testimony, so
     // the rock itself has to carry the red
     if (isRock(i)) { d.classList.toggle('hit', guilty.has(i)); continue; }
-    [...d.querySelectorAll('.spr,.lab')].forEach(n => n.remove());
-    d.classList.remove('fog', 'ghost', 'inprev', 'hit');
+    [...d.querySelectorAll('.spr,.lab,.hint-mark')].forEach(n => n.remove());
+    d.classList.remove('fog', 'ghost', 'inprev', 'hit', 'hint-target');
 
     // stagger the mist lifting outward from the fire just lit
     const m = d.querySelector('.mist');
@@ -1675,6 +1688,15 @@ function render(justLit) {
       d.appendChild(lab);
     }
     if (guilty.has(i)) d.classList.add('hit');
+    /* The one square Hint actually resolved, marked apart from the rest of
+       its clue's highlighted neighbourhood (see spotlight() below). */
+    if (!tutorialMode && hintCell === i) {
+      d.classList.add('hint-target');
+      const hm = document.createElement('div');
+      hm.className = 'hint-mark';
+      hm.textContent = '!';
+      d.appendChild(hm);
+    }
   }
   prevLit = L;
 
