@@ -711,12 +711,10 @@
   .loadingscreen{align-items:center;justify-content:center;gap:10px;
                  padding:14px 12px;color:#2a2e1e;text-align:center;
                  font-family:"Press Start 2P","Courier New",monospace}
-  .loading-stage{font-size:15px;font-weight:700;text-transform:uppercase;
-                 color:#1a2412;letter-spacing:.03em;
-                 text-shadow:0 1px 0 #cdd0ab,0 -1px 0 #cdd0ab,
-                             1px 0 0 #cdd0ab,-1px 0 0 #cdd0ab}
-  .loading-chapter{font-size:9px;letter-spacing:.05em;color:#4a4e36;
-                   text-transform:uppercase}
+  .loading-chapter{font-size:15px;font-weight:700;text-transform:uppercase;
+                   color:#1a2412;letter-spacing:.03em;
+                   text-shadow:0 1px 0 #cdd0ab,0 -1px 0 #cdd0ab,
+                               1px 0 0 #cdd0ab,-1px 0 0 #cdd0ab}
   .loading-progress{font-size:7px;letter-spacing:.04em;color:#5a5e44}
   .loading-band{--pxc:2px;margin-top:6px;padding:6px 16px;font-size:7.5px;
                letter-spacing:.05em;text-transform:uppercase;
@@ -897,7 +895,6 @@
              cutting instantly. -->
         <div class="view" id="view-top-loading">
           <div class="lcd loadingscreen">
-            <div class="loading-stage" id="loadingStage"></div>
             <div class="loading-chapter" id="loadingChapter"></div>
             <div class="loading-progress" id="loadingProgress"></div>
             <div class="loading-band pixel-corners" id="loadingBand"></div>
@@ -1784,8 +1781,8 @@ function loadLevel(stage, seed, bandOverride) {
     }, band);
 }
 
-/* Held on a "STAGE N" screen for a beat before install() actually draws the
-   board — the level (and so its real difficulty, shown here rather than a
+/* Held on the chapter's own splash for a beat before install() actually draws
+   the board — the level (and so its real difficulty, shown here rather than a
    placeholder) is already sitting in hand by this point, same as a
    cartridge's splash held the screen a moment after the read had finished.
    Skipped in DEV, where the seed/stage devbar is for fast iteration, not
@@ -1793,10 +1790,15 @@ function loadLevel(stage, seed, bandOverride) {
 const BOOT_MS = 2200;
 function bootLevel(lvl, band) {
   if (DEV) { install(lvl, band); return; }
-  el('loadingStage').textContent = 'STAGE ' + lvl.stage;
   el('loadingChapter').textContent = T().stage[lvl.stage];
-  const n = Math.min((settings.solvedByStage[lvl.stage] || 0) + 1, CHAPTER_LEVEL_COUNT);
-  el('loadingProgress').textContent = T().ui.levelOf(n, CHAPTER_LEVEL_COUNT);
+  /* Endless never reaches CHAPTER_LEVEL_COUNT - there is no "of 120" to
+     report, so it gets its own label instead of a fake denominator. */
+  if (endlessMode) {
+    el('loadingProgress').textContent = T().ui.endlessLabel;
+  } else {
+    const n = Math.min((settings.solvedByStage[lvl.stage] || 0) + 1, CHAPTER_LEVEL_COUNT);
+    el('loadingProgress').textContent = T().ui.levelOf(n, CHAPTER_LEVEL_COUNT);
+  }
   el('loadingBand').textContent = T().difficulty[lvl.difficulty] || lvl.difficulty;
   el('view-top-game').classList.remove('on');
   el('view-top-loading').classList.add('on');
