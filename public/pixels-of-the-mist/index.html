@@ -2025,6 +2025,22 @@ function chapterUnlocked(ch) {
   if (ch.unlock.type === 'complete') return !!settings.chapterFirstDone[ch.unlock.stage];
   return false;
 }
+/* The chapter map is the only thing that checks chapterUnlocked() before
+   entering a chapter - Continue/Endless/Daily all just trust settings.stage.
+   That is fine for as long as settings.stage only ever moves through an
+   unlocked() tile, but a chapter that used to be unlocked and got locked
+   later (stage 2-4 here) leaves any settings.stage a player already had
+   pointed at it still sitting there, and those three buttons would happily
+   keep running it - a chapter the map itself now refuses to open. Called
+   every time the menu is shown, so a stale stage is caught before it can be
+   played again rather than only at the moment it was locked. */
+function ensureUnlockedStage() {
+  const ch = CHAPTERS.find(c => c.stage === settings.stage);
+  if (!ch || !chapterUnlocked(ch)) {
+    settings.stage = 1;
+    saveSettings();
+  }
+}
 function chapterName(ch, i) {
   return ch.stage ? T().stage[ch.stage] : `Chapter ${i + 1}`;
 }
@@ -2059,6 +2075,7 @@ function buildChapterGrid() {
   });
 }
 function refreshMenu() {
+  ensureUnlockedStage();
   el('menuTitle').textContent = T().ui.title;
   el('menuContinue').textContent = settings.played ? 'Continue' : 'Start';
   /* per-chapter now, not the old global count, so the number actually moves
