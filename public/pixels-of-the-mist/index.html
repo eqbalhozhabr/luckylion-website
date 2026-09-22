@@ -1555,7 +1555,11 @@ function render(justLit) {
      every sector is over capacity, so warning early is pure noise. */
   const load = {};
   F.forEach(i => { load[zones[i]] = (load[zones[i]] || 0) + 1; });
-  const overIds = fires.size === P.nfires
+  /* Same reasoning as tutorialGoalMet()'s own clue-only check: these boards'
+     one wide-open zone isn't what the sector rule assumes, so the warning
+     it would otherwise show here is noise, not signal. */
+  const tutorialSkipsSectorRule = tutorialMode && TUTORIAL_STEPS[tutorialIdx].goal === 'clue';
+  const overIds = fires.size === P.nfires && !tutorialSkipsSectorRule
     ? Object.keys(load).filter(z => load[z] > ZONE_CAP) : [];
 
   /* Until the night is survived the creatures are only half-seen. They come out
@@ -2246,18 +2250,18 @@ const TUTORIAL_STEPS = [
   { label: 4, total: 7, rows: ['C..S'], nfires: 1,
     clues: [{ kind: 'SAFE', args: [0] }, { kind: 'FOGGED', args: [3] }], goal: 'clue',
     caption: 'Two lines of testimony, one square to place. Read both, then light the one that fits.' },
-  { label: 5, total: 7, rows: ['M..', '.##', '###'], nfires: 1,
-    clues: [{ kind: 'NEAR_MONSTER', args: [0] }], goal: 'clue',
-    caption: '<b>Near</b> means the four squares that touch a place — up, down, left, right.' },
-  { label: 5, total: 7, rows: ['M..', '.##', '###'], nfires: 1,
-    clues: [{ kind: 'NO_MONSTER_NEAR', args: [0] }], goal: 'clue',
-    caption: 'Its opposite: none of those four squares hid anything.' },
-  { label: 6, total: 7, rows: ['W..'], nfires: 1,
-    clues: [{ kind: 'FIRE_BESIDE', args: [0] }], goal: 'clue',
-    caption: '<b>Around</b> is wider — all eight squares touching a place, corners included.' },
-  { label: 6, total: 7, rows: ['W..'], nfires: 1,
-    clues: [{ kind: 'NO_FIRE_BESIDE', args: [0] }], goal: 'clue',
-    caption: 'And its opposite: no fire anywhere in those eight.' },
+  { label: 5, total: 7, rows: ['.....', '.M...', '.....'], nfires: 2,
+    clues: [{ kind: 'NEAR_MONSTER', args: [6] }], goal: 'clue',
+    caption: '<b>Near</b> means the four squares that touch a place — up, down, left, right. The highlighted squares are what this line means; light two fires so one of them stays dark.' },
+  { label: 5, total: 7, rows: ['.....', '.M...', '.....'], nfires: 2,
+    clues: [{ kind: 'NO_MONSTER_NEAR', args: [6] }], goal: 'clue',
+    caption: 'Its opposite: this time light both fires so <b>all four</b> highlighted squares clear.' },
+  { label: 6, total: 7, rows: ['.....', '.W...', '.....'], nfires: 1,
+    clues: [{ kind: 'FIRE_BESIDE', args: [6] }], goal: 'clue',
+    caption: '<b>Around</b> is wider — all eight squares touching a place, corners included. Light the one fire somewhere inside the highlight.' },
+  { label: 6, total: 7, rows: ['.....', '.W...', '.....'], nfires: 1,
+    clues: [{ kind: 'NO_FIRE_BESIDE', args: [6] }], goal: 'clue',
+    caption: 'And its opposite: light the fire <b>outside</b> the highlighted eight.' },
   { label: 7, total: 7, rows: ['C..S'], nfires: 1,
     clues: [{ kind: 'SAFE', args: [0] }, { kind: 'FOGGED', args: [3] }], goal: 'submit',
     caption: 'One more — but this time press <b>Submit</b> when you’re happy. Not sure? <b>Reveal</b> never costs you anything, and three wrong guesses just reset the level.' },
@@ -2300,6 +2304,16 @@ function installTutorialFrame(idx) {
   el('reveal').disabled = true;              // Reveal asks the worker for P.stage/seed, which are fake here
   buildBoard();
   render();
+  /* render() itself resets this to null - the same spotlight a real level
+     only shows once you tap its testimony line, lit here by hand instead so
+     "near" and "around" are visible on the very first look, not just
+     described in words. It clears again on the next render() (Any tap or
+     commit triggers one), which is fine: its job is the first look. */
+  if (frame.goal === 'clue') {
+    const cells = new Set();
+    frame.clues.forEach(c => clueCells(c).forEach(x => cells.add(x)));
+    spotlight(cells);
+  }
   fitConsole();
 }
 function tutorialGoalMet() {
@@ -2315,7 +2329,17 @@ function tutorialGoalMet() {
     if (fires.size === 1) tutorialWasLit = true;
     return tutorialUndoSeen && fires.size === 1;
   }
-  if (frame.goal === 'clue') return fires.size === P.nfires && answerIsRight();
+  if (frame.goal === 'clue') {
+    /* Not answerIsRight(): its sector-overload check assumes a real level's
+       own zone layout, sized so two fires' worth of clearing never leaves
+       more than two monsters in one sector. These boards are one wide-open
+       zone so "near"/"around" reads as one clear picture rather than a
+       patchwork of sector lines - deliberately outside what that check
+       assumes, so only the clue(s) actually being taught matter here. */
+    if (fires.size !== P.nfires) return false;
+    const F = fog([...fires]);
+    return frame.clues.every(c => testClue(mpView, c, new Set(fires), F));
+  }
   return false;                              // 'submit' advances from the Submit handler instead
 }
 /* Used to auto-advance on a timer - satisfying, but it also meant the step
