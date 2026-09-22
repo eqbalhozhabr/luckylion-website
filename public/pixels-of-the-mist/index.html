@@ -277,6 +277,20 @@
     background:#8b8d69;color:#20241a;padding:6px 8px;margin-bottom:8px;
     line-height:1.5}
   .tut-next{display:block;width:100%;margin-top:8px;font-size:8.5px}
+  /* Hint's own result line - same shape as the tutorial caption so it reads
+     as "the game talking to you" rather than another line of testimony, but
+     a different tone so the two are never mistaken for each other. */
+  #brief li.hint-caption{display:block;border:1px solid #5a3c2a;
+    background:#8c6a4a;color:#221408;padding:6px 8px;margin-bottom:8px;
+    line-height:1.5}
+  /* A small count badge on the Hint key itself, the same idea as the fuel/life
+     pips: at a glance, not a read. Hidden at zero so an empty stock never
+     looks like an invitation. */
+  .hint-badge{position:absolute;top:-5px;right:-6px;min-width:14px;height:14px;
+    padding:0 3px;border-radius:7px;background:#cb5a42;color:#fff2ee;
+    font-size:8px;line-height:14px;text-align:center;box-shadow:0 1px 0 #3c0e08;
+    display:none;pointer-events:none}
+  .hint-badge.show{display:block}
   /* the selection box of an old menu: a hard frame around the line the pointer
      is on, matching the frame drawn around the squares it refers to */
   #brief li:hover,#brief li.sel{border-color:var(--pick);color:#141a0c}
@@ -504,7 +518,7 @@
                        inset 0 1px 1px rgba(255,255,255,.35),
                        inset 0 -2px 2px rgba(0,0,0,.35)}
   .tools button.go:active:not(:disabled){box-shadow:inset 0 2px 4px rgba(0,0,0,.45)}
-  /* Clear/Reveal: a small blank key, the way LEFT/RIGHT or B/A sit on the
+  /* Clear/Hint: a small blank key, the way LEFT/RIGHT or B/A sit on the
      originals. The key itself is just a small circle now — the same shape
      recipe as Submit — so its centre lines up with the other keys under
      plain align-items:center; the label is a separate absolutely-positioned
@@ -1028,7 +1042,7 @@
             <button id="toMenu">Menu</button>
             <button id="submit" class="go">Submit</button>
             <button id="reset" class="round"><span class="key-label">Clear</span></button>
-            <button id="reveal" class="round"><span class="key-label">Reveal</span></button>
+            <button id="reveal" class="round"><span class="hint-badge" id="hintBadge"></span><span class="key-label">Hint</span></button>
           </div>
         </div>
       </div>
@@ -1059,11 +1073,15 @@ const worker = new Worker('mist-worker.js');
 let reqId = 0;
 const pending = new Map();
 worker.onmessage = (e) => {
-  const { id, level, fires, error, ms } = e.data;
+  const { id, level, hint, hintCount, error, ms } = e.data;
   const cb = pending.get(id);
   pending.delete(id);
   if (error) console.error('generator:', error);
-  if (cb) cb(level !== undefined ? level : fires, ms);
+  if (!cb) return;
+  /* A hint response always carries hintCount (0 or more); a plain level
+     response never does, so that field alone tells the two apart. */
+  if (hintCount !== undefined) cb(hint, hintCount, ms);
+  else cb(level, ms);
 };
 function requestLevel(stage, seed, cb, band) {
   const id = ++reqId;
@@ -1071,12 +1089,14 @@ function requestLevel(stage, seed, cb, band) {
   worker.postMessage({ id, stage, seed, band });
 }
 /* The answer is not kept in the page. Generation is deterministic in the seed,
-   so asking for it rebuilds the level in the worker and hands back only the
-   fires — which is all Reveal ever wanted. */
-function requestAnswer(stage, seed, cb, band) {
+   so Hint rebuilds the level in the worker and asks for one flattened step of
+   the solver's own working, by index - P.hintsUsed counts up so each tap of
+   the key lands one fact further into the trace than the last, never the same
+   fact twice and never the whole thing at once. */
+function requestHint(stage, seed, hintIndex, cb, band) {
   const id = ++reqId;
   pending.set(id, cb);
-  worker.postMessage({ id, op: 'reveal', stage, seed, band });
+  worker.postMessage({ id, op: 'hint', stage, seed, hintIndex, band });
 }
 
 /* The next level is generated while the current one is being solved, so
@@ -1097,6 +1117,12 @@ function prefetchNext(stage, band) {
 /* --------------------------------------------------------------- state */
 let P, W, H, grid, zones, landmarks, scorch;
 let fires, preview, submitted, prevLit, countedSolve;
+/* Hint's own display state: the one cell (plus its clue's neighbourhood, for
+   context) it just revealed, and the sentence explaining it. Cleared on any
+   fresh level and on Clear, so a stale hint never points at a board the
+   player has already moved past. */
+let hintCell = null, hintCells = null, hintText = '';
+function clearHint() { hintCell = null; hintCells = null; hintText = ''; }
 /* a wrong submission costs a heart; what happens at zero is still open */
 const MAX_LIVES = 3;
 let lives = MAX_LIVES;
@@ -1136,6 +1162,11 @@ function loadSettings() {
     dailyStreak: s.dailyStreak || 0,
     dailyStreakDate: s.dailyStreakDate || '',
     solved: s.solved || 0,
+    /* Hint's own stock, spent one at a time by the Hint key. Two to start
+       with, so a new player can try the feature without three solves first;
+       earned afterward by playing (see the win handler), never bought back
+       just by reloading. */
+    hints: s.hints != null ? s.hints : 2,
     /* Endless's position in its 10-slot band rotation, kept per chapter so
        returning to one later continues its own cycle rather than resetting
        it. Not itself an achievement - just state an achievement system can
@@ -1186,6 +1217,11 @@ function buildMpView() {
 }
 
 /* ----------------------------------------------------------- chrome */
+function updateHintBadge() {
+  const b = el('hintBadge');
+  b.textContent = settings.hints;
+  b.classList.toggle('show', settings.hints > 0);
+}
 function paintChrome() {
   const s = T().ui;
   el('title').textContent = s.title;
@@ -1194,6 +1230,7 @@ function paintChrome() {
   el('submit').textContent = s.submit;
   el('reset').querySelector('.key-label').textContent = s.reset;
   el('reveal').querySelector('.key-label').textContent = s.reveal;
+  updateHintBadge();
   el('newLevel').textContent = s.newLevel;
   /* an ordered list now, so the screen numbers them the way it numbers the
      testimony rather than the text carrying its own digits */
@@ -1391,6 +1428,16 @@ function clueIcon(c) {
 /* the testimony line the player has tapped, which stays lit until they let go
    of it — the only way this works on a touch screen */
 let pinned = null;
+
+/* One flattened trace entry, turned into a sentence that gives away exactly
+   one fact and nothing past it - never the arrangement, always one square's
+   verdict, phrased the same way regardless of which rule the solver actually
+   used to reach it (the trace's own `move` tag stays internal). */
+function hintMessage(entry) {
+  const s = T().ui;
+  if (entry.field === 'fire') return entry.value ? s.hintFireHere : s.hintNoFireHere;
+  return entry.value ? s.hintStaysDark : s.hintClearsSafe;
+}
 
 function spotlight(set) {
   const cells = el('grid').children;
@@ -1705,6 +1752,16 @@ function render(justLit) {
     }
     ol.insertBefore(cap, ol.firstChild);
   }
+  /* Hint's own line, the same idea as the tutorial's - it sits above the
+     testimony rather than inside it, and spotlights whatever it just told the
+     player about. Never shown in the tutorial, where Hint is disabled. */
+  if (!tutorialMode && hintText) {
+    const cap = document.createElement('li');
+    cap.className = 'hint-caption';
+    cap.textContent = hintText;
+    ol.insertBefore(cap, ol.firstChild);
+    if (hintCells && hintCells.size) spotlight(hintCells);
+  }
 
   const s = T().ui;
   const over = overIds.map(z => T().zone[z] || ('T' + z));
@@ -1729,7 +1786,7 @@ function render(justLit) {
 function install(level, band) {
   hideResult();
   P = level;
-  /* Reveal has to rebuild this exact seed later - if it was pinned to a band
+  /* Hint has to rebuild this exact seed later - if it was pinned to a band
      to get here (Endless), generateFrom alone would pad it toward this
      stage's ordinary cap/floor instead and hand back a different brief for
      the "same" seed. Carried on P, the same fix as gen_band in
@@ -1744,6 +1801,8 @@ function install(level, band) {
   fires = new Set(); preview = new Set(); submitted = false; prevLit = new Set();
   lives = MAX_LIVES;                       // a fresh night, a fresh three
   countedSolve = false;
+  P.hintsUsed = 0;
+  clearHint();
   buildMpView();
   el('seed').value = P.seed;
   el('diff').textContent = T().difficulty[P.difficulty] || P.difficulty;
@@ -1807,7 +1866,7 @@ function freshBand(stage) {
    skips the rotation itself, but generateFrom is not independent of the
    band it was built under (the padding step depends on it), so replaying
    that exact seed still needs the same band passed back in, or it silently
-   rebuilds a different brief for it - the same bug this fixes for Reveal,
+   rebuilds a different brief for it - the same bug this fixes for Hint,
    just for a full reload instead of just the solution. */
 function loadLevel(stage, seed, bandOverride) {
   const fresh = seed === undefined;
@@ -1908,15 +1967,23 @@ el('submit').onclick = () => {
     if (n === CHAPTER_LEVEL_COUNT && !settings.chapterFirstDone[P.stage]) {
       settings.chapterFirstDone[P.stage] = todayStr();
     }
+    /* One hint every three solves keeps a hint roughly as close as the next
+       level or two, whichever comes first — close enough to reach for,
+       never so free it stops feeling worth saving. */
+    if (settings.solved % 3 === 0) settings.hints++;
     if (dailyMode) {
       const today = todayStr();
       if (settings.dailyStreakDate !== today) {
         const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
         settings.dailyStreak = settings.dailyStreakDate === yesterday ? settings.dailyStreak + 1 : 1;
         settings.dailyStreakDate = today;
+        /* A streak milestone is proof of showing up day after day, so it pays
+           out more than one ordinary solve does. */
+        if (settings.dailyStreak % 5 === 0) settings.hints += 2;
       }
     }
     saveSettings();
+    updateHintBadge();
   }
   submitted = true;
   render();
@@ -1957,14 +2024,33 @@ function hideResult() {
 el('resultNext').onclick = () => loadLevel(P.stage);
 el('resultRetry').onclick = () => loadLevel(P.stage, P.seed, P.genBand);
 el('resultMenu').onclick = () => setScreen('menu');
-el('reset').onclick = () => { fires = new Set(); preview = new Set(); submitted = false; render(); };
+el('reset').onclick = () => { fires = new Set(); preview = new Set(); submitted = false; clearHint(); render(); };
+/* Hint spends one of settings.hints to ask the worker for the next flattened
+   step of the real solve, in order (P.hintsUsed), and shows exactly that one
+   fact - never the fires themselves, never more than one square at a time. */
 el('reveal').onclick = () => {
+  if (settings.hints <= 0) {
+    hintCell = null; hintCells = null; hintText = T().ui.hintNone;
+    render();
+    return;
+  }
   const b = el('reveal');
   b.disabled = true;
-  requestAnswer(P.stage, P.seed, (got) => {
+  requestHint(P.stage, P.seed, P.hintsUsed, (entry) => {
     b.disabled = false;
-    if (!got) return;                  // a failed rebuild leaves the board alone
-    fires = new Set(got); preview = new Set(); submitted = true; render();
+    if (!entry) {                      // trace exhausted, or a failed rebuild
+      hintCell = null; hintCells = null; hintText = T().ui.hintExhausted;
+      render();
+      return;
+    }
+    settings.hints--; saveSettings(); updateHintBadge();
+    P.hintsUsed++;
+    hintCell = entry.cell;
+    const clue = entry.clueIdx >= 0 ? P.clues[entry.clueIdx] : null;
+    hintCells = clue ? clueCells(clue) : new Set();
+    hintCells.add(entry.cell);
+    hintText = hintMessage(entry);
+    render();
   }, P.genBand);
 };
 
@@ -2301,7 +2387,7 @@ function installTutorialFrame(idx) {
   buildMpView();
   paintChrome();
   el('testimonyLabel').textContent = T().ui.tutorialStepOf(frame.label, frame.total);
-  el('reveal').disabled = true;              // Reveal asks the worker for P.stage/seed, which are fake here
+  el('reveal').disabled = true;              // Hint asks the worker for P.stage/seed, which are fake here
   buildBoard();
   render();
   /* render() itself resets this to null - the same spotlight a real level
