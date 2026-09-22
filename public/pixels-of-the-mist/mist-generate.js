@@ -521,8 +521,8 @@ const LADDER = [
 /* Generate one level. Deterministic in (stage, seed): the same pair always
    rebuilds the same level, which is what a daily puzzle and a share code need.
    Returns null only if the seed is unlucky enough to exhaust its attempts. */
-function generateLevel(stage, seed, maxAttempts) {
-  const cfg = LADDER.find(c => c.stage === stage) || LADDER[LADDER.length - 1];
+function generateLevel(stage, seed, maxAttempts, tierStage) {
+  const cfg = LADDER.find(c => c.stage === (tierStage || stage)) || LADDER[LADDER.length - 1];
   const rng = mulberry32(seed);
   const tries = maxAttempts || 80;
   for (let attempt = 0; attempt < tries; attempt++) {
@@ -572,8 +572,8 @@ function generateLevel(stage, seed, maxAttempts) {
     // "you lit the fires and nothing happened" is not a level
     if (fog.length < (cfg.minMonsters || 1)) continue;
     return {
-      stage: cfg.stage,
-      stageName: T().stage[cfg.stage],
+      stage,
+      stageName: T().stage[stage],
       seed,
       map: { w: cfg.w, h: cfg.h, rows },
       zones,
@@ -596,24 +596,34 @@ function generateLevel(stage, seed, maxAttempts) {
 /* The caller should never have to handle a failure: an unlucky seed just
    rolls forward to the next one. The level still reports the seed it was
    actually built from, so it stays reproducible and shareable. */
-function generateFrom(stage, seed, maxSeeds) {
+function generateFrom(stage, seed, maxSeeds, tierStage) {
   for (let k = 0; k < (maxSeeds || 30); k++) {
-    const lvl = generateLevel(stage, (seed + k) >>> 0);
+    const lvl = generateLevel(stage, (seed + k) >>> 0, undefined, tierStage);
     if (lvl) return lvl;
   }
   return null;
 }
 
-/* Endless pins a stage to one difficulty band per slot in its 10-level
-   rotation (3 easy, 3 medium, 3 hard, 1 "very hard") instead of that stage's
-   usual range, the same trick tools/ledger.js uses to fill a campaign band a
-   stage does not normally reach. "veryhard" is a range rather than a single
-   pin: an exact `expert` grade is genuinely rare for stages 1-2 (roughly one
-   seed in 300), which would stall a live request; hard-or-expert keeps every
-   stage's very-hard slot fast while still landing on a real expert whenever
-   the seed cooperates - common for stages 3-4, where it is not rare at all.
-   maxSeeds defaults far higher than generateFrom's: pinning to one band
-   is inherently less likely per seed than the stage's own open range. */
+/* Endless (and, via campaignBand() in mist.html, regular chapter play too)
+   pins one difficulty band per slot instead of the chapter's own usual
+   range. The four LADDER entries were never four interchangeable difficulty
+   knobs on one board - they are four different board sizes and mechanic
+   sets, each tuned and tested for exactly one band (1: easy/5x5, 2:
+   medium/5x5, 3: hard/6x6, 4: expert/6x6). Pinning band on the *chapter's*
+   own stage, as this used to do, left the board size wrong for every band
+   but the chapter's native one - a "hard" chapter-1 level was still forced
+   onto stage 1's easy-tuned 5x5 board. TIER_OF_BAND routes generation to
+   the LADDER entry actually built for that band instead, while `stage` on
+   the returned level stays the chapter that was asked for - the level
+   still counts toward that chapter's progress and shows that chapter's
+   name, it is simply built with the right entry's board/mechanics.
+   "veryhard" is a range rather than a single pin: an exact `expert` grade is
+   common on tier 4 (built for it) but would be rare and slow to hit on a
+   smaller tier if a future band ever aimed there; hard-or-expert keeps it
+   fast while still landing on genuine expert whenever the seed cooperates.
+   maxSeeds defaults far higher than generateFrom's: pinning to one band is
+   inherently less likely per seed than a tier's own open range. */
+const TIER_OF_BAND = { easy: 1, medium: 2, hard: 3, veryhard: 4 };
 const ENDLESS_BAND_RANGE = {
   easy: ['easy', 'easy'], medium: ['medium', 'medium'], hard: ['hard', 'hard'],
   veryhard: ['hard', 'expert'],
@@ -621,12 +631,13 @@ const ENDLESS_BAND_RANGE = {
 function generateFromBanded(stage, seed, bandKey, maxSeeds) {
   const range = ENDLESS_BAND_RANGE[bandKey];
   if (!range) return generateFrom(stage, seed, maxSeeds);
-  const cfg = LADDER.find(c => c.stage === stage);
+  const tierStage = TIER_OF_BAND[bandKey] || stage;
+  const cfg = LADDER.find(c => c.stage === tierStage);
   if (!cfg) return null;
   const restore = { minDiff: cfg.minDiff, maxDiff: cfg.maxDiff };
   cfg.minDiff = range[0]; cfg.maxDiff = range[1];
   try {
-    return generateFrom(stage, seed, maxSeeds || 600);
+    return generateFrom(stage, seed, maxSeeds || 600, tierStage);
   } finally {
     Object.assign(cfg, restore);
   }
