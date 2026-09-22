@@ -634,14 +634,48 @@
                font-size:6.5px;background:#2a2e1e;color:#cdd0ab;
                vertical-align:1px}
   .menu-btn.done::after{content:"\2713";margin-left:6px;color:#1f3a16}
-  .sector-list{display:flex;flex-direction:column;gap:7px;overflow-y:auto;
-               flex:1 1 auto;min-height:0}
-  .sector-row{--pxc:2px;display:flex;align-items:center;justify-content:space-between;
-              gap:8px;padding:9px 10px;border:1px solid #5d5f48;
-              background:#8b8d69;cursor:pointer}
-  .sector-row:active{background:#7d7f5f}
-  .sector-name{font-size:9px;text-transform:uppercase}
-  .sector-band{font-size:7px;color:#4a4e36}
+  /* Two square tiles per row, scrollable past however many fit — ten slots
+     exist on the map today, only the first with a chapter behind it. Each
+     tile is its own little screen: a flat colour, one centred pixel-art
+     motif at a fixed multiple of its own source size (the same recipe as
+     every other sprite here, never stretched to cover), and the name
+     printed at the foot like a caption. */
+  /* flex-wrap, not grid: a grid item with only absolutely-positioned
+     children (every child of .chapter-tile below) leaves its auto row
+     track with nothing to size itself from before aspect-ratio resolves,
+     and rows collapse into each other. Flex lines size from their tallest
+     item the ordinary way, so a definite width plus aspect-ratio is enough. */
+  .chapter-grid{display:flex;flex-wrap:wrap;align-content:flex-start;gap:8px;
+               overflow-y:auto;flex:1 1 auto;min-height:0}
+  .chapter-tile{--pxc:3px;position:relative;width:calc(50% - 4px);aspect-ratio:1;
+               cursor:pointer;background:#8b8d69;border:1px solid #5d5f48;
+               overflow:hidden}
+  .chapter-tile:active{background:#7d7f5f}
+  .chapter-tile .art{position:absolute;left:50%;top:38%;pointer-events:none;
+               transform:translate(-50%,-50%);
+               width:56%;aspect-ratio:1;background-repeat:no-repeat;
+               background-position:center;background-size:contain;
+               image-rendering:pixelated;filter:url(#greentone)}
+  .chapter-tile .name{position:absolute;left:0;right:0;bottom:0;
+               padding:5px 4px;font-size:7px;letter-spacing:.02em;
+               text-transform:uppercase;text-align:center;color:#20241a;
+               background:rgba(139,141,105,.88);pointer-events:none;
+               border-top:1px solid rgba(93,95,72,.6)}
+  /* locked tiles: the mist texture standing in for "not revealed yet" —
+     thematically the same fog the game is already about — dimmed further
+     and crossed out by a small drawn padlock, no art asset needed for it */
+  .chapter-tile.locked .art{background-image:url(assets/mist.png);
+               background-size:160% 480%;background-repeat:repeat;
+               width:100%;aspect-ratio:auto;inset:0;transform:none;
+               top:0;left:0;filter:url(#greentone) brightness(.55)}
+  .chapter-tile.locked .name{color:#3a3e2c}
+  .chapter-tile .lock{position:absolute;top:6px;right:6px;width:15px;height:13px;
+               z-index:1;pointer-events:none}
+  .chapter-tile .lock::before{content:"";position:absolute;left:3px;top:0;
+               width:9px;height:7px;border:2px solid #cdd0ab;border-bottom:none;
+               border-radius:5px 5px 0 0}
+  .chapter-tile .lock::after{content:"";position:absolute;left:0;bottom:0;
+               width:15px;height:8px;background:#cdd0ab}
   /* Setup + Manual share the readout's own type; Setup adds a switch and a few
      inert sliders kept visually complete ahead of the audio engine that will
      drive them */
@@ -745,7 +779,6 @@
     /* same square as .boardscreen, so switching to the menu screen never
        changes the size of the console glass */
     .lcd.menutop{width:100%;height:auto;aspect-ratio:1;overflow:hidden}
-    .sector-list{max-height:none}
     .card{margin-bottom:0}
   }
   /* one more step down for the narrow phones, so the strip still holds its
@@ -835,8 +868,8 @@
         </div>
         <div class="view" id="view-top-sectors">
           <div class="lcd menutop sectors">
-            <h2 class="menu-title small">Select Sector</h2>
-            <div class="sector-list" id="sectorList"></div>
+            <h2 class="menu-title small">Select Chapter</h2>
+            <div class="chapter-grid" id="chapterGrid"></div>
           </div>
         </div>
         <div class="view" id="view-top-game">
@@ -909,10 +942,10 @@
               </div>
             </div>
             <div class="view" id="view-side-sectors">
-              <h2>Chapter Map</h2>
-              <div class="hint-block">Each sector reshuffles into a fresh puzzle
-                every time you enter it. A chapter map with fixed levels is still
-                being built.</div>
+              <h2 id="chapterMapTitle">Chapter Map</h2>
+              <div class="hint-block" id="chapterMapHint">Each sector reshuffles
+                into a fresh puzzle every time you enter it. A chapter map with
+                fixed levels is still being built.</div>
             </div>
             <div class="view" id="view-side-game">
               <div class="view on" id="view-report">
@@ -1915,9 +1948,6 @@ setTimeout(() => setInterval(() => {
 }, 1500), 750);
 
 /* ------------------------------------------------------------------- menu */
-/* Bands read off the LADDER table in Session_Notes_Code_And_Levels.md — the
-   generator's own difficulty ceiling per stage, not a guess. */
-const SECTOR_BANDS = ['Easy', 'Easy – Medium', 'Medium – Hard', 'Hard – Expert'];
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 /* FNV-1a: small, deterministic, and all that a shared Daily seed needs to be —
    generation is already a pure function of (stage, seed), so today's date is
@@ -1934,21 +1964,64 @@ function startGame(stage, seed, endless) {
   setScreen('game');
   loadLevel(stage, seed);
 }
-function buildSectorList() {
-  const box = el('sectorList');
+/* Ten tiles on the map; only chapter 1 has a finished theme and mechanic
+   today. unlock:null is always playable; everything else is locked until
+   design gives it a real path in. 'dev' ("still being written") is the only
+   reason actually in play right now — chapters 2-4 already have a stage and
+   a level pool behind them (see content/levels.ledger.json), just not a
+   theme yet, so they are locked the same as the fully unbuilt slots 5-10.
+   'complete' (gated on settings.chapterFirstDone, the same state
+   ACHIEVEMENT_CHAPTER_LEVELS already tracks) and 'purchase' are wired up
+   for whenever a chapter is ready to use them — flipping a chapter's
+   `unlock` is then a data change here, not new code. */
+const CHAPTERS = [
+  { stage: 1, art: 'assets/shelter.png', unlock: null },
+  { stage: 2, unlock: { type: 'dev' } },
+  { stage: 3, unlock: { type: 'dev' } },
+  { stage: 4, unlock: { type: 'dev' } },
+  { unlock: { type: 'dev' } },
+  { unlock: { type: 'dev' } },
+  { unlock: { type: 'dev' } },
+  { unlock: { type: 'dev' } },
+  { unlock: { type: 'dev' } },
+  { unlock: { type: 'dev' } },
+];
+function chapterUnlocked(ch) {
+  if (!ch.unlock) return true;
+  if (ch.unlock.type === 'complete') return !!settings.chapterFirstDone[ch.unlock.stage];
+  return false;
+}
+function chapterName(ch, i) {
+  return ch.stage ? T().stage[ch.stage] : `Chapter ${i + 1}`;
+}
+function chapterLockMessage(ch, i) {
+  const s = T().ui, name = chapterName(ch, i);
+  if (ch.unlock.type === 'complete') return s.lockComplete(T().stage[ch.unlock.stage]);
+  if (ch.unlock.type === 'purchase') return s.lockPurchase(name);
+  return s.lockDev(name);
+}
+function buildChapterGrid() {
+  const box = el('chapterGrid');
   box.innerHTML = '';
-  LADDER_STAGES().forEach(n => {
-    const row = document.createElement('div');
-    row.className = 'sector-row pixel-corners';
-    const name = document.createElement('span');
-    name.className = 'sector-name';
-    name.textContent = T().ui.stageLabel(n, T().stage[n]);
-    const band = document.createElement('span');
-    band.className = 'sector-band';
-    band.textContent = SECTOR_BANDS[n - 1] || '';
-    row.append(name, band);
-    row.onclick = () => startGame(n);
-    box.appendChild(row);
+  CHAPTERS.forEach((ch, i) => {
+    const unlocked = chapterUnlocked(ch);
+    const tile = document.createElement('div');
+    tile.className = 'chapter-tile pixel-corners' + (unlocked ? '' : ' locked');
+    const art = document.createElement('div');
+    art.className = 'art';
+    if (unlocked && ch.art) art.style.backgroundImage = `url(${ch.art})`;
+    tile.appendChild(art);
+    if (!unlocked) tile.appendChild(document.createElement('div')).className = 'lock';
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = chapterName(ch, i);
+    tile.appendChild(name);
+    tile.onclick = () => {
+      if (unlocked) { startGame(ch.stage); return; }
+      el('chapterMapTitle').textContent = chapterName(ch, i);
+      el('chapterMapHint').textContent = chapterLockMessage(ch, i);
+    };
+    box.appendChild(tile);
   });
 }
 function refreshMenu() {
@@ -1980,6 +2053,12 @@ function setScreen(name) {
     if (ctrl) ctrl.classList.toggle('on', s === name);
   });
   if (name === 'menu') refreshMenu();
+  /* a stale lock message from whatever tile was tapped last visit should
+     never be what greets the next one */
+  if (name === 'sectors') {
+    el('chapterMapTitle').textContent = T().ui.chapterMapTitle;
+    el('chapterMapHint').textContent = T().ui.chapterMapHint;
+  }
   fitConsole();
 }
 
@@ -2000,7 +2079,7 @@ el('setupFlicker').onchange = (e) => {
   document.body.classList.toggle('reduce-fx', settings.reduceMotion);
 };
 
-buildSectorList();
+buildChapterGrid();
 prefetchNext(settings.stage);
 setScreen('menu');
 </script>
