@@ -276,6 +276,7 @@
   #brief li.tut-caption{display:block;border:1px solid #5d5f48;
     background:#8b8d69;color:#20241a;padding:6px 8px;margin-bottom:8px;
     line-height:1.5}
+  .tut-next{display:block;width:100%;margin-top:8px;font-size:8.5px}
   /* the selection box of an old menu: a hard frame around the line the pointer
      is on, matching the frame drawn around the squares it refers to */
   #brief li:hover,#brief li.sel{border-color:var(--pick);color:#141a0c}
@@ -1691,6 +1692,13 @@ function render(justLit) {
     const cap = document.createElement('li');
     cap.className = 'tut-caption';
     cap.innerHTML = TUTORIAL_STEPS[tutorialIdx].caption;
+    if (tutorialReady) {
+      const btn = document.createElement('button');
+      btn.className = 'menu-btn pixel-corners tut-next';
+      btn.textContent = tutorialIdx === TUTORIAL_STEPS.length - 1 ? 'Finish' : 'Next';
+      btn.onclick = () => tutorialAdvance();
+      cap.appendChild(btn);
+    }
     ol.insertBefore(cap, ol.firstChild);
   }
 
@@ -2181,7 +2189,10 @@ function setScreen(name) {
   fitConsole();
 }
 
-el('menuContinue').onclick = () => startGame(settings.stage);
+el('menuContinue').onclick = () => {
+  if (!settings.onboardingDone) { startTutorial(); return; }
+  startGame(settings.stage);
+};
 el('menuChapterMap').onclick = () => setScreen('sectors');
 el('menuEndless').onclick = () => startGame(settings.stage, undefined, true);
 el('menuDaily').onclick = () => {
@@ -2251,7 +2262,7 @@ const TUTORIAL_STEPS = [
     clues: [{ kind: 'SAFE', args: [0] }, { kind: 'FOGGED', args: [3] }], goal: 'submit',
     caption: 'One more — but this time press <b>Submit</b> when you’re happy. Not sure? <b>Reveal</b> never costs you anything, and three wrong guesses just reset the level.' },
 ];
-let tutorialMode = false, tutorialIdx = 0, tutorialBusy = false;
+let tutorialMode = false, tutorialIdx = 0, tutorialReady = false;
 let tutorialWasLit = false, tutorialUndoSeen = false;
 
 function startTutorial() {
@@ -2261,7 +2272,7 @@ function startTutorial() {
   installTutorialFrame(0);
 }
 function installTutorialFrame(idx) {
-  tutorialBusy = false;
+  tutorialReady = false;
   tutorialWasLit = false;
   tutorialUndoSeen = false;
   const frame = TUTORIAL_STEPS[idx];
@@ -2307,11 +2318,15 @@ function tutorialGoalMet() {
   if (frame.goal === 'clue') return fires.size === P.nfires && answerIsRight();
   return false;                              // 'submit' advances from the Submit handler instead
 }
+/* Used to auto-advance on a timer - satisfying, but it also meant the step
+   changed out from under anyone who paused a second to think about what
+   they had just done. It now only arms a Next button (drawn in render(),
+   next to the caption) and waits for an actual tap. */
 function tutorialAfterRender() {
-  if (tutorialBusy || TUTORIAL_STEPS[tutorialIdx].goal === 'submit') return;
+  if (tutorialReady || TUTORIAL_STEPS[tutorialIdx].goal === 'submit') return;
   if (tutorialGoalMet()) {
-    tutorialBusy = true;
-    setTimeout(tutorialAdvance, 650);
+    tutorialReady = true;
+    render();
   }
 }
 function tutorialAdvance() {
@@ -2324,13 +2339,9 @@ function tutorialSubmit() {
   if (fires.size !== P.nfires) return;
   const right = answerIsRight();
   submitted = true;
+  if (right) tutorialReady = true;   // arms the Finish button, same as any other step
   render();
-  if (right) {
-    tutorialBusy = true;
-    setTimeout(tutorialAdvance, 900);
-  } else {
-    setTimeout(() => { submitted = false; render(); }, 1100);
-  }
+  if (!right) setTimeout(() => { submitted = false; render(); }, 1100);
 }
 function finishTutorial() {
   tutorialMode = false;
@@ -2343,7 +2354,6 @@ el('startTutorial').onclick = () => startTutorial();
 buildChapterGrid();
 prefetchNext(settings.stage);
 setScreen('menu');
-if (!settings.onboardingDone) startTutorial();
 </script>
 </body>
 </html>
