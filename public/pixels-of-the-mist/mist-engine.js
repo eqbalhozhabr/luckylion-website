@@ -48,10 +48,10 @@ const STRINGS = {
     clue: {
       SAFE: (n) => `The ${n} was safe until dawn.`,
       FOGGED: (n) => `The ${n} was lost in the mist — something was there.`,
-      NEAR_MONSTER: (n) => `A monster was seen right beside the ${n}.`,
+      NEAR_MONSTER: (n) => `A monster was seen right near the ${n}.`,
       NO_MONSTER_NEAR: (n) => `Nothing came near the ${n} all night.`,
-      FIRE_BESIDE: (n) => `A fire was burning beside the ${n}.`,
-      NO_FIRE_BESIDE: (n) => `No fire burned anywhere beside the ${n}.`,
+      FIRE_BESIDE: (n) => `A fire was burning around the ${n}.`,
+      NO_FIRE_BESIDE: (n) => `No fire burned anywhere around the ${n}.`,
       ZONE_FOG: (n) => `There was a monster in the ${n}.`,
       ZONE_CLEAR: (n) => `The ${n} stayed clear until dawn.`,
       COUNT: (k) => `Exactly ${k} monsters were counted that night.`,
