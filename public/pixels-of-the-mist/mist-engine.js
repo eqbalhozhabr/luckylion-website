@@ -91,6 +91,7 @@ const STRINGS = {
       lockDev: (name) => `${name} is still being written — check back soon.`,
       lockComplete: (name) => `Complete ${name} to unlock this chapter.`,
       lockPurchase: (name) => `${name} is a one-time purchase — buy it to unlock.`,
+      levelOf: (n, total) => `Level ${n} of ${total}`,
       legend: { fire: 'fire', monster: 'monster',
                 border: 'each colour is a sector', rock: 'rubble, impassable' },
       stageLabel: (n, name) => `Stage ${n} — ${name}`,
