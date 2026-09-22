@@ -569,13 +569,15 @@
                display:flex;flex-direction:column;gap:9px;
                padding:14px 12px 12px;color:#2a2e1e;
                font-family:"Press Start 2P","Courier New",monospace}
-  .menu-head{display:flex;align-items:center;justify-content:space-between;
-             font-size:7.5px;color:#4a4e36;letter-spacing:.06em}
   .menu-title{margin:2px 0 4px;font-size:13px;line-height:1.5;
               text-transform:uppercase;color:#1a2412;font-weight:700;
               text-shadow:0 1px 0 #cdd0ab,0 -1px 0 #cdd0ab,
                           1px 0 0 #cdd0ab,-1px 0 0 #cdd0ab}
   .menu-title.small{font-size:11px;margin-bottom:8px}
+  .menu-logo{width:100%;margin:2px 0 4px;image-rendering:pixelated;
+             filter:url(#greentone)}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+           overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   /* Anything printed on the glass is pixel content, not vector — a real LCD
      segment has no anti-aliased curve, so screen UI gets a stepped corner
      instead of border-radius. One 3-step staircase, shared by every rounded
@@ -850,11 +852,8 @@
       <div class="card board screen" id="topScreen">
         <div class="view on" id="view-top-menu">
           <div class="lcd menutop">
-            <div class="menu-head">
-              <span>TLS-01</span>
-              <span id="menuStageTag">STAGE 1</span>
-            </div>
-            <h2 class="menu-title" id="menuTitle"></h2>
+            <img class="menu-logo" id="menuLogo" src="assets/logo.png" alt="The Last Shelter: Pixels of the Mist">
+            <h2 class="menu-title sr-only" id="menuTitle"></h2>
             <button class="menu-cta pixel-corners" id="menuContinue">Start</button>
             <div class="menu-progress">
               <span id="menuProgressLabel">Solved · 0</span>
@@ -2035,7 +2034,6 @@ function buildChapterGrid() {
 }
 function refreshMenu() {
   el('menuTitle').textContent = T().ui.title;
-  el('menuStageTag').textContent = 'STAGE ' + settings.stage;
   el('menuContinue').textContent = settings.played ? 'Continue' : 'Start';
   /* per-chapter now, not the old global count, so the number actually moves
      while you play one chapter instead of sitting there until you switch
