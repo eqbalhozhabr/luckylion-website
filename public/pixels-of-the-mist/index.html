@@ -121,11 +121,35 @@
      the space it has — auto margins collapse to zero and it hugs the left,
      which is what pushed it sideways when it was scaled about a centre. */
   .fitter{transform-origin:top left}
-  .console{background:linear-gradient(#3a3f33,#2b2f26);
+  /* worn iron shell: a steel base, faint brushed scratches at two angles, and a
+     scatter of rust patina blotches — all backgrounds, so none of it touches the
+     box's own size (padding/radius/width stay exactly as before) */
+  .console{position:relative;
+           background-color:#403c34;
+           background-image:
+             linear-gradient(160deg,#6f6656 0%,#4c4739 32%,#38352c 68%,#231f1a 100%),
+             repeating-linear-gradient(112deg,rgba(255,255,255,.05) 0 1px,transparent 1px 7px),
+             repeating-linear-gradient(24deg,rgba(0,0,0,.06) 0 1px,transparent 1px 11px),
+             radial-gradient(60px 46px at 14% 22%,rgba(120,58,22,.35),transparent 70%),
+             radial-gradient(90px 70px at 82% 74%,rgba(96,46,18,.30),transparent 70%),
+             radial-gradient(50px 40px at 70% 12%,rgba(133,66,26,.22),transparent 70%),
+             radial-gradient(70px 55px at 22% 88%,rgba(88,42,16,.28),transparent 70%);
+           background-blend-mode:normal,overlay,overlay,multiply,multiply,multiply,multiply;
            border:1px solid #171a13;border-radius:18px;padding:16px;
            box-shadow:inset 0 1px 0 rgba(255,255,255,.07),
+                      inset 0 0 30px rgba(0,0,0,.35),
                       0 10px 26px rgba(0,0,0,.45);
            width:max-content;border-top-left-radius:0}
+  /* four bolt heads at the case corners: a tight highlight over a dark ring.
+     Absolutely positioned against the case itself, so they add no layout size
+     and survive the flex row of .cols without becoming flex items. */
+  .rivet{position:absolute;width:9px;height:9px;border-radius:50%;
+         background:radial-gradient(circle at 35% 30%,#cfc9ba 0%,#8c8672 30%,
+                     #4a4638 62%,#25231b 100%);
+         box-shadow:0 1px 2px rgba(0,0,0,.6),inset 0 0 0 1px rgba(0,0,0,.5);
+         pointer-events:none;z-index:5}
+  .rivet.tl{top:8px;left:8px} .rivet.tr{top:8px;right:8px}
+  .rivet.bl{bottom:8px;left:8px} .rivet.br{bottom:8px;right:8px}
   /* the bezel casting onto the glass. This is what separates the panel from
      the shell — without it the screen looks printed on the case rather than
      sunk behind it. */
@@ -133,7 +157,15 @@
           box-shadow:inset 0 2px 5px rgba(0,0,0,.65),
                      inset 0 -1px 0 rgba(255,255,255,.05)}
   /* the brushed plate the buttons are set into */
-  .panelplate{background:linear-gradient(#4a4f3e,#343827);
+  /* the same worn shell in a lighter value, so the plate still reads as part of
+     one case rather than a different material bolted onto it */
+  .panelplate{background-color:#4a4539;
+              background-image:
+                linear-gradient(180deg,#847a63 0%,#5c5646 45%,#403c30 100%),
+                repeating-linear-gradient(100deg,rgba(255,255,255,.05) 0 1px,transparent 1px 7px),
+                radial-gradient(70px 40px at 20% 30%,rgba(120,58,22,.22),transparent 70%),
+                radial-gradient(60px 40px at 84% 70%,rgba(96,46,18,.20),transparent 70%);
+              background-blend-mode:normal,overlay,multiply,multiply;
               border-color:#20241a;padding:10px 14px;
               box-shadow:inset 0 1px 0 rgba(255,255,255,.10),
                          inset 0 -1px 0 rgba(0,0,0,.35)}
@@ -417,25 +449,18 @@
          letter-spacing:.04em;text-transform:uppercase;cursor:pointer;
          white-space:nowrap;
          padding:8px 10px 9px;border:none;border-radius:999px;
-         color:#e8ead6;background:linear-gradient(#5e6350,#3d4234);
-         box-shadow:0 2px 0 #23271d, 0 4px 7px rgba(0,0,0,.5),
-                    inset 0 1px 0 rgba(255,255,255,.22),
-                    inset 0 -2px 3px rgba(0,0,0,.35);
+         color:#e8ead6;background:#4d5342;
+         box-shadow:0 2px 0 #23271d;
          transition:transform .04s linear, box-shadow .04s linear}
   .tools button:active:not(:disabled){transform:translateY(2px);
-         box-shadow:0 0 0 #23271d, 0 1px 3px rgba(0,0,0,.5),
-                    inset 0 2px 4px rgba(0,0,0,.45)}
+         box-shadow:none}
   .tools button:disabled{opacity:.45;cursor:default}
   /* the red action button of the originals, and the largest key on the plate —
      it is the one the whole puzzle is aimed at */
   .tools button.go{font-size:9px;padding:10px 13px 11px;
-            color:#fff2ee;background:linear-gradient(#c8402c,#8d2417);
-            box-shadow:0 2px 0 #4c120b, 0 4px 7px rgba(0,0,0,.5),
-                       inset 0 1px 0 rgba(255,255,255,.30),
-                       inset 0 -2px 3px rgba(0,0,0,.35)}
-  .tools button.go:active:not(:disabled){box-shadow:0 0 0 #4c120b,
-                       0 1px 3px rgba(0,0,0,.5),
-                       inset 0 2px 4px rgba(0,0,0,.45)}
+            color:#fff2ee;background:#aa321f;
+            box-shadow:0 2px 0 #4c120b}
+  .tools button.go:active:not(:disabled){box-shadow:none}
   ol.brief{margin:0;padding-inline-start:20px}
   /* the flex row lives inside the item, not on it: making the li itself a flex
      container drops the list marker */
@@ -490,6 +515,88 @@
   .chip{background:#2a2e36;border:1px solid var(--line);border-radius:999px;
         padding:2px 9px;font-size:12px}
   .busy{color:var(--sel)}
+  /* ---------------------------------------------------------- menu / sectors */
+  /* the menu's two screens sit in the exact same glass as the board and the
+     testimony — same width, same paper — so switching screens never resizes
+     the case */
+  .lcd.menutop{width:var(--screen-w);min-height:var(--screen-w);
+               display:flex;flex-direction:column;gap:9px;
+               padding:14px 12px 12px;color:#2a2e1e;
+               font-family:"Press Start 2P","Courier New",monospace}
+  .menu-head{display:flex;align-items:center;justify-content:space-between;
+             font-size:7.5px;color:#4a4e36;letter-spacing:.06em}
+  .menu-title{margin:2px 0 4px;font-size:13px;line-height:1.5;
+              text-transform:uppercase;color:#1a2412;font-weight:700;
+              text-shadow:0 1px 0 #cdd0ab,0 -1px 0 #cdd0ab,
+                          1px 0 0 #cdd0ab,-1px 0 0 #cdd0ab}
+  .menu-title.small{font-size:11px;margin-bottom:8px}
+  .menu-cta{font-family:inherit;font-size:10px;letter-spacing:.04em;
+            text-transform:uppercase;cursor:pointer;border:none;border-radius:999px;
+            padding:11px 14px;color:#fff2ee;
+            background:#aa321f;
+            box-shadow:0 2px 0 #4c120b;
+            transition:transform .04s linear, box-shadow .04s linear}
+  .menu-cta:active{transform:translateY(2px);box-shadow:none}
+  .menu-progress{display:flex;align-items:center;justify-content:space-between;
+                 font-size:7.5px;color:#4a4e36;gap:8px}
+  .segbar{display:flex;gap:2px;flex:1;max-width:120px}
+  .segbar .seg{flex:1;height:7px;background:#7d7f5f;border-radius:1px}
+  .segbar .seg.on{background:#2a2e1e}
+  .menu-btn{font-family:inherit;font-size:8.5px;letter-spacing:.03em;
+            text-transform:uppercase;cursor:pointer;text-align:left;
+            padding:10px 11px;border:1px solid #5d5f48;border-radius:7px;
+            background:#8b8d69;color:#20241a;
+            box-shadow:inset 0 -2px 0 rgba(32,36,26,.18)}
+  .menu-btn:active{box-shadow:inset 0 2px 0 rgba(32,36,26,.18)}
+  .menu-row{display:flex;gap:8px}
+  .menu-row .menu-btn{flex:1}
+  .badge-today{display:inline-block;margin-left:5px;padding:2px 5px;
+               font-size:6.5px;border-radius:3px;background:#2a2e1e;color:#cdd0ab;
+               vertical-align:1px}
+  .menu-btn.done::after{content:"\2713";margin-left:6px;color:#1f3a16}
+  .sector-list{display:flex;flex-direction:column;gap:7px;overflow-y:auto;
+               flex:1 1 auto;min-height:0}
+  .sector-row{display:flex;align-items:center;justify-content:space-between;
+              gap:8px;padding:9px 10px;border:1px solid #5d5f48;border-radius:7px;
+              background:#8b8d69;cursor:pointer}
+  .sector-row:active{background:#7d7f5f}
+  .sector-name{font-size:9px;text-transform:uppercase}
+  .sector-band{font-size:7px;color:#4a4e36}
+  /* Setup + Manual share the readout's own type; Setup adds a switch and a few
+     inert sliders kept visually complete ahead of the audio engine that will
+     drive them */
+  .toggle-row{display:flex;align-items:center;gap:9px;cursor:pointer;
+              margin-bottom:12px;font-size:8.5px}
+  .toggle-row input{position:absolute;opacity:0;width:0;height:0}
+  .toggle{width:30px;height:16px;border-radius:9px;background:#7d7f5f;
+          box-shadow:inset 0 1px 3px rgba(0,0,0,.35);position:relative;flex:none}
+  .toggleknob{position:absolute;top:2px;left:2px;width:12px;height:12px;
+              border-radius:50%;background:#e8ead6;
+              box-shadow:0 1px 2px rgba(0,0,0,.4);transition:transform .14s}
+  .toggle-row input:checked + .toggle{background:#3a5e2e}
+  .toggle-row input:checked + .toggle .toggleknob{transform:translateX(14px)}
+  .slider-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;
+              font-size:7.5px;color:#4a4e36}
+  .slider-row .rowlabel{width:56px;flex:none}
+  input.lcdrange{flex:1;-webkit-appearance:none;appearance:none;height:4px;
+                 border-radius:2px;background:#7d7f5f;outline:none}
+  input.lcdrange::-webkit-slider-thumb{-webkit-appearance:none;width:12px;
+                 height:12px;border-radius:50%;background:#5d5f48;cursor:pointer}
+  input.lcdrange:disabled{opacity:.55;cursor:default}
+  .soon-tag{font-size:6.5px;padding:2px 5px;border-radius:3px;
+            background:#7d7f5f;color:#2a2e1e;flex:none}
+  .hint-block{font-size:8.5px;line-height:1.9;color:#3a3e2c}
+  /* the control plate normally holds the slide + tools as flex siblings; once
+     it holds one swappable view per screen instead, that view has to become
+     the flex row itself when it is the one showing */
+  .view.ctrlrow.on{display:flex;align-items:center;gap:8px;width:100%}
+  .view.ctrlrow.end.on{justify-content:flex-end}
+  /* Reduce flicker: freezes the mist frame-swap and the fire/monster strip
+     animation, and drops the press bloom, without touching layout */
+  .reduce-fx .spr{animation:none!important}
+  .reduce-fx .mist{transition:opacity .01s linear!important}
+  .reduce-fx .press{display:none!important}
+
   /* Phone: the case IS the screen. The board takes the full width as a square
      and the report screen takes whatever height is left, rather than the whole
      device being shrunk to fit — which is what made it so small. */
@@ -511,7 +618,8 @@
     /* wrap is the safety net, not the plan: on anything from a 360px phone up
        the strip holds one row, and only a very narrow screen pushes the keys
        onto a second line instead of letting them run off the case */
-    .card.controlbar{order:-1;padding:6px 8px;gap:8px;flex-wrap:wrap}
+    .card.controlbar{order:-1;padding:6px 8px;gap:8px}
+    .view.ctrlrow.on{flex-wrap:wrap}
     .tools{flex:1 1 auto}
     /* the switch and all three keys have to share one strip about 335px wide,
        so everything on it comes down a size */
@@ -532,6 +640,10 @@
     .boardwrap{flex:none;width:100%;aspect-ratio:1}
     .card.board .hint{display:none}
     .readout{width:100%;height:100%;min-height:0}
+    /* same square as .boardwrap, so switching to the menu screen never
+       changes the size of the console glass */
+    .lcd.menutop{width:100%;min-height:0;aspect-ratio:1;overflow:hidden}
+    .sector-list{max-height:none}
     .card{margin-bottom:0}
   }
   /* one more step down for the narrow phones, so the strip still holds its
@@ -595,45 +707,118 @@
 <div class="stagearea" id="panes">
   <div class="fitter" id="fitter">
   <div class="deck" id="deck">
-  <div class="console cols" id="console">
+  <div class="console cols" id="console" data-screen="menu">
+    <span class="rivet tl"></span><span class="rivet tr"></span>
+    <span class="rivet bl"></span><span class="rivet br"></span>
     <div>
-      <div class="card board screen">
-        <div class="lcd boardscreen" id="boardscreen">
-          <div class="fuelrow">
-            <span class="fuelgroup">
-              <span class="rowlabel" id="fuelLabel">Fuel</span>
-              <span class="fuel" id="fuel"></span>
-            </span>
-            <span class="lives" id="lives"></span>
-          </div>
-          <div class="boardwrap">
-            <div class="grid" id="grid"></div>
+      <div class="card board screen" id="topScreen">
+        <div class="view on" id="view-top-menu">
+          <div class="lcd menutop">
+            <div class="menu-head">
+              <span>TLS-01</span>
+              <span id="menuStageTag">STAGE 1</span>
+            </div>
+            <h2 class="menu-title" id="menuTitle"></h2>
+            <button class="menu-cta" id="menuContinue">Start</button>
+            <div class="menu-progress">
+              <span id="menuProgressLabel">Solved · 0</span>
+              <div class="segbar" id="menuSegbar"></div>
+            </div>
+            <button class="menu-btn" id="menuChapterMap">Chapter Map</button>
+            <div class="menu-row">
+              <button class="menu-btn" id="menuEndless">Endless</button>
+              <button class="menu-btn" id="menuDaily">Daily<span class="badge-today">Today</span></button>
+            </div>
           </div>
         </div>
-        <div class="hint" id="hint"></div>
+        <div class="view" id="view-top-sectors">
+          <div class="lcd menutop sectors">
+            <h2 class="menu-title small">Select Sector</h2>
+            <div class="sector-list" id="sectorList"></div>
+          </div>
+        </div>
+        <div class="view" id="view-top-game">
+          <div class="lcd boardscreen" id="boardscreen">
+            <div class="fuelrow">
+              <span class="fuelgroup">
+                <span class="rowlabel" id="fuelLabel">Fuel</span>
+                <span class="fuel" id="fuel"></span>
+              </span>
+              <span class="lives" id="lives"></span>
+            </div>
+            <div class="boardwrap">
+              <div class="grid" id="grid"></div>
+            </div>
+          </div>
+          <div class="hint" id="hint"></div>
+        </div>
       </div>
     </div>
     <div class="col-side">
-      <div class="card screen sidescreen">
+      <div class="card screen sidescreen" id="sideScreen">
         <div class="lcd readout">
           <div class="scroller">
-            <div class="view on" id="view-report">
-              <h2 id="testimonyLabel">Survivor testimony</h2>
-              <ol id="brief"></ol>
-              <div class="status" id="status"></div>
+            <div class="view on" id="view-side-menu">
+              <div class="view on" id="view-manual">
+                <h2>How to Play</h2>
+                <ol class="rulelist">
+                  <li>Tap a square to preview a fire.</li>
+                  <li>Hold or double-tap to light it — this spends fuel.</li>
+                  <li>A lit fire clears the mist around it.</li>
+                  <li>Survivor testimony tells you where not to look.</li>
+                  <li>Tap a lit fire to take it back — nothing is final until Submit.</li>
+                  <li>Three wrong submissions reset the level. No timers, no penalty beyond that.</li>
+                </ol>
+              </div>
+              <div class="view" id="view-setup">
+                <h2>Setup</h2>
+                <label class="toggle-row">
+                  <input type="checkbox" id="setupFlicker">
+                  <span class="toggle"><span class="toggleknob"></span></span>
+                  <span>Reduce flicker</span>
+                </label>
+                <div class="slider-row">
+                  <span class="rowlabel">Music</span>
+                  <input type="range" class="lcdrange" disabled>
+                  <span class="soon-tag">Soon</span>
+                </div>
+                <div class="slider-row">
+                  <span class="rowlabel">SFX</span>
+                  <input type="range" class="lcdrange" disabled>
+                  <span class="soon-tag">Soon</span>
+                </div>
+                <div class="slider-row">
+                  <span class="rowlabel">Ambience</span>
+                  <input type="range" class="lcdrange" disabled>
+                  <span class="soon-tag">Soon</span>
+                </div>
+              </div>
             </div>
-            <div class="view" id="view-rules">
-              <h2>Rules</h2>
-              <ol class="rulelist" id="rules"></ol>
-              <div class="legend" id="legend"></div>
-              <div class="devbar">
-                <span>Stage</span>
-                <select id="stage"></select>
-                <span class="chip" id="diff">—</span>
-                <span>Seed</span>
-                <input class="seed" id="seed" inputmode="numeric">
-                <button id="newLevel">New level</button>
-                <span id="busy"></span>
+            <div class="view" id="view-side-sectors">
+              <h2>Chapter Map</h2>
+              <div class="hint-block">Each sector reshuffles into a fresh puzzle
+                every time you enter it. A chapter map with fixed levels is still
+                being built.</div>
+            </div>
+            <div class="view" id="view-side-game">
+              <div class="view on" id="view-report">
+                <h2 id="testimonyLabel">Survivor testimony</h2>
+                <ol id="brief"></ol>
+                <div class="status" id="status"></div>
+              </div>
+              <div class="view" id="view-rules">
+                <h2>Rules</h2>
+                <ol class="rulelist" id="rules"></ol>
+                <div class="legend" id="legend"></div>
+                <div class="devbar">
+                  <span>Stage</span>
+                  <select id="stage"></select>
+                  <span class="chip" id="diff">—</span>
+                  <span>Seed</span>
+                  <input class="seed" id="seed" inputmode="numeric">
+                  <button id="newLevel">New level</button>
+                  <span id="busy"></span>
+                </div>
               </div>
             </div>
           </div>
@@ -642,17 +827,33 @@
       <!-- one plate, the way a handheld puts its slider and its action keys on
            the same strip of case: the switch on the left, the keys on the
            right. It sits under the readout on a desktop and above it on a
-           phone, where the board has to stay at the top. -->
-      <div class="card panelplate controlbar">
-        <div class="slide" id="slide" data-pos="right">
-          <button class="slidelabel" data-pos="left">Rules</button>
-          <span class="slideslot"><span class="slideknob"></span></span>
-          <button class="slidelabel" data-pos="right">Report</button>
+           phone, where the board has to stay at the top. Which controls it
+           shows swaps with the screen, same as the two screens above it. -->
+      <div class="card panelplate controlbar" id="controlPlate">
+        <div class="view ctrlrow on" id="view-ctrl-menu">
+          <div class="slide" id="menuSlide" data-pos="left"
+               data-left="view-manual" data-right="view-setup">
+            <button class="slidelabel" data-pos="left">Manual</button>
+            <span class="slideslot"><span class="slideknob"></span></span>
+            <button class="slidelabel" data-pos="right">Setup</button>
+          </div>
         </div>
-        <div class="tools">
-          <button id="submit" class="go">Submit</button>
-          <button id="reset">Clear</button>
-          <button id="reveal">Reveal</button>
+        <div class="view ctrlrow end" id="view-ctrl-sectors">
+          <div class="tools"><button id="sectorsBack">Back</button></div>
+        </div>
+        <div class="view ctrlrow" id="view-ctrl-game">
+          <div class="slide" id="slide" data-pos="right"
+               data-left="view-rules" data-right="view-report">
+            <button class="slidelabel" data-pos="left">Rules</button>
+            <span class="slideslot"><span class="slideknob"></span></span>
+            <button class="slidelabel" data-pos="right">Report</button>
+          </div>
+          <div class="tools">
+            <button id="toMenu">Menu</button>
+            <button id="submit" class="go">Submit</button>
+            <button id="reset">Clear</button>
+            <button id="reveal">Reveal</button>
+          </div>
         </div>
       </div>
     </div>
@@ -716,10 +917,32 @@ function prefetchNext(stage) {
 
 /* --------------------------------------------------------------- state */
 let P, W, H, grid, zones, landmarks, scorch;
-let fires, preview, submitted, prevLit;
+let fires, preview, submitted, prevLit, countedSolve;
 /* a wrong submission costs a heart; what happens at zero is still open */
 const MAX_LIVES = 3;
 let lives = MAX_LIVES;
+
+/* --------------------------------------------------------------- settings */
+/* the last sector played, the flicker preference, today's Daily state and a
+   running solved count — small enough to keep as one JSON blob */
+const SETTINGS_KEY = 'tls.settings';
+function loadSettings() {
+  let s = {};
+  try { s = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch (e) {}
+  return {
+    stage: s.stage || 1,
+    played: !!s.played,
+    reduceMotion: !!s.reduceMotion,
+    dailyDate: s.dailyDate || '',
+    dailyStage: s.dailyStage || 0,
+    solved: s.solved || 0,
+  };
+}
+function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
+}
+let settings = loadSettings();
+document.body.classList.toggle('reduce-fx', settings.reduceMotion);
 
 const rc = i => [(i / W) | 0, i % W];
 const idx = (r, c) => r * W + c;
@@ -1282,6 +1505,7 @@ function install(level) {
   P.clues.filter(c => c.kind === 'SCORCH').forEach(c => { scorch[c.args[0]] = c.args[1]; });
   fires = new Set(); preview = new Set(); submitted = false; prevLit = new Set();
   lives = MAX_LIVES;                       // a fresh night, a fresh three
+  countedSolve = false;
   buildMpView();
   el('seed').value = P.seed;
   el('diff').textContent = T().difficulty[P.difficulty] || P.difficulty;
@@ -1336,7 +1560,9 @@ function answerIsRight() {
   return P.clues.every(c => testClue(mpView, c, set, F));
 }
 el('submit').onclick = () => {
-  if (!submitted && !answerIsRight() && lives > 0) lives--;
+  const right = answerIsRight();
+  if (!submitted && !right && lives > 0) lives--;
+  if (right && !countedSolve) { countedSolve = true; settings.solved++; saveSettings(); }
   submitted = true;
   render();
 };
@@ -1407,28 +1633,125 @@ addEventListener('resize', fitConsole);
 addEventListener('orientationchange', () => setTimeout(fitConsole, 120));
 new ResizeObserver(fitConsole).observe(el('deck'));
 
-/* the slide switch: left prints the rules on the second screen, right the
-   testimony. Clicking a label throws it that way; clicking the slot flips it. */
-function setSlide(pos) {
-  el('slide').dataset.pos = pos;
-  el('view-rules').classList.toggle('on', pos === 'left');
-  el('view-report').classList.toggle('on', pos === 'right');
+/* Each slide switch (the game's Rules/Report, the menu's Manual/Setup) flips
+   between the two views named by its own data-left/data-right attributes, so
+   the same markup and the same styling serve both without the two switches
+   ever reaching into each other's state. Clicking a label throws it that way;
+   clicking the slot flips it. */
+function wireSlide(sw) {
+  const setPos = pos => {
+    sw.dataset.pos = pos;
+    el(sw.dataset.left).classList.toggle('on', pos === 'left');
+    el(sw.dataset.right).classList.toggle('on', pos === 'right');
+  };
+  sw.querySelectorAll('.slidelabel').forEach(b => { b.onclick = () => setPos(b.dataset.pos); });
+  sw.querySelector('.slideslot').onclick = () =>
+    setPos(sw.dataset.pos === 'right' ? 'left' : 'right');
 }
-document.querySelectorAll('.slidelabel').forEach(b => {
-  b.onclick = () => setSlide(b.dataset.pos);
-});
-document.querySelector('.slideslot').onclick = () =>
-  setSlide(el('slide').dataset.pos === 'right' ? 'left' : 'right');
+document.querySelectorAll('.slide').forEach(wireSlide);
 
 /* Long-pressing a square to light a fire was opening the browser's own
    save-image menu on Android, because the squares are drawn with background
    images. Nothing on the device should ever raise one. */
 el('panes').addEventListener('contextmenu', e => e.preventDefault());
 
-setInterval(() => el('grid').classList.toggle('alt0'), 1500);
-setTimeout(() => setInterval(() => el('grid').classList.toggle('alt1'), 1500), 750);
+/* Reduce flicker mutes this frame swap too, on top of the CSS that freezes
+   the fire/monster strips and the press bloom. */
+setInterval(() => {
+  if (!document.body.classList.contains('reduce-fx')) el('grid').classList.toggle('alt0');
+}, 1500);
+setTimeout(() => setInterval(() => {
+  if (!document.body.classList.contains('reduce-fx')) el('grid').classList.toggle('alt1');
+}, 1500), 750);
 
-loadLevel(1);
+/* ------------------------------------------------------------------- menu */
+/* Bands read off the LADDER table in Session_Notes_Code_And_Levels.md — the
+   generator's own difficulty ceiling per stage, not a guess. */
+const SECTOR_BANDS = ['Easy', 'Easy – Medium', 'Medium – Hard', 'Hard – Expert'];
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+/* FNV-1a: small, deterministic, and all that a shared Daily seed needs to be —
+   generation is already a pure function of (stage, seed), so today's date is
+   simply fed in as the seed's source instead of Math.random(). */
+function dailyHash(str, stage) {
+  const s = str + ':' + stage;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return h >>> 0;
+}
+function startGame(stage, seed) {
+  settings.stage = stage; settings.played = true; saveSettings();
+  setScreen('game');
+  loadLevel(stage, seed);
+}
+function buildSectorList() {
+  const box = el('sectorList');
+  box.innerHTML = '';
+  LADDER_STAGES().forEach(n => {
+    const row = document.createElement('div');
+    row.className = 'sector-row';
+    const name = document.createElement('span');
+    name.className = 'sector-name';
+    name.textContent = T().ui.stageLabel(n, T().stage[n]);
+    const band = document.createElement('span');
+    band.className = 'sector-band';
+    band.textContent = SECTOR_BANDS[n - 1] || '';
+    row.append(name, band);
+    row.onclick = () => startGame(n);
+    box.appendChild(row);
+  });
+}
+function refreshMenu() {
+  el('menuTitle').textContent = T().ui.title;
+  el('menuStageTag').textContent = 'STAGE ' + settings.stage;
+  el('menuContinue').textContent = settings.played ? 'Continue' : 'Start';
+  el('menuProgressLabel').textContent = 'Solved · ' + settings.solved;
+  const seg = el('menuSegbar');
+  seg.innerHTML = '';
+  const filled = settings.solved % 10;
+  for (let k = 0; k < 10; k++) {
+    const s = document.createElement('span');
+    s.className = 'seg' + (k < filled ? ' on' : '');
+    seg.appendChild(s);
+  }
+  const doneToday = settings.dailyDate === todayStr() && settings.dailyStage === settings.stage;
+  el('menuDaily').classList.toggle('done', doneToday);
+}
+/* One console, three swappable screens: menu, the interim sector picker
+   (standing in for the chapter map until the level ledger is wired into the
+   game — see Session_Notes_Code_And_Levels.md §6.4), and the game itself. */
+const SCREENS = ['menu', 'sectors', 'game'];
+function setScreen(name) {
+  el('console').dataset.screen = name;
+  SCREENS.forEach(s => {
+    const top = el('view-top-' + s), side = el('view-side-' + s), ctrl = el('view-ctrl-' + s);
+    if (top) top.classList.toggle('on', s === name);
+    if (side) side.classList.toggle('on', s === name);
+    if (ctrl) ctrl.classList.toggle('on', s === name);
+  });
+  if (name === 'menu') refreshMenu();
+  fitConsole();
+}
+
+el('menuContinue').onclick = () => startGame(settings.stage);
+el('menuChapterMap').onclick = () => setScreen('sectors');
+el('menuEndless').onclick = () => startGame(settings.stage, (Math.random() * 0xffffffff) >>> 0);
+el('menuDaily').onclick = () => {
+  const today = todayStr();
+  settings.dailyDate = today; settings.dailyStage = settings.stage;
+  startGame(settings.stage, dailyHash(today, settings.stage));
+};
+el('sectorsBack').onclick = () => setScreen('menu');
+el('toMenu').onclick = () => setScreen('menu');
+el('setupFlicker').checked = settings.reduceMotion;
+el('setupFlicker').onchange = (e) => {
+  settings.reduceMotion = e.target.checked;
+  saveSettings();
+  document.body.classList.toggle('reduce-fx', settings.reduceMotion);
+};
+
+buildSectorList();
+prefetchNext(settings.stage);
+setScreen('menu');
 </script>
 </body>
 </html>
