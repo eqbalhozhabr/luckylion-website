@@ -29,10 +29,10 @@
       "migrations_dir": "./migrations"
     }
   ],
-  // TEMPORARY - every minute instead of daily, to confirm the scheduled
-  // handler actually fires and pushes to GitHub before trusting the real
-  // daily schedule. Revert to ["0 3 * * *"] once confirmed working.
+  // Daily D1 -> GitHub backup (worker/index.js's "scheduled" export), at
+  // 03:00 UTC when traffic is at its lowest. Confirmed working against the
+  // real GITHUB_BACKUP_TOKEN with a temporary every-minute run (#40).
   "triggers": {
-    "crons": ["*/1 * * * *"]
+    "crons": ["0 3 * * *"]
   }
 }
