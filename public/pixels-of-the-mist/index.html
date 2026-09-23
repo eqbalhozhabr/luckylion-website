@@ -639,7 +639,7 @@
   /* 320px is the narrowest board (5 squares), so the card always hugs the
      board instead of the hint dictating its width */
   .hint{color:var(--muted);font-size:12.5px;margin-top:8px;line-height:1.5;
-        max-width:320px}
+        max-width:320px;overflow:hidden}
   .chip{background:#2a2e36;border:1px solid var(--line);border-radius:999px;
         padding:2px 9px;font-size:12px}
   .busy{color:var(--sel)}
@@ -816,7 +816,31 @@
   input.lcdrange:disabled{opacity:.55;cursor:default}
   .soon-tag{--pxc:1px;font-size:6.5px;padding:2px 5px;
             background:#7d7f5f;color:#2a2e1e;flex:none}
+  select.lcdselect{flex:1;font:inherit;font-size:7.5px;color:#2a2e1e;
+            background:#cdd0ab;border:1px solid #5d5f48;padding:3px 4px;
+            cursor:pointer}
   .hint-block{font-size:8.5px;line-height:1.9;color:#3a3e2c}
+  /* fa/ar: Press Start 2P has no Arabic-script glyphs at all, and the
+     console's fixed pixel layout (flex rows, absolute-positioned panels,
+     the slide switch) is staying put rather than mirroring for these two
+     languages - so this only ever touches the font and the direction of
+     actual prose, never the shape of anything around it. !important is the
+     plain way to beat the half-dozen places .. already sets this font by
+     name rather than hunting each one down. */
+  html.rtl-text, html.rtl-text * {
+    font-family: Tahoma, "Segoe UI", "Vazirmatn", "Noto Sans Arabic", sans-serif !important;
+  }
+  html.rtl-text .rulelist, html.rtl-text .hint-block, html.rtl-text #hint,
+  html.rtl-text #status, html.rtl-text .menu-hint, html.rtl-text .account-status,
+  html.rtl-text .account-who, html.rtl-text #resultBody, html.rtl-text #resultStreak,
+  html.rtl-text #brief li, html.rtl-text .story-bubble p, html.rtl-text #chapterMapHint {
+    direction: rtl; text-align: right;
+    /* A run the browser treats as unbreakable (ZWNJ-joined Persian/Arabic
+       words in particular render differently across engines) was spilling
+       clean out of #hint's box instead of wrapping - force a break inside
+       one if it ever has to, rather than letting it escape the console. */
+    overflow-wrap: anywhere;
+  }
   /* The side screen is whatever height is left over after the top screen's
      own fixed square, which varies a lot from phone to phone (see the .cols
      column layout at max-width:820px) - a plain aspect-ratio here would trust
@@ -1016,10 +1040,10 @@
               <span id="menuProgressLabel">Solved · 0</span>
               <div class="segbar" id="menuSegbar"></div>
             </div>
-            <button class="menu-btn pixel-corners" id="menuChapterMap">Chapter Map</button>
+            <button class="menu-btn pixel-corners" id="menuChapterMap"></button>
             <div class="menu-row">
-              <button class="menu-btn pixel-corners" id="menuEndless">Endless</button>
-              <button class="menu-btn pixel-corners" id="menuDaily">Daily<span class="badge-today pixel-corners">Today</span></button>
+              <button class="menu-btn pixel-corners" id="menuEndless"></button>
+              <button class="menu-btn pixel-corners" id="menuDaily"><span id="menuDailyLabel"></span><span class="badge-today pixel-corners" id="menuTodayBadge"></span></button>
             </div>
             <div class="menu-hint" id="menuDailyHint"></div>
             <button class="menu-btn pixel-corners" id="menuHowToPlay">How to Play</button>
@@ -1099,6 +1123,13 @@
               <div class="view" id="view-setup">
                 <h2>Setup</h2>
                 <div class="account-block" id="accountBlock"></div>
+                <div class="slider-row">
+                  <span class="rowlabel" id="languageRowLabel">Language</span>
+                  <select class="lcdselect" id="setupLanguage">
+                    <option value="en">English</option>
+                    <option value="fa">فارسی</option>
+                  </select>
+                </div>
                 <label class="toggle-row">
                   <input type="checkbox" id="setupFlicker">
                   <span class="toggle"><span class="toggleknob"></span></span>
@@ -1383,6 +1414,7 @@ function loadSettings() {
        reached CHAPTER_LEVEL_COUNT — that date is unused by anything today. */
     solvedByStage: s.solvedByStage || {},
     chapterFirstDone: s.chapterFirstDone || {},
+    lang: s.lang || 'en',
   };
 }
 function saveSettings() {
@@ -1390,6 +1422,21 @@ function saveSettings() {
 }
 let settings = loadSettings();
 document.body.classList.toggle('reduce-fx', settings.reduceMotion);
+/* Whichever language the player last picked (Setup) has to be live before
+   anything below reads T() for the first time - including the TUTORIAL_STEPS
+   array literal further down, which resolves its captions once, at parse
+   time, not on every render. */
+if (STRINGS[settings.lang]) LANG = settings.lang;
+document.documentElement.lang = LANG;
+/* A class, not the dir attribute on <html> - dir="rtl" would also flip
+   flex-direction:row and grid/table order wherever this console's CSS
+   relies on the logical (direction-aware) default rather than an explicit
+   physical value, rearranging the console's own fixed layout along with the
+   text. The class instead only drives the handful of rules (below) that
+   opt specific prose - rules, testimony, captions, status lines - into
+   right-aligned RTL text, leaving buttons, rows and the console's shape
+   exactly where they are in every language. */
+document.documentElement.classList.toggle('rtl-text', RTL_LANGS.has(LANG));
 
 const rc = i => [(i / W) | 0, i % W];
 const idx = (r, c) => r * W + c;
@@ -1428,6 +1475,46 @@ function updateHintBadge() {
   b.textContent = settings.hints;
   b.classList.toggle('show', settings.hints > 0);
 }
+/* The console's static chrome - everything that isn't re-painted by some
+   later per-screen render (menu, story, tutorial...) - all in one place so a
+   language switch (a fresh reload, see the Setup language picker) has a
+   single function that puts every fixed label back in the right language. */
+function paintStaticChrome() {
+  const s = T().ui;
+  document.title = s.title;
+  el('menuChapterMap').textContent = s.chapterMap;
+  el('menuEndless').textContent = s.endless;
+  el('menuDailyLabel').textContent = s.daily;
+  el('menuTodayBadge').textContent = s.today;
+  el('menuHowToPlay').textContent = s.howToPlay;
+  document.querySelector('#view-top-sectors .menu-title').textContent = s.selectChapter;
+  document.querySelector('#view-top-howtoplay .menu-title').textContent = s.howToPlay;
+  el('startTutorial').textContent = s.playTutorial;
+  document.querySelector('#view-top-howtoplay .rulelist').innerHTML = [
+    s.htpRule1, s.htpRule2, s.htpRule3, s.htpRule4, s.htpRule5, s.htpRule6,
+  ].map(t => `<li>${t}</li>`).join('');
+  document.querySelector('#view-setup h2').textContent = s.setupTitle;
+  document.querySelector('label.toggle-row span:last-child').textContent = s.reduceFlicker;
+  const rowLabels = document.querySelectorAll('#view-setup .rowlabel:not(#languageRowLabel)');
+  rowLabels[0].textContent = s.music;
+  rowLabels[1].textContent = s.sfx;
+  rowLabels[2].textContent = s.ambience;
+  document.querySelectorAll('#view-setup .soon-tag').forEach(t => t.textContent = s.soon);
+  const langLabel = document.getElementById('languageRowLabel');
+  if (langLabel) langLabel.textContent = s.language;
+  document.querySelector('#view-rules h2').textContent = s.rulesTitle;
+  document.querySelectorAll('.slide[data-left="view-manual"] .slidelabel[data-pos="left"]')
+    .forEach(b => b.textContent = s.storySlideLabel);
+  document.querySelectorAll('.slide[data-left="view-manual"] .slidelabel[data-pos="right"]')
+    .forEach(b => b.textContent = s.setupSlideLabel);
+  document.querySelectorAll('#slide .slidelabel[data-pos="left"]').forEach(b => b.textContent = s.rulesTitle);
+  document.querySelectorAll('#slide .slidelabel[data-pos="right"]').forEach(b => b.textContent = s.reportSlideLabel);
+  document.getElementById('sectorsMenu').textContent = s.resultMenu;
+  document.getElementById('howtoplayMenu').textContent = s.resultMenu;
+  document.querySelector('#sectorsBack .key-label').textContent = s.backLabel;
+  document.querySelector('#howtoplayBack .key-label').textContent = s.backLabel;
+  document.getElementById('toMenu').textContent = s.resultMenu;
+}
 function paintChrome() {
   const s = T().ui;
   el('title').textContent = s.title;
@@ -1447,7 +1534,7 @@ function paintChrome() {
   el('legend').innerHTML =
     `<span><i class="lgi fire"></i>${lg.fire}</span>` +
     `<span><i class="lgi mon"></i>${lg.monster}</span>` +
-    `<span>${lg.border}</span><span>black — ${lg.rock}</span>`;
+    `<span>${lg.border}</span><span>${s.legendBlack(lg.rock)}</span>`;
   el('hint').innerHTML = s.hintTap + '<br>' + s.hintPreview;
   el('resultNext').textContent = s.resultNext;
   el('resultRetry').textContent = s.resultRetry;
@@ -1961,7 +2048,7 @@ function render(justLit) {
     if (tutorialReady) {
       const btn = document.createElement('button');
       btn.className = 'menu-btn pixel-corners tut-next';
-      btn.textContent = tutorialIdx === TUTORIAL_STEPS.length - 1 ? 'Finish' : 'Next';
+      btn.textContent = tutorialIdx === TUTORIAL_STEPS.length - 1 ? T().ui.tutorialFinish : T().ui.tutorialNext;
       btn.onclick = () => tutorialAdvance();
       cap.appendChild(btn);
     }
@@ -1981,7 +2068,7 @@ function render(justLit) {
        as stuck rather than acknowledged. */
     const ok = document.createElement('button');
     ok.className = 'hint-dismiss';
-    ok.setAttribute('aria-label', 'Got it');
+    ok.setAttribute('aria-label', T().ui.hintGotIt);
     ok.textContent = '✓';
     ok.onclick = () => { clearHint(); render(); };
     cap.appendChild(ok);
@@ -2117,7 +2204,7 @@ function loadLevel(stage, seed, bandOverride) {
       if (lvl) {
         if (fresh && endlessMode && band) { advanceEndlessSlot(stage); endlessRunCount++; }
         bootLevel(lvl, band);
-      } else el('status').textContent = 'The generator could not build a level.';
+      } else el('status').textContent = T().ui.generatorError;
     }, band);
 }
 
@@ -2461,7 +2548,7 @@ function ensureUnlockedStage() {
   }
 }
 function chapterName(ch, i) {
-  return ch.stage ? T().stage[ch.stage] : `Chapter ${i + 1}`;
+  return ch.stage ? T().stage[ch.stage] : T().ui.chapterFallback(i + 1);
 }
 function chapterLockMessage(ch, i) {
   const s = T().ui, name = chapterName(ch, i);
@@ -2496,12 +2583,12 @@ function buildChapterGrid() {
 function refreshMenu() {
   ensureUnlockedStage();
   el('menuTitle').textContent = T().ui.title;
-  el('menuContinue').textContent = settings.played ? 'Continue' : 'Start';
+  el('menuContinue').textContent = settings.played ? T().ui.menuContinue : T().ui.menuStart;
   /* per-chapter now, not the old global count, so the number actually moves
      while you play one chapter instead of sitting there until you switch
      stages — same solvedByStage the boot screen's "Level N of 120" reads */
   const solvedHere = Math.min(settings.solvedByStage[settings.stage] || 0, CHAPTER_LEVEL_COUNT);
-  el('menuProgressLabel').textContent = 'Solved · ' + solvedHere + '/' + CHAPTER_LEVEL_COUNT;
+  el('menuProgressLabel').textContent = T().ui.solvedLabel(solvedHere, CHAPTER_LEVEL_COUNT);
   const seg = el('menuSegbar');
   seg.innerHTML = '';
   const filled = Math.floor((solvedHere / CHAPTER_LEVEL_COUNT) * 10);
@@ -2522,10 +2609,10 @@ function refreshMenu() {
    Percentage background-position lands exactly on frame i of N the same way
    the board's own creature/fire strips already do (see .ticon.strip). */
 const STORY = [
-  { text: 'The coast is covered in fog. Monsters hide inside it.', img: 'assets/monster_a.png', frames: 4, frame: 0 },
-  { text: 'Fire is the only safety. Light drives the fog back.', img: 'assets/fire.png', frames: 4, frame: 2 },
-  { text: 'You were not there that night — only the survivors were.', img: 'assets/shelter.png', frames: 1, frame: 0 },
-  { text: 'Read what they saw. Find where the fires burned.', img: 'assets/fire_dim.png', frames: 4, frame: 0 },
+  { key: 'storyLine1', img: 'assets/monster_a.png', frames: 4, frame: 0 },
+  { key: 'storyLine2', img: 'assets/fire.png', frames: 4, frame: 2 },
+  { key: 'storyLine3', img: 'assets/shelter.png', frames: 1, frame: 0 },
+  { key: 'storyLine4', img: 'assets/fire_dim.png', frames: 4, frame: 0 },
 ];
 let storyIdx = 0;
 function renderStory() {
@@ -2534,7 +2621,7 @@ function renderStory() {
   art.style.backgroundImage = `url(${s.img})`;
   art.style.backgroundSize = `${s.frames * 100}% 100%`;
   art.style.backgroundPositionX = s.frames > 1 ? `${(s.frame / (s.frames - 1)) * 100}%` : '0%';
-  el('storyText').textContent = s.text;
+  el('storyText').textContent = T().ui[s.key];
   el('storyDots').innerHTML = STORY.map((_, i) => `<span class="${i === storyIdx ? 'on' : ''}"></span>`).join('');
 }
 el('storyPanel').onclick = () => {
@@ -2611,6 +2698,18 @@ el('setupFlicker').onchange = (e) => {
   document.body.classList.toggle('reduce-fx', settings.reduceMotion);
 };
 
+el('setupLanguage').value = LANG;
+el('setupLanguage').onchange = (e) => {
+  settings.lang = e.target.value;
+  saveSettings();
+  /* Simplest correct way to relabel everything: static chrome the player
+     never revisits mid-session (menu buttons, How to Play, the tutorial's
+     own captions, ...) is set once at load rather than re-painted live, so
+     a fresh load is what actually puts every one of them in the new
+     language, not just the handful this session happens to re-render next. */
+  location.reload();
+};
+
 /* -------------------------------------------------------------- tutorial */
 /* Nine tiny hand-authored boards rather than generated ones, because a
    lesson needs an exact, guaranteed-small example of the one thing it is
@@ -2633,29 +2732,29 @@ el('setupFlicker').onchange = (e) => {
    Submit itself is the thing being taught. */
 const TUTORIAL_STEPS = [
   { label: 1, total: 7, rows: ['..'], nfires: 1, clues: [], goal: 'preview',
-    caption: 'Tap a square to <b>preview</b> a fire. It costs nothing — hold as many as you like while you think.' },
+    caption: T().ui.tutorialCaption1 },
   { label: 2, total: 7, rows: ['..'], nfires: 1, clues: [], goal: 'light',
-    caption: 'Now hold it down — or double-tap — to actually <b>light</b> it. Watch the mist pull back.' },
+    caption: T().ui.tutorialCaption2 },
   { label: 3, total: 7, rows: ['..'], nfires: 1, clues: [], goal: 'undo',
-    caption: 'Changed your mind? Tap a lit fire to take it back, then light it again.' },
+    caption: T().ui.tutorialCaption3 },
   { label: 4, total: 7, rows: ['C..S'], nfires: 1,
     clues: [{ kind: 'SAFE', args: [0] }, { kind: 'FOGGED', args: [3] }], goal: 'clue',
-    caption: 'Two lines of testimony, one square to place. Read both, then light the one that fits.' },
+    caption: T().ui.tutorialCaption4 },
   { label: 5, total: 7, rows: ['.....', '.M...', '.....'], nfires: 2,
     clues: [{ kind: 'NEAR_MONSTER', args: [6] }], goal: 'clue',
-    caption: '<b>Near</b> means the four squares that touch a place — up, down, left, right. The highlighted squares are what this line means; light two fires so one of them stays dark.' },
+    caption: T().ui.tutorialCaption5 },
   { label: 5, total: 7, rows: ['.....', '.M...', '.....'], nfires: 2,
     clues: [{ kind: 'NO_MONSTER_NEAR', args: [6] }], goal: 'clue',
-    caption: 'Its opposite: this time light both fires so <b>all four</b> highlighted squares clear.' },
+    caption: T().ui.tutorialCaption6 },
   { label: 6, total: 7, rows: ['.....', '.W...', '.....'], nfires: 1,
     clues: [{ kind: 'FIRE_BESIDE', args: [6] }], goal: 'clue',
-    caption: '<b>Around</b> is wider — all eight squares touching a place, corners included. Light the one fire somewhere inside the highlight.' },
+    caption: T().ui.tutorialCaption7 },
   { label: 6, total: 7, rows: ['.....', '.W...', '.....'], nfires: 1,
     clues: [{ kind: 'NO_FIRE_BESIDE', args: [6] }], goal: 'clue',
-    caption: 'And its opposite: light the fire <b>outside</b> the highlighted eight.' },
+    caption: T().ui.tutorialCaption8 },
   { label: 7, total: 7, rows: ['C..S'], nfires: 1,
     clues: [{ kind: 'SAFE', args: [0] }, { kind: 'FOGGED', args: [3] }], goal: 'submit',
-    caption: 'One more — but this time press <b>Submit</b> when you’re happy. Stuck? <b>Hint</b> is always there, and three wrong guesses just reset the level.' },
+    caption: T().ui.tutorialCaption9 },
 ];
 let tutorialMode = false, tutorialIdx = 0, tutorialReady = false;
 let tutorialWasLit = false, tutorialUndoSeen = false;
@@ -2789,6 +2888,7 @@ async function refreshAccount() {
   renderAccount();
 }
 function renderAccount() {
+  const s = T().ui;
   const box = el('accountBlock');
   box.innerHTML = '';
   if (!accountState.loggedIn) {
@@ -2796,21 +2896,21 @@ function renderAccount() {
     row.className = 'account-row';
     const input = document.createElement('input');
     input.type = 'email';
-    input.placeholder = 'you@example.com';
+    input.placeholder = s.emailPlaceholder;
     input.autocomplete = 'email';
     const btn = document.createElement('button');
     btn.className = 'menu-btn pixel-corners';
-    btn.textContent = 'Send link';
+    btn.textContent = s.sendLink;
     row.append(input, btn);
     const status = document.createElement('div');
     status.className = 'account-status';
-    status.textContent = 'Sign in to keep purchases and progress on any device.';
+    status.textContent = s.signInPrompt;
     btn.onclick = async () => {
       const email = input.value.trim();
       if (!email) return;
       btn.disabled = true;
       status.className = 'account-status';
-      status.textContent = 'Sending…';
+      status.textContent = s.sending;
       try {
         const res = await fetch('/api/auth/request-link', {
           method: 'POST', credentials: 'same-origin',
@@ -2825,11 +2925,11 @@ function renderAccount() {
           a.href = data.devLink; a.textContent = data.devLink;
           status.appendChild(a);
         } else {
-          status.textContent = 'Check your email for a sign-in link.';
+          status.textContent = s.checkEmail;
         }
       } catch (e) {
         status.className = 'account-status err';
-        status.textContent = 'Could not send the link. Try again in a moment.';
+        status.textContent = s.sendFailed;
       }
       btn.disabled = false;
     };
@@ -2840,8 +2940,8 @@ function renderAccount() {
   const who = document.createElement('div');
   who.className = 'account-who';
   who.innerHTML = accountState.username
-    ? `Signed in as <b>${escapeHtml(accountState.username)}</b>`
-    : `Signed in as <b>${escapeHtml(accountState.email)}</b>`;
+    ? s.signedInAsUsername(escapeHtml(accountState.username))
+    : s.signedInAsEmail(escapeHtml(accountState.email));
   box.appendChild(who);
 
   if (!accountState.username) {
@@ -2849,11 +2949,11 @@ function renderAccount() {
     row.className = 'account-row';
     const input = document.createElement('input');
     input.type = 'text';
-    input.placeholder = 'pick a username';
+    input.placeholder = s.usernamePlaceholder;
     input.maxLength = 20;
     const btn = document.createElement('button');
     btn.className = 'menu-btn pixel-corners';
-    btn.textContent = 'Save';
+    btn.textContent = s.saveLabel;
     row.append(input, btn);
     const status = document.createElement('div');
     status.className = 'account-status';
@@ -2875,7 +2975,7 @@ function renderAccount() {
       } catch (e) {
         status.className = 'account-status err';
         status.textContent = e.message === 'username_taken'
-          ? 'That username is taken.' : 'Letters, numbers, underscore, 3-20 characters.';
+          ? s.usernameTaken : s.usernameRules;
       }
       btn.disabled = false;
     };
@@ -2884,7 +2984,7 @@ function renderAccount() {
 
   const signOut = document.createElement('button');
   signOut.className = 'menu-btn pixel-corners';
-  signOut.textContent = 'Sign out';
+  signOut.textContent = s.signOut;
   signOut.onclick = async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
     accountState = { loggedIn: false };
@@ -2901,6 +3001,7 @@ if (/[?&]loggedin=1\b/.test(location.search)) {
   history.replaceState(null, '', location.pathname);
 }
 
+paintStaticChrome();
 buildChapterGrid();
 prefetchNext(settings.stage);
 setScreen('menu');
