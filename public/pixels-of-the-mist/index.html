@@ -820,15 +820,25 @@
             background:#cdd0ab;border:1px solid #5d5f48;padding:3px 4px;
             cursor:pointer}
   .hint-block{font-size:8.5px;line-height:1.9;color:#3a3e2c}
+  @font-face {
+    font-family: "Lalezar";
+    src: url(assets/fonts/Lalezar-Regular.ttf) format("truetype");
+    font-weight: normal;
+    font-display: swap;
+  }
   /* fa/ar: Press Start 2P has no Arabic-script glyphs at all, and the
      console's fixed pixel layout (flex rows, absolute-positioned panels,
      the slide switch) is staying put rather than mirroring for these two
      languages - so this only ever touches the font and the direction of
-     actual prose, never the shape of anything around it. !important is the
-     plain way to beat the half-dozen places .. already sets this font by
-     name rather than hunting each one down. */
+     actual prose, never the shape of anything around it. Lalezar is a bold
+     display face built for Persian/Arabic (thin default UI fonts read as
+     too small/faint on mobile at this console's tiny point sizes); the
+     Tahoma/Segoe/Noto stack stays as a fallback for scripts or weights
+     Lalezar doesn't cover. !important is the plain way to beat the
+     half-dozen places .. already sets this font by name rather than
+     hunting each one down. */
   html.rtl-text, html.rtl-text * {
-    font-family: Tahoma, "Segoe UI", "Vazirmatn", "Noto Sans Arabic", sans-serif !important;
+    font-family: Lalezar, Tahoma, "Segoe UI", "Vazirmatn", "Noto Sans Arabic", sans-serif !important;
   }
   html.rtl-text .rulelist, html.rtl-text .hint-block, html.rtl-text #hint,
   html.rtl-text #status, html.rtl-text .menu-hint, html.rtl-text .account-status,
@@ -1128,6 +1138,7 @@
                   <select class="lcdselect" id="setupLanguage">
                     <option value="en">English</option>
                     <option value="fa">فارسی</option>
+                    <option value="ar">العربية</option>
                     <option value="zh">中文</option>
                     <option value="de">Deutsch</option>
                     <option value="es">Español</option>
