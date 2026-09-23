@@ -21,15 +21,11 @@
     "directory": "./dist",
     "binding": "ASSETS"
   },
-  // database_id یک مقدار جای‌گیرنده (placeholder) است — باید بعد از
-  // "wrangler d1 create pixels-of-the-mist" با مقدار واقعی جایگزین بشه (به
-  // چک‌لیست استقرار مراجعه شود). برای "wrangler dev" محلی (بدون --remote)
-  // همین‌طوری هم کار می‌کند، چون یک دیتابیس SQLite محلی جدا می‌سازد.
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "pixels-of-the-mist",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "4e6a00a5-7607-4716-af29-5397faf25b8d",
       "migrations_dir": "./migrations"
     }
   ]
