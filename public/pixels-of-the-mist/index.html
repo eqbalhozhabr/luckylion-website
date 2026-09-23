@@ -79,7 +79,7 @@
   .slide{display:flex;align-items:center;gap:8px;flex:none}
   .slidelabel{font-family:"Press Start 2P","Courier New",monospace;font-size:8px;
               text-transform:uppercase;letter-spacing:.05em;
-              background:none;border:none;padding:4px 2px;cursor:pointer;
+              background:none;border:none;padding:5px 2px 3px;cursor:pointer;
               color:#767b62;transition:color .12s}
   .slide[data-pos="left"] .slidelabel[data-pos="left"],
   .slide[data-pos="right"] .slidelabel[data-pos="right"]{color:#e8ead6}
@@ -142,7 +142,7 @@
            box-shadow:inset 0 1px 0 rgba(255,255,255,.06),
                       inset 0 0 30px rgba(0,0,0,.4),
                       0 10px 26px rgba(0,0,0,.45);
-           width:max-content;border-top-left-radius:0}
+           width:max-content}
   /* the bezel casting onto the glass. This is what separates the panel from
      the shell — without it the screen looks printed on the case rather than
      sunk behind it. */
@@ -152,9 +152,9 @@
   /* the brushed plate the buttons are set into */
   /* the same worn shell in a lighter value, so the plate still reads as part of
      one case rather than a different material bolted onto it */
-  .panelplate{background-color:#453f34;
+  .panelplate{background-color:#3c372c;
               background-image:
-                linear-gradient(180deg,#726a58 0%,#524c40 45%,#38352b 100%),
+                linear-gradient(180deg,#655f4f 0%,#463f34 45%,#302c24 100%),
                 repeating-linear-gradient(100deg,rgba(255,255,255,.05) 0 1px,transparent 1px 7px),
                 repeating-linear-gradient(20deg,rgba(0,0,0,.08) 0 1px,transparent 1px 10px),
                 radial-gradient(70px 40px at 20% 30%,rgba(110,60,26,.16),transparent 70%),
@@ -167,7 +167,12 @@
                           inset 0 -2px 5px rgba(24,30,16,.32),
                           inset 3px 0 6px rgba(24,30,16,.28),
                           inset -3px 0 6px rgba(24,30,16,.28)}
-  .card{background:var(--panel);border:1px solid var(--line);
+  /* background-color, not the background shorthand: the shorthand also resets
+     background-image, which silently killed .panelplate's whole brushed-metal
+     texture on the control plate (same class order problem, so it never
+     showed) - background-color alone leaves a later, more specific texture
+     free to paint over this plain fallback. */
+  .card{background-color:var(--panel);border:1px solid var(--line);
         border-radius:10px;padding:12px 14px;margin-bottom:12px}
   .card h2{font-size:11px;letter-spacing:.09em;text-transform:uppercase;
            color:var(--muted);margin:0 0 8px;font-weight:600}
@@ -469,60 +474,98 @@
 
   .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:12px;
           color:var(--muted)}
-  /* Handheld buttons: each one is a pill sunk into a slot in the case, lit
-     from above. The shell keeps the recess, the button keeps the dome, and
-     pressing swaps which of the two highlights you see. */
+  /* Handheld buttons: each one sits in a shallow dimple pressed into the
+     plate, lit from above. The shell keeps the dimple, the key keeps a soft
+     highlight along its own top edge, and pressing deepens both. */
   .tools{display:flex;gap:14px;margin-top:0;
          align-items:center;justify-content:flex-end}
-  /* Physical keys, moulded into the plate — raised and gradient-lit, each one
-     sunk in its own recessed socket (the ::after, punched into the panel and
-     always a little bigger than the key sitting in it). This is deliberately
-     the opposite of the LCD's own buttons (.menu-cta/.menu-btn): those are
-     printed on the glass and stay flat, these are real plastic and stay 3D. */
+  /* Physical keys, moulded into the plate. Deliberately the opposite of the
+     LCD's own buttons (.menu-cta/.menu-btn): those are printed on the glass
+     and stay flat, these are real plastic and stay 3D — but gently: a flat
+     matte face, a soft glint along the top where the edge catches the light,
+     and the surrounding dimple (the ::after) doing the rest of the work,
+     rather than a hard ring drawn on the key itself. */
   .tools button{position:relative;
          font-family:"Press Start 2P","Courier New",monospace;font-size:7.5px;
          letter-spacing:.04em;text-transform:uppercase;cursor:pointer;
          white-space:nowrap;
-         padding:8px 10px 9px;border:none;border-radius:999px;
+         padding:9px 10px 8px;border-radius:999px;border:none;
          color:#e8ead6;
+         /* the same warm tone family as the plate it's set into (no green
+            cast of its own), plus a second, softer glint low in the face -
+            the way a cupped surface catches a bit of bounced light back
+            toward the viewer where it curves in again near the bottom,
+            not just along the top rim. The face itself stays close to flat -
+            the reference photo's key is barely shaded at all; the rim and the
+            shadow it casts are what read as depth, not the face. */
          background:
-           radial-gradient(circle at 32% 24%,rgba(255,255,255,.4),rgba(255,255,255,0) 45%),
-           radial-gradient(circle at 50% 92%,rgba(0,0,0,.3),rgba(0,0,0,0) 55%),
-           linear-gradient(180deg,#6d735c 0%,#4d5342 42%,#33372b 100%);
-         box-shadow:0 2px 0 #1c1f16,0 4px 6px rgba(0,0,0,.5),
-                    inset 0 1px 1px rgba(255,255,255,.25),
-                    inset 0 -2px 2px rgba(0,0,0,.3);
+           radial-gradient(65% 45% at 50% 88%,rgba(255,255,255,.16) 0%,
+                            rgba(255,255,255,0) 75%),
+           #4a4438;
+         /* Built outside-in, same order as the reference: the lip - a hard
+            edge a couple of pixels thick, catching a little light - then an
+            immediate, almost blur-free seam where the drop starts (a real
+            border, not a soft gradient fading in over a wide distance), and
+            only then a short taper back into the plate. The reference's own
+            socket happens fast: flat, then a thin lit edge, then dark,
+            within just a few pixels - not a wide soft halo. */
+         box-shadow:0 0 0 2px rgba(206,199,178,.32),
+                    0 0 0 3px rgba(0,0,0,.5),
+                    0 0 3px 4px rgba(0,0,0,.45),
+                    inset 0 1px 2px rgba(0,0,0,.30),
+                    inset 0 -1px 1px rgba(255,255,255,.07),
+                    0 2px 0 rgba(0,0,0,.4);
          transition:transform .04s linear, box-shadow .04s linear}
-  /* the socket: a darker floor let into the panel, sunk with a tight inner
-     shadow at the rim and a soft one further in — the way an actual punched
-     hole reads two depths, not one flat dip — plus a sliver of the panel's
-     own highlight catching the far lip so the hole doesn't read as a flat
-     dark smear. Sized off the key's own box (inset), so one rule fits the
-     pill and both sizes of circle without per-key tuning. */
-  .tools button::after{content:"";position:absolute;z-index:-1;
-         inset:-6px;border-radius:inherit;background:#211f18;
-         box-shadow:inset 0 3px 4px rgba(0,0,0,.75),
-                    inset 0 -2px 5px rgba(0,0,0,.4),
-                    inset 0 -1px 0 rgba(255,255,255,.08)}
-  .tools button:active:not(:disabled){transform:translateY(2px);
-         box-shadow:inset 0 2px 3px rgba(0,0,0,.4)}
+  .tools button:active:not(:disabled){transform:translateY(1px);
+         box-shadow:0 0 0 2px rgba(206,199,178,.24),
+                    0 0 0 3px rgba(0,0,0,.55),
+                    0 0 3px 4px rgba(0,0,0,.5),
+                    inset 0 2px 4px rgba(0,0,0,.55),
+                    inset 0 -1px 1px rgba(255,255,255,.05)}
   .tools button:disabled{opacity:.45;cursor:default}
+  /* a same-size, same-position stand-in for a key this screen has no use
+     for (Submit/Clear outside a level) - keeps every other key's x-position
+     identical to the game screen's, instead of the row narrowing and every
+     key after it sliding over. */
+  .tools button[aria-hidden="true"]{visibility:hidden}
   /* the red action button of the originals, and the largest key on the plate —
      it is the one the whole puzzle is aimed at. Round rather than the pill of
      the rest: on the real handhelds the primary key was always the one that
-     broke from the row's own shape. */
+     broke from the row's own shape. Always a solid, present red disc — it is
+     the label on it that behaves like an LED (off when there's nothing to
+     submit yet, lit once there is), never the button's own body fading out as
+     if unloaded; the body itself only deepens to a darker red while off. */
   .tools button.go{font-size:7.5px;letter-spacing:.02em;
-            width:52px;height:52px;padding:0;border-radius:50%;
+            width:52px;height:52px;padding:0;border-radius:50%;border:none;
+            color:#2c0a06;text-shadow:none;
             display:flex;align-items:center;justify-content:center;
-            color:#fff2ee;
             background:
-              radial-gradient(circle at 32% 24%,rgba(255,255,255,.5),rgba(255,255,255,0) 45%),
-              radial-gradient(circle at 50% 92%,rgba(0,0,0,.35),rgba(0,0,0,0) 55%),
-              linear-gradient(180deg,#cb5a42 0%,#aa321f 42%,#711d0e 100%);
-            box-shadow:0 2px 0 #3c0e08,0 4px 7px rgba(0,0,0,.55),
-                       inset 0 1px 1px rgba(255,255,255,.35),
-                       inset 0 -2px 2px rgba(0,0,0,.35)}
-  .tools button.go:active:not(:disabled){box-shadow:inset 0 2px 4px rgba(0,0,0,.45)}
+              radial-gradient(65% 45% at 50% 88%,rgba(255,190,160,.24) 0%,
+                               rgba(255,190,160,0) 75%),
+              #7a2415;
+            box-shadow:0 0 0 2px rgba(255,120,80,.55),
+                       0 0 0 3px rgba(0,0,0,.5),
+                       0 0 3px 4px rgba(0,0,0,.45),
+                       inset 0 1px 2px rgba(0,0,0,.30),
+                       inset 0 -1px 1px rgba(255,150,120,.08),
+                       0 2px 0 rgba(0,0,0,.4)}
+  /* the LED itself: unlit (dark red on a darker red, barely legible) with
+     nothing to submit, lit (bright, glowing, and the body itself richer) the
+     moment the last fire goes down — opacity stays at 1 either way, so the
+     button itself never looks unloaded. */
+  .tools button.go:disabled{opacity:1;cursor:default}
+  .tools button.go:not(:disabled){color:#fff6f2;
+     background:
+       radial-gradient(65% 45% at 50% 88%,rgba(255,190,160,.28) 0%,
+                        rgba(255,190,160,0) 75%),
+       #9c3820;
+     text-shadow:0 0 3px rgba(255,255,255,.85),0 0 9px rgba(255,95,60,.75)}
+  .tools button.go:active:not(:disabled){transform:translateY(1px);
+     box-shadow:0 0 0 2px rgba(255,120,80,.45),
+                0 0 0 3px rgba(0,0,0,.55),
+                0 0 3px 4px rgba(0,0,0,.5),
+                inset 0 3px 5px rgba(0,0,0,.5),
+                inset 0 -1px 2px rgba(255,150,120,.1)}
   /* Clear/Hint: a small blank key, the way LEFT/RIGHT or B/A sit on the
      originals. The key itself is just a small circle now — the same shape
      recipe as Submit — so its centre lines up with the other keys under
@@ -953,7 +996,14 @@
       <div class="card screen sidescreen" id="sideScreen">
         <div class="lcd readout">
           <div class="scroller">
-            <div class="view on" id="view-side-menu">
+            <!-- Manual/Setup used to live only inside the Menu screen's own
+                 side panel; pulled out to a screen-independent sibling (its
+                 own visibility toggled in setScreen(), not tied to any one
+                 screen's view-side-* container) so the Chapter Map's control
+                 row can drive the exact same pair via its own slide, instead
+                 of duplicating this markup (and re-fighting over unique ids
+                 like #setupFlicker) per screen. -->
+            <div class="view on" id="view-side-shared">
               <div class="view on" id="view-manual">
                 <h2>How to Play</h2>
                 <ol class="rulelist">
@@ -1046,8 +1096,25 @@
             <button class="slidelabel" data-pos="right">Setup</button>
           </div>
         </div>
-        <div class="view ctrlrow end" id="view-ctrl-sectors">
-          <div class="tools"><button id="sectorsBack">Back</button></div>
+        <!-- Same shape as Game's row (slide + a 4-slot tools row), so
+             switching between the Chapter Map and a level never resizes the
+             control plate. Submit/Clear have no meaning here, so those two
+             slots hold invisible, inert placeholders rather than being left
+             out - that's what keeps Menu and Back sitting at the exact same
+             x-position they hold during play. -->
+        <div class="view ctrlrow" id="view-ctrl-sectors">
+          <div class="slide" id="sectorsSlide" data-pos="left"
+               data-left="view-manual" data-right="view-setup">
+            <button class="slidelabel" data-pos="left">Manual</button>
+            <span class="slideslot"><span class="slideknob"></span></span>
+            <button class="slidelabel" data-pos="right">Setting</button>
+          </div>
+          <div class="tools">
+            <button id="sectorsMenu">Menu</button>
+            <button class="go" disabled aria-hidden="true" tabindex="-1"></button>
+            <button class="round" disabled aria-hidden="true" tabindex="-1"></button>
+            <button id="sectorsBack" class="round"><span class="key-label">Back</span></button>
+          </div>
         </div>
         <div class="view ctrlrow" id="view-ctrl-game">
           <div class="slide" id="slide" data-pos="right"
@@ -2155,8 +2222,15 @@ new ResizeObserver(fitConsole).observe(el('deck'));
    ever reaching into each other's state. Clicking a label throws it that way;
    clicking the slot flips it. */
 function wireSlide(sw) {
+  /* More than one slide can point at the same pair of views now (the
+     Chapter Map's own Manual/Setting reuses the Menu screen's Manual/Setup)
+     - moving one has to move every slide sharing that pair, or the one you
+     didn't touch keeps showing its old position while the content it's
+     supposedly switching has already changed under it. */
   const setPos = pos => {
-    sw.dataset.pos = pos;
+    document.querySelectorAll(
+      `.slide[data-left="${sw.dataset.left}"][data-right="${sw.dataset.right}"]`
+    ).forEach(s => { s.dataset.pos = pos; });
     el(sw.dataset.left).classList.toggle('on', pos === 'left');
     el(sw.dataset.right).classList.toggle('on', pos === 'right');
   };
@@ -2308,6 +2382,11 @@ function setScreen(name) {
     if (side) side.classList.toggle('on', s === name);
     if (ctrl) ctrl.classList.toggle('on', s === name);
   });
+  /* Manual/Setup live outside any one screen's own view-side-* container
+     (see the markup comment above #view-side-shared) so the Chapter Map's
+     own slide can drive the very same pair - shown on every screen except
+     Game, which has its own Rules/Report toggle instead. */
+  el('view-side-shared').classList.toggle('on', name !== 'game');
   if (name === 'menu') refreshMenu();
   /* a stale lock message from whatever tile was tapped last visit should
      never be what greets the next one */
@@ -2334,6 +2413,7 @@ el('menuDaily').onclick = () => {
   startGame(settings.stage, dailyHash(today, settings.stage), false, true);
 };
 el('sectorsBack').onclick = () => setScreen('menu');
+el('sectorsMenu').onclick = () => setScreen('menu');
 el('toMenu').onclick = () => {
   if (tutorialMode) { tutorialMode = false; settings.onboardingDone = true; saveSettings(); }
   setScreen('menu');
