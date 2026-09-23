@@ -7,11 +7,30 @@
   // رو با خطای "renderForPrerender is not exported" می‌شکوند.
   //
   // با اعلامِ صریحِ "assets" اینجا، Wrangler می‌فهمه این یه سایتِ استاتیکه که
-  // فقط باید فایل‌های dist/ رو سرو کنه — دیگه هیچ‌وقت auto-config اجرا
-  // نمی‌شه، و astro.config.mjs هم دست‌نخورده می‌مونه.
+  // فقط باید فایل‌های dist/ رو سرو کنه.
+  //
+  // "main" اضافه شد تا مسیرهای /api/* (لاگین، تولید مرحله، اعتبارسنجی جواب)
+  // رو یک Worker واقعی جواب بده. چون run_worker_first مقدار پیش‌فرضش false
+  // است، هر مسیری که یک فایل استاتیک واقعی داره (یعنی کل سایت فعلی) دقیقاً
+  // مثل قبل مستقیم از dist/ سرو می‌شه و اصلاً به این Worker نمی‌رسه؛ فقط
+  // مسیرهایی که فایلی براشون وجود نداره (/api/...) به worker/index.js می‌رن.
   "name": "luckylion-website",
   "compatibility_date": "2024-09-23",
+  "main": "worker/index.js",
   "assets": {
-    "directory": "./dist"
-  }
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  // database_id یک مقدار جای‌گیرنده (placeholder) است — باید بعد از
+  // "wrangler d1 create pixels-of-the-mist" با مقدار واقعی جایگزین بشه (به
+  // چک‌لیست استقرار مراجعه شود). برای "wrangler dev" محلی (بدون --remote)
+  // همین‌طوری هم کار می‌کند، چون یک دیتابیس SQLite محلی جدا می‌سازد.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pixels-of-the-mist",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "./migrations"
+    }
+  ]
 }
