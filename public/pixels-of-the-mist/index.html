@@ -970,6 +970,7 @@
               <button class="menu-btn pixel-corners" id="menuDaily">Daily<span class="badge-today pixel-corners">Today</span></button>
             </div>
             <div class="menu-hint" id="menuDailyHint"></div>
+            <button class="menu-btn pixel-corners" id="menuHowToPlay">How to Play</button>
           </div>
         </div>
         <div class="view" id="view-top-sectors">
@@ -1019,17 +1020,33 @@
                  of duplicating this markup (and re-fighting over unique ids
                  like #setupFlicker) per screen. -->
             <div class="view on" id="view-side-shared">
+              <!-- Manual's own two states: Story is what greets a fresh visit
+                   to the main menu; How to Play is a temporary look-in from
+                   its own button there, and Chapter Map's "Manual" tab always
+                   means rules, never story (see updateManualPane()). Nested
+                   rather than a second top-level view because both still
+                   belong to the one "Manual" slide position everywhere it's
+                   used. -->
               <div class="view on" id="view-manual">
-                <h2>How to Play</h2>
-                <ol class="rulelist">
-                  <li>Tap a square to preview a fire.</li>
-                  <li>Hold or double-tap to light it — this spends fuel.</li>
-                  <li>A lit fire clears the mist around it.</li>
-                  <li>Survivor testimony tells you where not to look.</li>
-                  <li>Tap a lit fire to take it back — nothing is final until Submit.</li>
-                  <li>Three wrong submissions reset the level. No timers, no penalty beyond that.</li>
-                </ol>
-                <button class="menu-btn pixel-corners" id="startTutorial">Play Tutorial</button>
+                <div class="view on" id="view-story">
+                  <h2>The Last Shelter</h2>
+                  <p class="hint-block">The coast is covered in fog. Monsters hide inside it.</p>
+                  <p class="hint-block">Fire is the only safety. Light drives the fog back.</p>
+                  <p class="hint-block">You were not there that night — only the survivors were.</p>
+                  <p class="hint-block">Read what they saw. Find where the fires burned.</p>
+                </div>
+                <div class="view" id="view-manual-rules">
+                  <h2>How to Play</h2>
+                  <ol class="rulelist">
+                    <li>Tap a square to preview a fire.</li>
+                    <li>Hold or double-tap to light it — this spends fuel.</li>
+                    <li>A lit fire clears the mist around it.</li>
+                    <li>Survivor testimony tells you where not to look.</li>
+                    <li>Tap a lit fire to take it back — nothing is final until Submit.</li>
+                    <li>Three wrong submissions reset the level. No timers, no penalty beyond that.</li>
+                  </ol>
+                  <button class="menu-btn pixel-corners" id="startTutorial">Play Tutorial</button>
+                </div>
               </div>
               <div class="view" id="view-setup">
                 <h2>Setup</h2>
@@ -1108,7 +1125,7 @@
         <div class="view ctrlrow on" id="view-ctrl-menu">
           <div class="slide" id="menuSlide" data-pos="left"
                data-left="view-manual" data-right="view-setup">
-            <button class="slidelabel" data-pos="left">Manual</button>
+            <button class="slidelabel" data-pos="left">Story</button>
             <span class="slideslot"><span class="slideknob"></span></span>
             <button class="slidelabel" data-pos="right">Setup</button>
           </div>
@@ -2439,6 +2456,22 @@ function refreshMenu() {
    (standing in for the chapter map until the level ledger is wired into the
    game — see Session_Notes_Code_And_Levels.md §6.4), and the game itself. */
 const SCREENS = ['menu', 'sectors', 'game'];
+/* Manual's left pane is Story everywhere except Chapter Map, which always
+   means rules there - and, for one look-in, the main menu's own How to Play
+   button, until the player leaves the menu again. That "until" is exactly
+   setScreen('menu'), so the override never outlives the visit that set it. */
+let manualShowsRules = false;
+function updateManualPane() {
+  const showRules = el('console').dataset.screen !== 'menu' || manualShowsRules;
+  el('view-story').classList.toggle('on', !showRules);
+  el('view-manual-rules').classList.toggle('on', showRules);
+  /* The menu's own slide otherwise keeps reading "Story" while its knob
+     sits over content that is actually the rules - relabel it to match
+     whichever the override is currently showing. */
+  document.querySelector('#menuSlide .slidelabel[data-pos="left"]').textContent =
+    showRules ? 'How to Play' : 'Story';
+}
+
 function setScreen(name) {
   /* Leaving the game screen while its own boot splash is still pending
      (Menu tapped mid-load) must drop that timer - otherwise it fires later
@@ -2457,13 +2490,14 @@ function setScreen(name) {
      own slide can drive the very same pair - shown on every screen except
      Game, which has its own Rules/Report toggle instead. */
   el('view-side-shared').classList.toggle('on', name !== 'game');
-  if (name === 'menu') refreshMenu();
+  if (name === 'menu') { manualShowsRules = false; refreshMenu(); }
   /* a stale lock message from whatever tile was tapped last visit should
      never be what greets the next one */
   if (name === 'sectors') {
     el('chapterMapTitle').textContent = T().ui.chapterMapTitle;
     el('chapterMapHint').textContent = T().ui.chapterMapHint;
   }
+  updateManualPane();
   fitConsole();
 }
 
@@ -2472,6 +2506,11 @@ el('menuContinue').onclick = () => {
   startGame(settings.stage);
 };
 el('menuChapterMap').onclick = () => setScreen('sectors');
+el('menuHowToPlay').onclick = () => {
+  manualShowsRules = true;
+  updateManualPane();
+  el('menuSlide').querySelector('.slidelabel[data-pos="left"]').click();
+};
 el('menuEndless').onclick = () => startGame(settings.stage, undefined, true);
 el('menuDaily').onclick = () => {
   const today = todayStr();
