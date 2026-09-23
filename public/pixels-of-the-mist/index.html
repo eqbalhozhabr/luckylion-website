@@ -1088,6 +1088,7 @@
               <div class="view" id="view-result">
                 <h2 class="menu-title small" id="resultTitle"></h2>
                 <p class="hint-block" id="resultBody"></p>
+                <p class="hint-block hidden" id="resultStreak"></p>
                 <div class="result-actions">
                   <button class="pixel-corners" id="resultNext"></button>
                   <button class="pixel-corners" id="resultRetry"></button>
@@ -2160,10 +2161,17 @@ el('submit').onclick = () => {
    later Clear/re-tap otherwise. */
 function showResult(kind) {
   const s = T().ui, won = kind === 'win';
+  /* Daily is one puzzle, not a sequence - Next has nowhere real to go (it
+     was quietly leaving Daily and generating a fresh campaign level under
+     the same "Next" label). A win here shows the streak it just extended
+     instead of a button that doesn't belong on this screen. */
+  const isDailyWin = dailyMode && won;
   el('resultTitle').textContent = won ? s.resultWinTitle : s.resultLoseTitle;
   el('resultBody').textContent = won ? s.resultWinBody : s.resultLoseBody;
-  el('resultNext').classList.toggle('hidden', !won);
-  el('resultNext').classList.toggle('menu-cta', won);
+  el('resultStreak').classList.toggle('hidden', !isDailyWin);
+  el('resultStreak').textContent = isDailyWin ? s.dailyStreak(settings.dailyStreak || 0) : '';
+  el('resultNext').classList.toggle('hidden', !won || isDailyWin);
+  el('resultNext').classList.toggle('menu-cta', won && !isDailyWin);
   el('resultRetry').classList.toggle('menu-cta', !won);
   el('resultRetry').classList.toggle('menu-btn', won);
   el('view-report').classList.remove('on');
