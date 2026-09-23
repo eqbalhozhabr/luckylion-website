@@ -656,6 +656,14 @@
               text-shadow:0 1px 0 #cdd0ab,0 -1px 0 #cdd0ab,
                           1px 0 0 #cdd0ab,-1px 0 0 #cdd0ab}
   .menu-title.small{font-size:11px;margin-bottom:8px}
+  /* How to Play's title and button are worth always seeing; the list is the
+     one part with no natural cap on length, so it's the one part that
+     scrolls - inside the same fixed square every top screen uses, never
+     growing the console the way the old side-panel copy of this content
+     could when it lived somewhere with room to grow. */
+  #view-top-howtoplay .rulelist{flex:1 1 auto;min-height:0;overflow-y:auto;
+               font-size:9px;line-height:1.75}
+  #view-top-howtoplay #startTutorial{flex:none}
   /* Inline SVG rather than a raster image: image-rendering:pixelated is
      inconsistently honoured across browsers when a raster image is scaled
      up (notably Safari), so a raster version of this logo blurred/aliased
@@ -809,6 +817,41 @@
   .soon-tag{--pxc:1px;font-size:6.5px;padding:2px 5px;
             background:#7d7f5f;color:#2a2e1e;flex:none}
   .hint-block{font-size:8.5px;line-height:1.9;color:#3a3e2c}
+  /* The side screen is whatever height is left over after the top screen's
+     own fixed square, which varies a lot from phone to phone (see the .cols
+     column layout at max-width:820px) - a plain aspect-ratio here would trust
+     the viewport to always have room for a square that size, which a short
+     phone doesn't. vh is the one unit that already knows the actual device
+     height regardless of how this panel's own ancestors size themselves, so
+     it - not a percentage of a parent - is what actually caps this safely. */
+  .story-panel{--pxc:3px;position:relative;width:100%;aspect-ratio:3/2;
+               max-height:34vh;margin:0 auto 8px;overflow:hidden;cursor:pointer;
+               background:var(--lcd-edge)}
+  .story-bg{position:absolute;inset:0;background-image:url(assets/mist.png);
+            background-size:500% 500%;background-repeat:repeat;
+            image-rendering:pixelated;filter:url(#greentone);opacity:.7}
+  .story-art{position:absolute;left:50%;top:50%;width:60%;max-height:55%;aspect-ratio:1;
+             transform:translate(-50%,-50%);background-repeat:no-repeat;
+             image-rendering:pixelated;filter:url(#greentone)}
+  /* A comic panel's caption never sits fully inside the art it's captioning -
+     it's stuck to an edge, paper over the drawing. Bottom-left is the one
+     corner the art's own centring never reaches into. */
+  .story-bubble{--pxc:2px;position:absolute;left:6px;right:6px;bottom:6px;
+                background:var(--pick);color:#20241a;padding:8px 9px;
+                font-size:8.5px;line-height:1.6}
+  .story-dots{display:flex;flex:none;justify-content:center;gap:5px;margin-bottom:10px}
+  .story-dots span{width:5px;height:5px;background:#7d7f5f}
+  .story-dots span.on{background:#2a2e1e}
+  /* The retro cut between two console screens was never a crossfade - one
+     frame of static, then the new picture. A brief dither flash standing in
+     for that beats trying to animate a "dissolve" a real 1-bit panel never
+     had in the first place. */
+  .story-panel::after{content:"";position:absolute;inset:0;pointer-events:none;
+               opacity:0;background-image:
+                 linear-gradient(45deg,#0f1114 25%,transparent 25%,transparent 75%,#0f1114 75%),
+                 linear-gradient(45deg,#0f1114 25%,transparent 25%,transparent 75%,#0f1114 75%);
+               background-size:3px 3px;background-position:0 0,1.5px 1.5px}
+  .story-panel.flash::after{opacity:.6}
   /* the between-levels screen: same glass, printed rather than drawn — a
      big stage number the way an old cartridge splash gave you one, the
      chapter name under it, and the difficulty as a little key-shaped chip
@@ -888,6 +931,15 @@
        changes the size of the console glass */
     .lcd.menutop{width:100%;height:auto;aspect-ratio:1;overflow:hidden}
     .card{margin-bottom:0}
+    /* Here the two screens stack instead of sitting side by side, so the
+       story panel isn't sharing the console's full height any more - it's
+       sharing what's left after the top square (which is pinned to the
+       phone's own width) and the control strip. 100vh - 100vw is that
+       phone's own leftover, once its width is subtracted from its height;
+       the fixed remainder is the control strip and this column's own
+       margins. Never more than 34vh either, so a narrow-but-tall phone
+       with room to spare doesn't grow the panel past a comfortable size. */
+    .story-panel{max-height:min(34vh,calc(100vh - 100vw - 140px))}
   }
   /* one more step down for the narrow phones, so the strip still holds its
      single row there */
@@ -979,6 +1031,20 @@
             <div class="chapter-grid" id="chapterGrid"></div>
           </div>
         </div>
+        <div class="view" id="view-top-howtoplay">
+          <div class="lcd menutop">
+            <h2 class="menu-title small">How to Play</h2>
+            <button class="menu-btn pixel-corners" id="startTutorial">Play Tutorial</button>
+            <ol class="rulelist">
+              <li>Tap a square to preview a fire.</li>
+              <li>Hold or double-tap to light it — this spends fuel.</li>
+              <li>A lit fire clears the mist around it.</li>
+              <li>Survivor testimony tells you where not to look.</li>
+              <li>Tap a lit fire to take it back — nothing is final until Submit.</li>
+              <li>Three wrong submissions reset the level. No timers, no penalty beyond that.</li>
+            </ol>
+          </div>
+        </div>
         <div class="view" id="view-top-game">
           <div class="lcd boardscreen" id="boardscreen">
             <div class="fuelrow">
@@ -1012,41 +1078,24 @@
       <div class="card screen sidescreen" id="sideScreen">
         <div class="lcd readout">
           <div class="scroller">
-            <!-- Manual/Setup used to live only inside the Menu screen's own
+            <!-- Story/Setup used to live only inside the Menu screen's own
                  side panel; pulled out to a screen-independent sibling (its
                  own visibility toggled in setScreen(), not tied to any one
-                 screen's view-side-* container) so the Chapter Map's control
-                 row can drive the exact same pair via its own slide, instead
-                 of duplicating this markup (and re-fighting over unique ids
-                 like #setupFlicker) per screen. -->
+                 screen's view-side-* container) so Chapter Map's and How to
+                 Play's own control rows can each drive the exact same pair
+                 via their own slide, instead of duplicating this markup (and
+                 re-fighting over unique ids like #setupFlicker) per screen. -->
             <div class="view on" id="view-side-shared">
-              <!-- Manual's own two states: Story is what greets a fresh visit
-                   to the main menu; How to Play is a temporary look-in from
-                   its own button there, and Chapter Map's "Manual" tab always
-                   means rules, never story (see updateManualPane()). Nested
-                   rather than a second top-level view because both still
-                   belong to the one "Manual" slide position everywhere it's
-                   used. -->
               <div class="view on" id="view-manual">
-                <div class="view on" id="view-story">
-                  <h2>The Last Shelter</h2>
-                  <p class="hint-block">The coast is covered in fog. Monsters hide inside it.</p>
-                  <p class="hint-block">Fire is the only safety. Light drives the fog back.</p>
-                  <p class="hint-block">You were not there that night — only the survivors were.</p>
-                  <p class="hint-block">Read what they saw. Find where the fires burned.</p>
+                <h2>The Last Shelter</h2>
+                <div class="story-panel pixel-corners" id="storyPanel">
+                  <div class="story-bg"></div>
+                  <div class="story-art" id="storyArt"></div>
+                  <div class="story-bubble pixel-corners">
+                    <p id="storyText"></p>
+                  </div>
                 </div>
-                <div class="view" id="view-manual-rules">
-                  <h2>How to Play</h2>
-                  <ol class="rulelist">
-                    <li>Tap a square to preview a fire.</li>
-                    <li>Hold or double-tap to light it — this spends fuel.</li>
-                    <li>A lit fire clears the mist around it.</li>
-                    <li>Survivor testimony tells you where not to look.</li>
-                    <li>Tap a lit fire to take it back — nothing is final until Submit.</li>
-                    <li>Three wrong submissions reset the level. No timers, no penalty beyond that.</li>
-                  </ol>
-                  <button class="menu-btn pixel-corners" id="startTutorial">Play Tutorial</button>
-                </div>
+                <div class="story-dots" id="storyDots"></div>
               </div>
               <div class="view" id="view-setup">
                 <h2>Setup</h2>
@@ -1139,7 +1188,7 @@
         <div class="view ctrlrow" id="view-ctrl-sectors">
           <div class="slide" id="sectorsSlide" data-pos="left"
                data-left="view-manual" data-right="view-setup">
-            <button class="slidelabel" data-pos="left">Manual</button>
+            <button class="slidelabel" data-pos="left">Story</button>
             <span class="slideslot"><span class="slideknob"></span></span>
             <button class="slidelabel" data-pos="right">Setting</button>
           </div>
@@ -1148,6 +1197,20 @@
             <button class="go" disabled aria-hidden="true" tabindex="-1"></button>
             <button class="round" disabled aria-hidden="true" tabindex="-1"></button>
             <button id="sectorsBack" class="round"><span class="key-label">Back</span></button>
+          </div>
+        </div>
+        <div class="view ctrlrow" id="view-ctrl-howtoplay">
+          <div class="slide" id="howtoplaySlide" data-pos="left"
+               data-left="view-manual" data-right="view-setup">
+            <button class="slidelabel" data-pos="left">Story</button>
+            <span class="slideslot"><span class="slideknob"></span></span>
+            <button class="slidelabel" data-pos="right">Setting</button>
+          </div>
+          <div class="tools">
+            <button id="howtoplayMenu">Menu</button>
+            <button class="go" disabled aria-hidden="true" tabindex="-1"></button>
+            <button class="round" disabled aria-hidden="true" tabindex="-1"></button>
+            <button id="howtoplayBack" class="round"><span class="key-label">Back</span></button>
           </div>
         </div>
         <div class="view ctrlrow" id="view-ctrl-game">
@@ -2455,22 +2518,38 @@ function refreshMenu() {
 /* One console, three swappable screens: menu, the interim sector picker
    (standing in for the chapter map until the level ledger is wired into the
    game — see Session_Notes_Code_And_Levels.md §6.4), and the game itself. */
-const SCREENS = ['menu', 'sectors', 'game'];
-/* Manual's left pane is Story everywhere except Chapter Map, which always
-   means rules there - and, for one look-in, the main menu's own How to Play
-   button, until the player leaves the menu again. That "until" is exactly
-   setScreen('menu'), so the override never outlives the visit that set it. */
-let manualShowsRules = false;
-function updateManualPane() {
-  const showRules = el('console').dataset.screen !== 'menu' || manualShowsRules;
-  el('view-story').classList.toggle('on', !showRules);
-  el('view-manual-rules').classList.toggle('on', showRules);
-  /* The menu's own slide otherwise keeps reading "Story" while its knob
-     sits over content that is actually the rules - relabel it to match
-     whichever the override is currently showing. */
-  document.querySelector('#menuSlide .slidelabel[data-pos="left"]').textContent =
-    showRules ? 'How to Play' : 'Story';
+/* Each frame is one 32px cell of a same-height strip - N across for an
+   N-frame sprite, just the one cell for something drawn as a single icon.
+   Percentage background-position lands exactly on frame i of N the same way
+   the board's own creature/fire strips already do (see .ticon.strip). */
+const STORY = [
+  { text: 'The coast is covered in fog. Monsters hide inside it.', img: 'assets/monster_a.png', frames: 4, frame: 0 },
+  { text: 'Fire is the only safety. Light drives the fog back.', img: 'assets/fire.png', frames: 4, frame: 2 },
+  { text: 'You were not there that night — only the survivors were.', img: 'assets/shelter.png', frames: 1, frame: 0 },
+  { text: 'Read what they saw. Find where the fires burned.', img: 'assets/fire_dim.png', frames: 4, frame: 0 },
+];
+let storyIdx = 0;
+function renderStory() {
+  const s = STORY[storyIdx];
+  const art = el('storyArt');
+  art.style.backgroundImage = `url(${s.img})`;
+  art.style.backgroundSize = `${s.frames * 100}% 100%`;
+  art.style.backgroundPositionX = s.frames > 1 ? `${(s.frame / (s.frames - 1)) * 100}%` : '0%';
+  el('storyText').textContent = s.text;
+  el('storyDots').innerHTML = STORY.map((_, i) => `<span class="${i === storyIdx ? 'on' : ''}"></span>`).join('');
 }
+el('storyPanel').onclick = () => {
+  const panel = el('storyPanel');
+  panel.classList.add('flash');
+  setTimeout(() => {
+    storyIdx = (storyIdx + 1) % STORY.length;
+    renderStory();
+    panel.classList.remove('flash');
+  }, 90);
+};
+renderStory();
+
+const SCREENS = ['menu', 'sectors', 'game', 'howtoplay'];
 
 function setScreen(name) {
   /* Leaving the game screen while its own boot splash is still pending
@@ -2490,14 +2569,13 @@ function setScreen(name) {
      own slide can drive the very same pair - shown on every screen except
      Game, which has its own Rules/Report toggle instead. */
   el('view-side-shared').classList.toggle('on', name !== 'game');
-  if (name === 'menu') { manualShowsRules = false; refreshMenu(); }
+  if (name === 'menu') refreshMenu();
   /* a stale lock message from whatever tile was tapped last visit should
      never be what greets the next one */
   if (name === 'sectors') {
     el('chapterMapTitle').textContent = T().ui.chapterMapTitle;
     el('chapterMapHint').textContent = T().ui.chapterMapHint;
   }
-  updateManualPane();
   fitConsole();
 }
 
@@ -2506,11 +2584,7 @@ el('menuContinue').onclick = () => {
   startGame(settings.stage);
 };
 el('menuChapterMap').onclick = () => setScreen('sectors');
-el('menuHowToPlay').onclick = () => {
-  manualShowsRules = true;
-  updateManualPane();
-  el('menuSlide').querySelector('.slidelabel[data-pos="left"]').click();
-};
+el('menuHowToPlay').onclick = () => setScreen('howtoplay');
 el('menuEndless').onclick = () => startGame(settings.stage, undefined, true);
 el('menuDaily').onclick = () => {
   const today = todayStr();
@@ -2525,6 +2599,8 @@ el('menuDaily').onclick = () => {
 };
 el('sectorsBack').onclick = () => setScreen('menu');
 el('sectorsMenu').onclick = () => setScreen('menu');
+el('howtoplayBack').onclick = () => setScreen('menu');
+el('howtoplayMenu').onclick = () => setScreen('menu');
 el('toMenu').onclick = () => {
   if (tutorialMode) { tutorialMode = false; settings.onboardingDone = true; saveSettings(); }
   setScreen('menu');
