@@ -2008,6 +2008,16 @@ function loadLevel(stage, seed, bandOverride) {
    Skipped in DEV, where the seed/stage devbar is for fast iteration, not
    for playing. */
 const BOOT_MS = 2200;
+/* Tracks the pending "install once the splash has held" timer, so leaving
+   the game screen mid-splash (Menu, during Daily's own load, was how this
+   first turned up) can cancel it - firing anyway forced view-top-game back
+   on, and install() with it, over whatever screen had since taken over,
+   because this timer never knew navigation had happened out from under it. */
+let bootTimer = null;
+function cancelBoot() {
+  if (bootTimer) { clearTimeout(bootTimer); bootTimer = null; }
+  el('view-top-loading').classList.remove('on');
+}
 function bootLevel(lvl, band) {
   if (DEV) { install(lvl, band); return; }
   /* Neither Endless nor Daily is a chapter run - showing the chapter's own
@@ -2030,7 +2040,9 @@ function bootLevel(lvl, band) {
   el('loadingBand').textContent = T().difficulty[lvl.difficulty] || lvl.difficulty;
   el('view-top-game').classList.remove('on');
   el('view-top-loading').classList.add('on');
-  setTimeout(() => {
+  if (bootTimer) clearTimeout(bootTimer);
+  bootTimer = setTimeout(() => {
+    bootTimer = null;
     el('view-top-loading').classList.remove('on');
     el('view-top-game').classList.add('on');
     install(lvl, band);
@@ -2380,6 +2392,11 @@ function refreshMenu() {
    game — see Session_Notes_Code_And_Levels.md §6.4), and the game itself. */
 const SCREENS = ['menu', 'sectors', 'game'];
 function setScreen(name) {
+  /* Leaving the game screen while its own boot splash is still pending
+     (Menu tapped mid-load) must drop that timer - otherwise it fires later
+     regardless, forcing the game's top view back on over whatever screen
+     navigation has since settled on. */
+  if (name !== 'game') cancelBoot();
   el('console').dataset.screen = name;
   SCREENS.forEach(s => {
     const top = el('view-top-' + s), side = el('view-side-' + s), ctrl = el('view-ctrl-' + s);
