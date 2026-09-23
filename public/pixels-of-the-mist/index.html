@@ -280,9 +280,14 @@
   /* Hint's own result line - same shape as the tutorial caption so it reads
      as "the game talking to you" rather than another line of testimony, but
      a different tone so the two are never mistaken for each other. */
-  #brief li.hint-caption{display:block;border:1px solid #5a3c2a;
-    background:#8c6a4a;color:#221408;padding:6px 8px;margin-bottom:8px;
-    line-height:1.5}
+  #brief li.hint-caption{display:flex;align-items:center;gap:8px;
+    border:1px solid #5a3c2a;background:#8c6a4a;color:#221408;
+    padding:6px 8px;margin-bottom:8px;line-height:1.5}
+  #brief li.hint-caption span{flex:1}
+  .hint-dismiss{flex:none;width:22px;height:22px;padding:0;border-radius:50%;
+    border:1px solid #3f2a1c;background:#d8c9a8;color:#2c3d1e;
+    font-size:12px;font-weight:900;line-height:1;cursor:pointer}
+  .hint-dismiss:active{background:#c3b494}
   /* A small count badge on the Hint key itself, the same idea as the fuel/life
      pips: at a glance, not a read. Hidden at zero so an empty stock never
      looks like an invitation. */
@@ -1175,11 +1180,12 @@ function loadSettings() {
     dailyStreak: s.dailyStreak || 0,
     dailyStreakDate: s.dailyStreakDate || '',
     solved: s.solved || 0,
-    /* Hint's own stock, spent one at a time by the Hint key. Two to start
-       with, so a new player can try the feature without three solves first;
-       earned afterward by playing (see the win handler), never bought back
-       just by reloading. */
-    hints: s.hints != null ? s.hints : 2,
+    /* Hint's own stock, spent one at a time by the Hint key; earned
+       afterward by playing (see the win handler), never bought back just by
+       reloading. Starting stock is bumped up to 10 for now, while Hint
+       itself is still being play-tested - drop this back down (2 was the
+       plan) once that settles. */
+    hints: s.hints != null ? s.hints : 10,
     /* Endless's position in its 10-slot band rotation, kept per chapter so
        returning to one later continues its own cycle rather than resetting
        it. Not itself an achievement - just state an achievement system can
@@ -1780,7 +1786,18 @@ function render(justLit) {
   if (!tutorialMode && hintText) {
     const cap = document.createElement('li');
     cap.className = 'hint-caption';
-    cap.textContent = hintText;
+    const txt = document.createElement('span');
+    txt.textContent = hintText;
+    cap.appendChild(txt);
+    /* Dismisses the hint line (and its spotlight) once the player has taken
+       it in - otherwise it sits there for the rest of the level, which reads
+       as stuck rather than acknowledged. */
+    const ok = document.createElement('button');
+    ok.className = 'hint-dismiss';
+    ok.setAttribute('aria-label', 'Got it');
+    ok.textContent = '✓';
+    ok.onclick = () => { clearHint(); render(); };
+    cap.appendChild(ok);
     ol.insertBefore(cap, ol.firstChild);
     if (hintCells && hintCells.size) spotlight(hintCells);
   }
