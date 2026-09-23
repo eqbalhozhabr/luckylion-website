@@ -655,16 +655,22 @@ function generateFrom(stage, seed, maxSeeds, tierStage) {
    the returned level stays the chapter that was asked for - the level
    still counts toward that chapter's progress and shows that chapter's
    name, it is simply built with the right entry's board/mechanics.
-   "veryhard" is a range rather than a single pin: an exact `expert` grade is
-   common on tier 4 (built for it) but would be rare and slow to hit on a
-   smaller tier if a future band ever aimed there; hard-or-expert keeps it
-   fast while still landing on genuine expert whenever the seed cooperates.
+   "veryhard" used to be pinned to a hard-or-expert range rather than a single
+   grade, on the theory that an exact `expert` would be rare and slow to hit.
+   Measured against tier 4 (the board actually built for it), that theory was
+   wrong: `expert` alone still resolves on the first seed essentially every
+   time, and the range was instead the bug - a coin-flip's worth of "veryhard"
+   slots graded plain `hard`, indistinguishable from the three ordinary hard
+   slots right before them (same 6x6 board, same difficulty label), which is
+   exactly what made the whole 3/3/3/1 rotation read as random. Pinned to
+   `expert` alone, slot 10 (20, 30, ...) is reliably the one level per lap
+   that actually reads as harder than the three before it.
    maxSeeds defaults far higher than generateFrom's: pinning to one band is
    inherently less likely per seed than a tier's own open range. */
 const TIER_OF_BAND = { easy: 1, medium: 2, hard: 3, veryhard: 4 };
 const ENDLESS_BAND_RANGE = {
   easy: ['easy', 'easy'], medium: ['medium', 'medium'], hard: ['hard', 'hard'],
-  veryhard: ['hard', 'expert'],
+  veryhard: ['expert', 'expert'],
 };
 function generateFromBanded(stage, seed, bandKey, maxSeeds) {
   const range = ENDLESS_BAND_RANGE[bandKey];
