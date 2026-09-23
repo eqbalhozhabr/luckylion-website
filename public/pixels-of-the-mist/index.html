@@ -2079,6 +2079,11 @@ el('submit').onclick = () => {
     if (settings.solved % 3 === 0) settings.hints++;
     if (dailyMode) {
       const today = todayStr();
+      /* Today's challenge locks only once it's actually been solved - entering
+         it and backing out without submitting must never burn the day's only
+         attempt (see loadLevel's own dailyMode reset for the "backed out"
+         half of that). */
+      settings.dailyDate = today; settings.dailyStage = P.stage;
       if (settings.dailyStreakDate !== today) {
         const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
         settings.dailyStreak = settings.dailyStreakDate === yesterday ? settings.dailyStreak + 1 : 1;
@@ -2409,7 +2414,9 @@ el('menuDaily').onclick = () => {
     el('menuDailyHint').textContent = T().ui.dailyAgain;
     return;
   }
-  settings.dailyDate = today; settings.dailyStage = settings.stage;
+  /* Only a win locks today's challenge (see the submit handler's own
+     dailyMode block) - entering it, or backing out without submitting, must
+     stay free to try again the same day. */
   startGame(settings.stage, dailyHash(today, settings.stage), false, true);
 };
 el('sectorsBack').onclick = () => setScreen('menu');
