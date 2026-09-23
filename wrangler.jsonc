@@ -28,5 +28,12 @@
       "database_id": "4e6a00a5-7607-4716-af29-5397faf25b8d",
       "migrations_dir": "./migrations"
     }
-  ]
+  ],
+  // Daily D1 -> GitHub backup (worker/index.js's "scheduled" export), at
+  // 03:00 UTC when traffic is at its lowest. Needs GITHUB_BACKUP_TOKEN set
+  // as a Runtime secret to actually push; without it the run just logs and
+  // skips.
+  "triggers": {
+    "crons": ["0 3 * * *"]
+  }
 }

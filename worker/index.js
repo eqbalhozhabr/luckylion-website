@@ -1,6 +1,7 @@
 import { requestLink, verify, me, setUsername, logout } from './routes/auth.js';
 import { getLevel, submit } from './routes/game.js';
 import { json } from './lib/http.js';
+import { runDailyBackup } from './lib/backup.js';
 
 // Cloudflare serves a matching static file before this Worker ever runs
 // (run_worker_first defaults to false - see wrangler.jsonc), so everything
@@ -31,5 +32,13 @@ export default {
       }
     }
     return json({ error: 'not_found' }, { status: 404 });
+  },
+
+  // Fired daily by the cron trigger in wrangler.jsonc - exports the D1
+  // tables that hold real account data (users, unlocks) to GitHub, so
+  // losing the D1 database wouldn't mean losing who's registered or what
+  // they've unlocked.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runDailyBackup(env));
   },
 };
