@@ -1133,22 +1133,24 @@
                 <label class="toggle-row">
                   <input type="checkbox" id="setupFlicker">
                   <span class="toggle"><span class="toggleknob"></span></span>
-                  <span>Reduce flicker</span>
+                  <span id="reduceFlickerLabel">Reduce flicker</span>
+                </label>
+                <label class="toggle-row">
+                  <input type="checkbox" id="setupReduceSudden">
+                  <span class="toggle"><span class="toggleknob"></span></span>
+                  <span id="reduceSuddenLabel">Reduce sudden sounds</span>
                 </label>
                 <div class="slider-row">
                   <span class="rowlabel">Music</span>
-                  <input type="range" class="lcdrange" disabled>
-                  <span class="soon-tag pixel-corners">Soon</span>
+                  <input type="range" class="lcdrange" id="setupMusic" min="0" max="1" step="0.05">
                 </div>
                 <div class="slider-row">
                   <span class="rowlabel">SFX</span>
-                  <input type="range" class="lcdrange" disabled>
-                  <span class="soon-tag pixel-corners">Soon</span>
+                  <input type="range" class="lcdrange" id="setupSfx" min="0" max="1" step="0.05">
                 </div>
                 <div class="slider-row">
                   <span class="rowlabel">Ambience</span>
-                  <input type="range" class="lcdrange" disabled>
-                  <span class="soon-tag pixel-corners">Soon</span>
+                  <input type="range" class="lcdrange" id="setupAmbience" min="0" max="1" step="0.05">
                 </div>
               </div>
             </div>
@@ -1266,6 +1268,7 @@
 <h1 id="title" hidden>Mist</h1>
 
 <script src="mist-engine.js"></script>
+<script src="mist-audio.js"></script>
 <script>
 'use strict';
 const el = id => document.getElementById(id);
@@ -1415,6 +1418,10 @@ function loadSettings() {
     solvedByStage: s.solvedByStage || {},
     chapterFirstDone: s.chapterFirstDone || {},
     lang: s.lang || 'en',
+    audioMusic: s.audioMusic != null ? s.audioMusic : 0.6,
+    audioSfx: s.audioSfx != null ? s.audioSfx : 0.8,
+    audioAmbience: s.audioAmbience != null ? s.audioAmbience : 0.5,
+    audioReduceSudden: !!s.audioReduceSudden,
   };
 }
 function saveSettings() {
@@ -1494,12 +1501,12 @@ function paintStaticChrome() {
     s.htpRule1, s.htpRule2, s.htpRule3, s.htpRule4, s.htpRule5, s.htpRule6,
   ].map(t => `<li>${t}</li>`).join('');
   document.querySelector('#view-setup h2').textContent = s.setupTitle;
-  document.querySelector('label.toggle-row span:last-child').textContent = s.reduceFlicker;
+  el('reduceFlickerLabel').textContent = s.reduceFlicker;
+  el('reduceSuddenLabel').textContent = s.reduceSuddenSounds;
   const rowLabels = document.querySelectorAll('#view-setup .rowlabel:not(#languageRowLabel)');
   rowLabels[0].textContent = s.music;
   rowLabels[1].textContent = s.sfx;
   rowLabels[2].textContent = s.ambience;
-  document.querySelectorAll('#view-setup .soon-tag').forEach(t => t.textContent = s.soon);
   const langLabel = document.getElementById('languageRowLabel');
   if (langLabel) langLabel.textContent = s.language;
   document.querySelector('#view-rules h2').textContent = s.rulesTitle;
@@ -1867,7 +1874,7 @@ function bindCell(d, i) {
    and they deliberately do not spend fuel. */
 function tap(i) {
   if (fires.has(i)) {
-    fires.delete(i); preview.delete(i); submitted = false; render(); return;
+    fires.delete(i); preview.delete(i); submitted = false; sndFireUnlight(); render(); return;
   }
   preview.has(i) ? preview.delete(i) : preview.add(i);
   render();
@@ -1876,6 +1883,7 @@ function commit(i) {
   if (fires.has(i)) return;
   if (fires.size >= P.nfires) { preview.add(i); render(); return; }
   fires.add(i); preview.delete(i); submitted = false;
+  sndFireLight();
   render(i);
 }
 
@@ -2284,13 +2292,15 @@ el('submit').onclick = () => {
   if (tutorialMode) { tutorialSubmit(); return; }
   const right = answerIsRight();
   const wasSubmitted = submitted;
-  if (!wasSubmitted && !right && lives > 0) lives--;
+  if (!wasSubmitted && !right && lives > 0) { lives--; sndHeartLost(); }
+  let chapterComplete = false;
   if (right && !countedSolve) {
     countedSolve = true; settings.solved++;
     const n = (settings.solvedByStage[P.stage] || 0) + 1;
     settings.solvedByStage[P.stage] = n;
     if (n === CHAPTER_LEVEL_COUNT && !settings.chapterFirstDone[P.stage]) {
       settings.chapterFirstDone[P.stage] = todayStr();
+      chapterComplete = true;
     }
     /* One hint every three solves keeps a hint roughly as close as the next
        level or two, whichever comes first — close enough to reach for,
@@ -2317,8 +2327,13 @@ el('submit').onclick = () => {
   }
   submitted = true;
   render();
-  if (right) showResult('win');
-  else if (!wasSubmitted && lives === 0) showResult('lose');
+  if (right) {
+    chapterComplete ? sndChapterComplete() : sndWin();
+    showResult('win');
+  } else if (!wasSubmitted && lives === 0) {
+    sndOverrun();
+    showResult('lose');
+  }
 };
 /* Takes over the readout: the board behind it stays exactly as submitted, so
    the fires the player got wrong (or right) are still there to look at. Only
@@ -2358,9 +2373,9 @@ function hideResult() {
   el('reset').disabled = false;
   el('reveal').disabled = false;
 }
-el('resultNext').onclick = () => loadLevel(P.stage);
-el('resultRetry').onclick = () => loadLevel(P.stage, P.seed, P.genBand);
-el('resultMenu').onclick = () => setScreen('menu');
+el('resultNext').onclick = () => { sndNavClick(); loadLevel(P.stage); };
+el('resultRetry').onclick = () => { sndNavClick(); loadLevel(P.stage, P.seed, P.genBand); };
+el('resultMenu').onclick = () => { sndNavClick(); setScreen('menu'); };
 el('reset').onclick = () => { fires = new Set(); preview = new Set(); submitted = false; clearHint(); render(); };
 /* Hint spends one of settings.hints to ask the worker for the next flattened
    step of the real solve, in order (P.hintsUsed), and shows exactly that one
@@ -2368,6 +2383,7 @@ el('reset').onclick = () => { fires = new Set(); preview = new Set(); submitted 
 el('reveal').onclick = () => {
   if (settings.hints <= 0) {
     hintCell = null; hintCells = null; hintText = T().ui.hintNone;
+    sndError();
     render();
     return;
   }
@@ -2377,6 +2393,7 @@ el('reveal').onclick = () => {
     b.disabled = false;
     if (!entry) {                      // trace exhausted, or a failed rebuild
       hintCell = null; hintCells = null; hintText = T().ui.hintExhausted;
+      sndError();
       render();
       return;
     }
@@ -2387,6 +2404,7 @@ el('reveal').onclick = () => {
     hintCells = clue ? clueCells(clue) : new Set();
     hintCells.add(entry.cell);
     hintText = hintMessage(entry);
+    sndHint();
     render();
   }, P.genBand);
 };
@@ -2459,6 +2477,7 @@ function wireSlide(sw) {
      didn't touch keeps showing its old position while the content it's
      supposedly switching has already changed under it. */
   const setPos = pos => {
+    if (sw.dataset.pos !== pos) sndSwitchClick();
     document.querySelectorAll(
       `.slide[data-left="${sw.dataset.left}"][data-right="${sw.dataset.right}"]`
     ).forEach(s => { s.dataset.pos = pos; });
@@ -2662,32 +2681,39 @@ function setScreen(name) {
     el('chapterMapTitle').textContent = T().ui.chapterMapTitle;
     el('chapterMapHint').textContent = T().ui.chapterMapHint;
   }
+  /* The fog/wind bed is only ever under actual play - on for the puzzle
+     itself, off the moment the player steps back out to any other screen. */
+  name === 'game' ? startAmbience() : stopAmbience();
   fitConsole();
 }
 
 el('menuContinue').onclick = () => {
+  sndNavClick();
   if (!settings.onboardingDone) { startTutorial(); return; }
   startGame(settings.stage);
 };
-el('menuChapterMap').onclick = () => setScreen('sectors');
-el('menuHowToPlay').onclick = () => setScreen('howtoplay');
-el('menuEndless').onclick = () => startGame(settings.stage, undefined, true);
+el('menuChapterMap').onclick = () => { sndNavClick(); setScreen('sectors'); };
+el('menuHowToPlay').onclick = () => { sndNavClick(); setScreen('howtoplay'); };
+el('menuEndless').onclick = () => { sndNavClick(); startGame(settings.stage, undefined, true); };
 el('menuDaily').onclick = () => {
   const today = todayStr();
   if (settings.dailyDate === today && settings.dailyStage === settings.stage) {
     el('menuDailyHint').textContent = T().ui.dailyAgain;
+    sndError();
     return;
   }
+  sndNavClick();
   /* Only a win locks today's challenge (see the submit handler's own
      dailyMode block) - entering it, or backing out without submitting, must
      stay free to try again the same day. */
   startGame(settings.stage, dailyHash(today, settings.stage), false, true);
 };
-el('sectorsBack').onclick = () => setScreen('menu');
-el('sectorsMenu').onclick = () => setScreen('menu');
-el('howtoplayBack').onclick = () => setScreen('menu');
-el('howtoplayMenu').onclick = () => setScreen('menu');
+el('sectorsBack').onclick = () => { sndNavClick(); setScreen('menu'); };
+el('sectorsMenu').onclick = () => { sndNavClick(); setScreen('menu'); };
+el('howtoplayBack').onclick = () => { sndNavClick(); setScreen('menu'); };
+el('howtoplayMenu').onclick = () => { sndNavClick(); setScreen('menu'); };
 el('toMenu').onclick = () => {
+  sndNavClick();
   if (tutorialMode) { tutorialMode = false; settings.onboardingDone = true; saveSettings(); }
   setScreen('menu');
 };
@@ -2696,6 +2722,25 @@ el('setupFlicker').onchange = (e) => {
   settings.reduceMotion = e.target.checked;
   saveSettings();
   document.body.classList.toggle('reduce-fx', settings.reduceMotion);
+};
+
+el('setupReduceSudden').checked = settings.audioReduceSudden;
+el('setupReduceSudden').onchange = (e) => {
+  settings.audioReduceSudden = e.target.checked;
+  saveSettings();
+};
+el('setupMusic').value = settings.audioMusic;
+el('setupSfx').value = settings.audioSfx;
+el('setupAmbience').value = settings.audioAmbience;
+el('setupMusic').oninput = (e) => {
+  settings.audioMusic = +e.target.value; saveSettings(); applyAudioVolumes();
+};
+el('setupSfx').oninput = (e) => {
+  settings.audioSfx = +e.target.value; saveSettings(); applyAudioVolumes();
+  sndNavClick();
+};
+el('setupAmbience').oninput = (e) => {
+  settings.audioAmbience = +e.target.value; saveSettings(); applyAudioVolumes();
 };
 
 el('setupLanguage').value = LANG;
