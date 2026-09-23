@@ -773,6 +773,21 @@
   /* Setup + Manual share the readout's own type; Setup adds a switch and a few
      inert sliders kept visually complete ahead of the audio engine that will
      drive them */
+  /* the account block sits above Setup's other rows in the same panel,
+     styled like a single self-contained row rather than the toggle/slider
+     rows below it, since it can be one of three quite different shapes
+     (signed out / pick a username / signed in) rather than one fixed
+     control. */
+  .account-block{margin-bottom:14px;padding-bottom:12px;
+                 border-bottom:1px solid #6f735a}
+  .account-block:empty{display:none}
+  .account-row{display:flex;gap:6px;margin-bottom:6px}
+  .account-row input{flex:1;min-width:0}
+  .account-status{font-size:7.5px;color:#4a4e36;line-height:1.5;
+                  min-height:1.5em}
+  .account-status.err{color:var(--bad)}
+  .account-who{font-size:8.5px;margin-bottom:8px}
+  .account-who b{color:#20241a}
   .toggle-row{display:flex;align-items:center;gap:9px;cursor:pointer;
               margin-bottom:12px;font-size:8.5px}
   .toggle-row input{position:absolute;opacity:0;width:0;height:0}
@@ -1018,6 +1033,7 @@
               </div>
               <div class="view" id="view-setup">
                 <h2>Setup</h2>
+                <div class="account-block" id="accountBlock"></div>
                 <label class="toggle-row">
                   <input type="checkbox" id="setupFlicker">
                   <span class="toggle"><span class="toggleknob"></span></span>
@@ -1168,7 +1184,31 @@ worker.onmessage = (e) => {
   if (hintCount !== undefined) cb(hint, hintCount, ms);
   else cb(level, ms);
 };
+/* Mirrors CHAPTERS' own unlock field further down this file (and
+   worker/lib/chapters.js's copy of the same rule on the server) - anything
+   not in this set never gets built locally, gated or not, because the
+   local Web Worker has no way to check an entitlement and must not be the
+   path anything gated can come from. Only ever grows to match whatever
+   CHAPTERS marks free (unlock: null); DEV bypasses it entirely so
+   in-progress chapters (unlock:{type:'dev'}) stay testable locally. */
+const LOCALLY_FREE_STAGES = new Set([1]);
+async function fetchServerLevel(stage, seed, band) {
+  const t0 = Date.now();
+  const qs = new URLSearchParams({ stage, seed });
+  if (band) qs.set('band', band);
+  try {
+    const res = await fetch('/api/level?' + qs, { credentials: 'same-origin' });
+    if (!res.ok) return { level: null, ms: Date.now() - t0 };
+    return { level: await res.json(), ms: Date.now() - t0 };
+  } catch (e) {
+    return { level: null, ms: Date.now() - t0 };
+  }
+}
 function requestLevel(stage, seed, cb, band) {
+  if (!DEV && !LOCALLY_FREE_STAGES.has(stage)) {
+    fetchServerLevel(stage, seed, band).then(({ level, ms }) => cb(level, ms));
+    return;
+  }
   const id = ++reqId;
   pending.set(id, cb);
   worker.postMessage({ id, stage, seed, band });
@@ -2603,6 +2643,141 @@ function finishTutorial() {
   setScreen('menu');
 }
 el('startTutorial').onclick = () => startTutorial();
+
+/* --------------------------------------------------------------- account */
+/* Email + username accounts exist so the server can know who bought what
+   (see requestLevel's own server-routing below, and /api/level's gate on
+   the Worker side) - a guest is simply anyone with no session cookie, and
+   never needs a row of their own for that to work. The session itself is
+   an httpOnly cookie the browser handles automatically; nothing about it
+   is ever read or stored here. */
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+let accountState = { loggedIn: false };
+async function refreshAccount() {
+  try {
+    const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+    accountState = await res.json();
+  } catch (e) {
+    accountState = { loggedIn: false };
+  }
+  renderAccount();
+}
+function renderAccount() {
+  const box = el('accountBlock');
+  box.innerHTML = '';
+  if (!accountState.loggedIn) {
+    const row = document.createElement('div');
+    row.className = 'account-row';
+    const input = document.createElement('input');
+    input.type = 'email';
+    input.placeholder = 'you@example.com';
+    input.autocomplete = 'email';
+    const btn = document.createElement('button');
+    btn.className = 'menu-btn pixel-corners';
+    btn.textContent = 'Send link';
+    row.append(input, btn);
+    const status = document.createElement('div');
+    status.className = 'account-status';
+    status.textContent = 'Sign in to keep purchases and progress on any device.';
+    btn.onclick = async () => {
+      const email = input.value.trim();
+      if (!email) return;
+      btn.disabled = true;
+      status.className = 'account-status';
+      status.textContent = 'Sending…';
+      try {
+        const res = await fetch('/api/auth/request-link', {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'failed');
+        if (data.devLink) {
+          status.textContent = 'Dev mode — no email sent: ';
+          const a = document.createElement('a');
+          a.href = data.devLink; a.textContent = data.devLink;
+          status.appendChild(a);
+        } else {
+          status.textContent = 'Check your email for a sign-in link.';
+        }
+      } catch (e) {
+        status.className = 'account-status err';
+        status.textContent = 'Could not send the link. Try again in a moment.';
+      }
+      btn.disabled = false;
+    };
+    box.append(row, status);
+    return;
+  }
+
+  const who = document.createElement('div');
+  who.className = 'account-who';
+  who.innerHTML = accountState.username
+    ? `Signed in as <b>${escapeHtml(accountState.username)}</b>`
+    : `Signed in as <b>${escapeHtml(accountState.email)}</b>`;
+  box.appendChild(who);
+
+  if (!accountState.username) {
+    const row = document.createElement('div');
+    row.className = 'account-row';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'pick a username';
+    input.maxLength = 20;
+    const btn = document.createElement('button');
+    btn.className = 'menu-btn pixel-corners';
+    btn.textContent = 'Save';
+    row.append(input, btn);
+    const status = document.createElement('div');
+    status.className = 'account-status';
+    btn.onclick = async () => {
+      const username = input.value.trim();
+      if (!username) return;
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/auth/username', {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'failed');
+        accountState.username = data.username;
+        renderAccount();
+        return;
+      } catch (e) {
+        status.className = 'account-status err';
+        status.textContent = e.message === 'username_taken'
+          ? 'That username is taken.' : 'Letters, numbers, underscore, 3-20 characters.';
+      }
+      btn.disabled = false;
+    };
+    box.append(row, status);
+  }
+
+  const signOut = document.createElement('button');
+  signOut.className = 'menu-btn pixel-corners';
+  signOut.textContent = 'Sign out';
+  signOut.onclick = async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    accountState = { loggedIn: false };
+    renderAccount();
+  };
+  box.appendChild(signOut);
+}
+refreshAccount();
+/* The verify redirect lands back here with ?loggedin=1 so a fresh sign-in
+   is reflected immediately without the player having to open Setup - the
+   query flag itself is only a one-time signal, so it's stripped right away
+   rather than sticking around on reload/share. */
+if (/[?&]loggedin=1\b/.test(location.search)) {
+  history.replaceState(null, '', location.pathname);
+}
 
 buildChapterGrid();
 prefetchNext(settings.stage);
