@@ -845,6 +845,13 @@
   html.rtl-text .account-who, html.rtl-text #resultBody, html.rtl-text #resultStreak,
   html.rtl-text #brief li, html.rtl-text .story-bubble p, html.rtl-text #chapterMapHint {
     direction: rtl; text-align: right;
+    /* One step up from the rest of the RTL fix (Lalezar swap): still too
+       small to read comfortably on a phone at this console's tiny point
+       sizes. Scoped to this same prose list, not html.rtl-text * - a
+       universal em bump on every element compounds down the DOM (each
+       nested node re-multiplies its already-bumped parent), so it has to
+       land on these specific leaf text elements instead. */
+    font-size: 1.15em;
     /* A run the browser treats as unbreakable (ZWNJ-joined Persian/Arabic
        words in particular render differently across engines) was spilling
        clean out of #hint's box instead of wrapping - force a break inside
