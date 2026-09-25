@@ -44,8 +44,19 @@ function flattenTrace(trace) {
   return out;
 }
 
+/* A raw testimony line that, on its own, already rules fire out of a given
+   square - the one case worth searching for directly when the trace itself
+   has no logged step for that exact square (see below). */
+function findNoFireBesideClue(clues, mp, cell) {
+  for (let i = 0; i < clues.length; i++) {
+    const c = clues[i];
+    if (c.kind === 'NO_FIRE_BESIDE' && mp.nb8[c.args[0]].includes(cell)) return i;
+  }
+  return -1;
+}
+
 self.onmessage = function (e) {
-  const { id, op, stage, seed, band, hintIndex } = e.data;
+  const { id, op, stage, seed, band, hintIndex, fires } = e.data;
   const t0 = Date.now();
   /* Endless passes a band key (see generateFromBanded in mist-generate.js);
      everything else - the campaign, sectors, dev New level - leaves it
@@ -54,15 +65,51 @@ self.onmessage = function (e) {
                             : generateFrom(stage, seed >>> 0);
 
   /* Hint replays the same deterministic solve and hands back one flattened
-     step at hintIndex - never the trace itself, never anything past that
-     single index, so a hint tap can only ever advance one fact at a time. */
+     step - never the trace itself, never anything past that single fact, so
+     a hint tap can only ever advance one fact at a time.
+
+     Before it does, it checks the fires the player has actually placed
+     against the real solution (available here, never sent to the page):
+     a fire sitting somewhere the solution doesn't is a live mistake, and
+     pointing at it is worth more than another forward fact the player may
+     already have worked out for themselves. Only once no such mistake is
+     left does it fall back to the plain forward walk - which itself skips
+     past any "light a fire here" step the player has already carried out,
+     so a correctly-placed fire is never handed back as new information. */
   if (op === 'hint') {
     let hint = null, hintCount = 0, error = null;
     try {
       const lvl = build();
       const flat = lvl && flattenTrace(lvl.trace);
       hintCount = flat ? flat.length : 0;
-      hint = flat ? (flat[hintIndex] || null) : null;
+      if (lvl && flat) {
+        const placed = Array.isArray(fires) ? fires : [];
+        const solutionSet = new Set(lvl.solution);
+        const wrong = placed.filter(c => !solutionSet.has(c)).sort((a, b) => a - b);
+        if (wrong.length) {
+          const cell = wrong[0];
+          let clueIdx = -1, move = null;
+          for (const step of flat) {
+            if (step.field === 'fire' && step.value === false && step.cell === cell) {
+              clueIdx = step.clueIdx; move = step.move; break;
+            }
+          }
+          if (clueIdx < 0) {
+            const mp = makeMap(lvl.map.rows, lvl.zones);
+            clueIdx = findNoFireBesideClue(lvl.clues, mp, cell);
+          }
+          hint = { kind: 'mistake', cell, move, clueIdx, field: 'fire', value: false };
+        } else {
+          const placedSet = new Set(placed);
+          let idx = hintIndex;
+          while (idx < flat.length && flat[idx].field === 'fire' &&
+                 flat[idx].value === true && placedSet.has(flat[idx].cell)) {
+            idx++;
+          }
+          const entry = flat[idx];
+          hint = entry ? Object.assign({ kind: 'fact', index: idx }, entry) : null;
+        }
+      }
     } catch (err) {
       error = String(err && err.stack || err);
     }

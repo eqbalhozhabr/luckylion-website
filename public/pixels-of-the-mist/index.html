@@ -622,6 +622,9 @@
     font-size:10px;font-weight:900;line-height:15px;text-align:center;
     box-shadow:0 1px 0 #3c0e08;pointer-events:none;
     animation:hintPulse 1.1s ease-in-out infinite}
+  /* A wrong fire, not a forward fact - same alert colour, a firmer square
+     badge instead of the round "next fact" one so the two never look alike. */
+  .hint-mark.mistake{border-radius:3px;background:#8a2418}
   @keyframes hintPulse{0%,100%{opacity:.6;transform:scale(.85)}
     50%{opacity:1;transform:scale(1.08)}}
   ol.brief li.ok{color:var(--ok)} ol.brief li.no{color:var(--bad)}
@@ -1350,11 +1353,13 @@ function requestLevel(stage, seed, cb, band) {
    so Hint rebuilds the level in the worker and asks for one flattened step of
    the solver's own working, by index - P.hintsUsed counts up so each tap of
    the key lands one fact further into the trace than the last, never the same
-   fact twice and never the whole thing at once. */
-function requestHint(stage, seed, hintIndex, cb, band) {
+   fact twice and never the whole thing at once. The player's current fires go
+   along too, so the worker can check them against the real solution (see
+   mist-worker.js) instead of handing back a fact the board already shows. */
+function requestHint(stage, seed, hintIndex, firesArr, cb, band) {
   const id = ++reqId;
   pending.set(id, cb);
-  worker.postMessage({ id, op: 'hint', stage, seed, hintIndex, band });
+  worker.postMessage({ id, op: 'hint', stage, seed, hintIndex, fires: firesArr, band });
 }
 
 /* The next level is generated while the current one is being solved, so
@@ -1376,11 +1381,13 @@ function prefetchNext(stage, band) {
 let P, W, H, grid, zones, landmarks, scorch;
 let fires, preview, submitted, prevLit, countedSolve;
 /* Hint's own display state: the one cell (plus its clue's neighbourhood, for
-   context) it just revealed, and the sentence explaining it. Cleared on any
-   fresh level and on Clear, so a stale hint never points at a board the
-   player has already moved past. */
-let hintCell = null, hintCells = null, hintText = '';
-function clearHint() { hintCell = null; hintCells = null; hintText = ''; }
+   context) it just revealed, the sentence explaining it, and whether that
+   was a forward fact or a flag on a fire the player already placed wrong
+   (hintKind - see requestHint's onclick handler below). Cleared on any fresh
+   level and on Clear, so a stale hint never points at a board the player has
+   already moved past. */
+let hintCell = null, hintCells = null, hintText = '', hintKind = 'fact';
+function clearHint() { hintCell = null; hintCells = null; hintText = ''; hintKind = 'fact'; }
 /* a wrong submission costs a heart; what happens at zero is still open */
 const MAX_LIVES = 3;
 let lives = MAX_LIVES;
@@ -1748,14 +1755,70 @@ function clueIcon(c) {
    of it — the only way this works on a touch screen */
 let pinned = null;
 
+/* The testimony panel only numbers the lines it actually shows text for (a
+   SCORCH clue draws on the rock instead - see clueText()), so citing "witness
+   #N" in a hint has to count the same way or the number would not match what
+   the player sees in that panel. */
+function clueNumber(idx) {
+  let n = 0;
+  for (let i = 0; i <= idx; i++) if (clueText(mpView, P.clues[i])) n++;
+  return n;
+}
+
+/* The actual logical step behind a trace entry, in the solver's own words -
+   which technique resolved it and, where one exists, the exact testimony
+   line that justifies it. This is what turns Hint from "light a fire here"
+   into "here's why": every `move` tag the solver can produce (see the
+   Deduce class in mist-generate.js) has its own sentence, so the reason
+   given always matches the real deduction, never a guess of Hint's own. */
+function hintMoveReason(entry) {
+  const s = T().ui;
+  const clue = entry.clueIdx >= 0 ? clueText(mpView, P.clues[entry.clueIdx]) : null;
+  switch (entry.move) {
+    case 'FORCED_FOG': return s.hintWhyForcedFog;
+    case 'ONLY_SOURCE': return s.hintWhyOnlySource;
+    case 'LAST_STANDING':
+      return entry.field === 'fire' ? s.hintWhyLastStandingFire(clue)
+                                     : s.hintWhyLastStandingFog(clue);
+    case 'FUEL_SPENT': return s.hintWhyFuelSpent(P.nfires);
+    case 'FUEL_FORCED': return s.hintWhyFuelForced;
+    case 'MONSTER_COUNT':
+      return entry.value ? s.hintWhyMonsterCountFog(clue) : s.hintWhyMonsterCountClear(clue);
+    case 'SCORCH': return entry.value ? s.hintWhyScorchFire : s.hintWhyScorchNoFire;
+    case 'DISJOINT': return s.hintWhyDisjoint;
+    case 'FORWARD': return s.hintWhyForward;
+  }
+  return null;
+}
+
 /* One flattened trace entry, turned into a sentence that gives away exactly
    one fact and nothing past it - never the arrangement, always one square's
-   verdict, phrased the same way regardless of which rule the solver actually
-   used to reach it (the trace's own `move` tag stays internal). */
+   verdict, with the reasoning behind it (see hintMoveReason above). Falls
+   back to the plain verdict on its own only for a move with no template,
+   which should not happen in practice. */
 function hintMessage(entry) {
   const s = T().ui;
+  const reason = hintMoveReason(entry);
+  if (reason) return reason;
   if (entry.field === 'fire') return entry.value ? s.hintFireHere : s.hintNoFireHere;
   return entry.value ? s.hintStaysDark : s.hintClearsSafe;
+}
+
+/* A fire the player placed that the real solution never has. Cites the exact
+   testimony line that rules it out when the solve found one - either the
+   step that resolved this precise square (see mist-worker.js's search
+   through the flattened trace) or, failing that, a plain "no fire anywhere
+   around here" line that contradicts it directly. Only when neither exists
+   (the square was ruled out by combining several facts at once, with no
+   single line to point at) does it fall back to a plain "this is wrong". */
+function hintMistakeMessage(entry) {
+  const s = T().ui;
+  if (entry.clueIdx >= 0) {
+    return s.hintWrongFireCited(clueNumber(entry.clueIdx), clueText(mpView, P.clues[entry.clueIdx]));
+  }
+  const reason = entry.move ? hintMoveReason(entry) : null;
+  if (reason) return s.hintWrongFireBecause(reason);
+  return s.hintWrongFire;
 }
 
 function spotlight(set) {
@@ -2000,8 +2063,10 @@ function render(justLit) {
     if (!tutorialMode && hintCell === i) {
       d.classList.add('hint-target');
       const hm = document.createElement('div');
-      hm.className = 'hint-mark';
-      hm.textContent = '!';
+      /* A flagged mistake reads visually apart from a forward fact - a cross
+         on the fire that's wrong, rather than the usual exclamation mark. */
+      hm.className = 'hint-mark' + (hintKind === 'mistake' ? ' mistake' : '');
+      hm.textContent = hintKind === 'mistake' ? '×' : '!';
       d.appendChild(hm);
     }
   }
@@ -2396,33 +2461,36 @@ el('resultNext').onclick = () => { sndNavClick(); loadLevel(P.stage); };
 el('resultRetry').onclick = () => { sndNavClick(); loadLevel(P.stage, P.seed, P.genBand); };
 el('resultMenu').onclick = () => { sndNavClick(); setScreen('menu'); };
 el('reset').onclick = () => { fires = new Set(); preview = new Set(); submitted = false; clearHint(); render(); };
-/* Hint spends one of settings.hints to ask the worker for the next flattened
-   step of the real solve, in order (P.hintsUsed), and shows exactly that one
-   fact - never the fires themselves, never more than one square at a time. */
+/* Hint spends one of settings.hints to ask the worker for either a flagged
+   mistake among the player's own placed fires, or the next flattened step of
+   the real solve (P.hintsUsed only ever advances for the latter - see
+   requestHint/mist-worker.js) - never the fires themselves, never more than
+   one square at a time. */
 el('reveal').onclick = () => {
   if (settings.hints <= 0) {
-    hintCell = null; hintCells = null; hintText = T().ui.hintNone;
+    hintCell = null; hintCells = null; hintText = T().ui.hintNone; hintKind = 'fact';
     sndError();
     render();
     return;
   }
   const b = el('reveal');
   b.disabled = true;
-  requestHint(P.stage, P.seed, P.hintsUsed, (entry) => {
+  requestHint(P.stage, P.seed, P.hintsUsed, [...fires], (entry) => {
     b.disabled = false;
     if (!entry) {                      // trace exhausted, or a failed rebuild
-      hintCell = null; hintCells = null; hintText = T().ui.hintExhausted;
+      hintCell = null; hintCells = null; hintText = T().ui.hintExhausted; hintKind = 'fact';
       sndError();
       render();
       return;
     }
     settings.hints--; saveSettings(); updateHintBadge();
-    P.hintsUsed++;
+    if (entry.kind !== 'mistake') P.hintsUsed = entry.index + 1;
+    hintKind = entry.kind;
     hintCell = entry.cell;
     const clue = entry.clueIdx >= 0 ? P.clues[entry.clueIdx] : null;
     hintCells = clue ? clueCells(clue) : new Set();
     hintCells.add(entry.cell);
-    hintText = hintMessage(entry);
+    hintText = entry.kind === 'mistake' ? hintMistakeMessage(entry) : hintMessage(entry);
     sndHint();
     render();
   }, P.genBand);
