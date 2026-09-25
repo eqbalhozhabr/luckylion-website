@@ -99,6 +99,14 @@ self.onmessage = function (e) {
             clueIdx = findNoFireBesideClue(lvl.clues, mp, cell);
           }
           hint = { kind: 'mistake', cell, move, clueIdx, field: 'fire', value: false };
+        } else if (placed.length === lvl.nfires) {
+          /* Every fire is placed and none of them is wrong, so this IS the
+             solution - the only other way to reach this cell count with no
+             mistake. Nothing left to reveal; saying so (and for free, since
+             it is not new information) beats handing back a technically-true
+             fact about a square the player never touched, which reads as a
+             complaint about a board that is already right. */
+          hint = { kind: 'solved' };
         } else {
           const placedSet = new Set(placed);
           let idx = hintIndex;

@@ -2483,6 +2483,14 @@ el('reveal').onclick = () => {
       render();
       return;
     }
+    if (entry.kind === 'solved') {
+      /* Every fire matches the solution - there is nothing left to reveal, so
+         this doesn't cost a hint and highlights no square (see mist-worker.js). */
+      hintCell = null; hintCells = null; hintText = T().ui.hintSolved; hintKind = 'solved';
+      sndHint();
+      render();
+      return;
+    }
     settings.hints--; saveSettings(); updateHintBadge();
     if (entry.kind !== 'mistake') P.hintsUsed = entry.index + 1;
     hintKind = entry.kind;
