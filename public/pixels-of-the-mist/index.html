@@ -891,6 +891,26 @@
                  linear-gradient(45deg,#0f1114 25%,transparent 25%,transparent 75%,#0f1114 75%);
                background-size:3px 3px;background-position:0 0,1.5px 1.5px}
   .story-panel.flash::after{opacity:.6}
+  /* One-time coach-mark tour of the menu's own chrome (see startUiTour) - a
+     spotlight ring (a border plus an oversized box-shadow, the standard
+     cutout-in-a-scrim trick) with a comic-style callout bubble beside it,
+     same ink/paper/notch language as the Story panel rather than a generic
+     tooltip library look. */
+  .tour-scrim{position:fixed;inset:0;background:rgba(10,11,9,.6);z-index:60;
+              transition:opacity .2s}
+  .tour-spot{position:fixed;z-index:61;border:2px solid var(--sel);border-radius:6px;
+             box-shadow:0 0 0 9999px rgba(10,11,9,.6);pointer-events:none;
+             transition:left .25s,top .25s,width .25s,height .25s}
+  .tour-bubble{position:fixed;z-index:62;max-width:min(78vw,300px);
+               background:var(--panel);color:var(--ink);padding:12px 14px;
+               border:2px solid var(--sel);box-shadow:0 4px 0 rgba(0,0,0,.35);
+               transition:left .25s,top .25s}
+  .tour-bubble .tour-text{margin:0 0 10px;font-size:14px;line-height:1.5}
+  .tour-bubble .tour-actions{display:flex;justify-content:space-between;gap:10px}
+  .tour-bubble .tour-skip{background:none;border:none;color:var(--muted);
+               font-size:12.5px;text-decoration:underline;cursor:pointer;padding:4px}
+  .tour-bubble .tour-next{background:var(--sel);color:#2a2410;border:none;
+               font-weight:700;font-size:13px;padding:7px 14px;cursor:pointer}
   /* the between-levels screen: same glass, printed rather than drawn — a
      big stage number the way an old cartridge splash gave you one, the
      chapter name under it, and the difficulty as a little key-shaped chip
@@ -1074,6 +1094,7 @@
           <div class="lcd menutop">
             <h2 class="menu-title small">How to Play</h2>
             <button class="menu-btn pixel-corners" id="startTutorial">Play Tutorial</button>
+            <button class="menu-btn pixel-corners" id="replayUiTour">Show Interface Tour</button>
             <ol class="rulelist">
               <li>Tap a square to preview a fire.</li>
               <li>Hold or double-tap to light it — this spends fuel.</li>
@@ -1415,6 +1436,11 @@ function loadSettings() {
     stage: s.stage || 1,
     played: !!s.played,
     onboardingDone: !!s.onboardingDone,
+    /* The one-time coach-mark tour of the menu's own buttons - separate from
+       onboardingDone (the puzzle-mechanics tutorial): a returning player who
+       already knows how to solve a level has still never been told what
+       Chapter Map/Endless/the Story-Setup switch actually do. */
+    uiTourDone: !!s.uiTourDone,
     reduceMotion: !!s.reduceMotion,
     dailyDate: s.dailyDate || '',
     dailyStage: s.dailyStage || 0,
@@ -1523,6 +1549,7 @@ function paintStaticChrome() {
   document.querySelector('#view-top-sectors .menu-title').textContent = s.selectChapter;
   document.querySelector('#view-top-howtoplay .menu-title').textContent = s.howToPlay;
   el('startTutorial').textContent = s.playTutorial;
+  el('replayUiTour').textContent = s.replayTour;
   document.querySelector('#view-top-howtoplay .rulelist').innerHTML = [
     s.htpRule1, s.htpRule2, s.htpRule3, s.htpRule4, s.htpRule5, s.htpRule6,
   ].map(t => `<li>${t}</li>`).join('');
@@ -2715,6 +2742,100 @@ function refreshMenu() {
   el('menuDaily').classList.toggle('done', doneToday);
   if (!doneToday) el('menuDailyHint').textContent = '';
 }
+
+/* ------------------------------------------------------------- UI tour */
+/* A one-time coach-mark walkthrough of the menu's own chrome - separate
+   from the Rules tutorial (which teaches the puzzle itself, not the
+   console) and from the Report call-outs (which explain testimony as it
+   appears). Fires from setScreen('menu') the moment settings.uiTourDone is
+   still false - which includes the very first menu a brand-new save ever
+   renders, before their first tap on Start sends them into the Rules
+   tutorial (see menuContinue's own onboardingDone check): the tour
+   explains the console's buttons first, then Start explains the puzzle.
+   An existing save simply gets it once on its first load after this
+   feature ships. Selectors, not bare ids, so the progress step can target
+   the whole .menu-progress group rather than just its thin segment bar. */
+const TOUR_STEPS = [
+  { sel: '#menuContinue', textKey: 'tourStart' },
+  { sel: '.menu-progress', textKey: 'tourProgress' },
+  { sel: '#menuChapterMap', textKey: 'tourChapterMap' },
+  { sel: '#menuEndless', textKey: 'tourEndless' },
+  { sel: '#menuSlide', textKey: 'tourSwitch' },
+  { sel: '#menuHowToPlay', textKey: 'tourHowTo' },
+];
+let tourIndex = -1;
+let tourEls = null;
+function ensureTourEls() {
+  if (tourEls) return tourEls;
+  const scrim = document.createElement('div');
+  scrim.className = 'tour-scrim';
+  const spot = document.createElement('div');
+  spot.className = 'tour-spot';
+  const bubble = document.createElement('div');
+  bubble.className = 'tour-bubble pixel-corners';
+  bubble.innerHTML = '<p class="tour-text"></p><div class="tour-actions">' +
+    '<button class="tour-skip"></button><button class="tour-next pixel-corners"></button></div>';
+  document.body.append(scrim, spot, bubble);
+  tourEls = {
+    scrim, spot, bubble,
+    text: bubble.querySelector('.tour-text'),
+    skip: bubble.querySelector('.tour-skip'),
+    next: bubble.querySelector('.tour-next'),
+  };
+  tourEls.skip.onclick = () => { sndNavClick(); endUiTour(); };
+  tourEls.next.onclick = () => { sndNavClick(); advanceUiTour(); };
+  addEventListener('resize', () => { if (tourIndex >= 0) placeTourStep(); });
+  return tourEls;
+}
+function startUiTour() {
+  ensureTourEls();
+  tourIndex = 0;
+  placeTourStep();
+}
+/* Skips forward past any step whose target isn't actually on screen right
+   now (a narrow layout that hides one, say) instead of aborting the whole
+   tour over one missing button. */
+function placeTourStep() {
+  const { scrim, spot, bubble, text, next, skip } = ensureTourEls();
+  while (tourIndex < TOUR_STEPS.length) {
+    const target = document.querySelector(TOUR_STEPS[tourIndex].sel);
+    if (target && target.offsetParent !== null) break;
+    tourIndex++;
+  }
+  if (tourIndex >= TOUR_STEPS.length) { endUiTour(); return; }
+  const step = TOUR_STEPS[tourIndex];
+  const target = document.querySelector(step.sel);
+  scrim.style.display = spot.style.display = bubble.style.display = 'block';
+  const r = target.getBoundingClientRect();
+  const pad = 6;
+  spot.style.left = (r.left - pad) + 'px';
+  spot.style.top = (r.top - pad) + 'px';
+  spot.style.width = (r.width + pad * 2) + 'px';
+  spot.style.height = (r.height + pad * 2) + 'px';
+  text.textContent = T().ui[step.textKey];
+  next.textContent = tourIndex === TOUR_STEPS.length - 1 ? T().ui.tourDone : T().ui.tourNext;
+  skip.textContent = T().ui.tourSkip;
+  bubble.style.visibility = 'hidden';
+  const bw = bubble.offsetWidth, bh = bubble.offsetHeight;
+  const vw = innerWidth, vh = innerHeight;
+  let top = r.bottom + 14;
+  if (top + bh > vh - 12) top = Math.max(12, r.top - bh - 14);
+  let left = Math.min(Math.max(12, r.left + r.width / 2 - bw / 2), vw - bw - 12);
+  bubble.style.top = top + 'px';
+  bubble.style.left = left + 'px';
+  bubble.style.visibility = 'visible';
+}
+function advanceUiTour() {
+  tourIndex++;
+  placeTourStep();
+}
+function endUiTour() {
+  tourIndex = -1;
+  if (tourEls) tourEls.scrim.style.display = tourEls.spot.style.display = tourEls.bubble.style.display = 'none';
+  if (!settings.uiTourDone) { settings.uiTourDone = true; saveSettings(); }
+}
+el('replayUiTour').onclick = () => { sndNavClick(); setScreen('menu'); startUiTour(); };
+
 /* One console, three swappable screens: menu, the interim sector picker
    (standing in for the chapter map until the level ledger is wired into the
    game — see Session_Notes_Code_And_Levels.md §6.4), and the game itself. */
@@ -2769,7 +2890,15 @@ function setScreen(name) {
      own slide can drive the very same pair - shown on every screen except
      Game, which has its own Rules/Report toggle instead. */
   el('view-side-shared').classList.toggle('on', name !== 'game');
-  if (name === 'menu') refreshMenu();
+  if (name === 'menu') {
+    refreshMenu();
+    /* First time back on the menu with the tour still owed - covers both a
+       fresh player just out of the Rules tutorial and an existing save that
+       simply predates this feature. A stray re-entry mid-tour (window
+       resize firing another setScreen, say) must never restart it, hence
+       the tourIndex guard. */
+    if (!settings.uiTourDone && tourIndex < 0) startUiTour();
+  }
   /* a stale lock message from whatever tile was tapped last visit should
      never be what greets the next one */
   if (name === 'sectors') {
