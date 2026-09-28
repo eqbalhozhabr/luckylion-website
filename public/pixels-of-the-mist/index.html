@@ -1995,7 +1995,15 @@ window.addEventListener('pointercancel', endPress);
 /* Tap previews, hold or double-tap lights. Murdoku commits on hold too, but
    there the reward is rows getting crossed out; here it is the mist visibly
    lifting, which is the same satisfaction without asking the player to keep
-   their own notes. */
+   their own notes.
+   Double-tap is detected by hand (lastTapCell/lastTapTime below) rather
+   than left to the browser's own dblclick: pointerdown's own
+   preventDefault (needed so a long-press never also fires a click) makes
+   the UA skip every compatibility mouse event for that pointer, dblclick
+   included, so a real dblclick listener here would simply never fire, on
+   mouse or touch alike. */
+let lastTapCell = -1, lastTapTime = 0;
+const DBLTAP_MS = 320;
 function bindCell(d, i) {
   let timer = null, held = false;
   d.addEventListener('pointerdown', e => {
@@ -2004,10 +2012,17 @@ function bindCell(d, i) {
   });
   d.addEventListener('pointerup', () => {
     clearTimeout(timer);
-    if (!held) tap(i);
+    if (held) return;
+    const now = performance.now();
+    if (lastTapCell === i && now - lastTapTime < DBLTAP_MS) {
+      lastTapCell = -1;
+      commit(i);
+    } else {
+      lastTapCell = i; lastTapTime = now;
+      tap(i);
+    }
   });
   d.addEventListener('pointerleave', () => clearTimeout(timer));
-  d.addEventListener('dblclick', e => { e.preventDefault(); commit(i); });
   d.addEventListener('contextmenu', e => e.preventDefault());
 }
 
