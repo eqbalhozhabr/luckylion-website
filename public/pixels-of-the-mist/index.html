@@ -843,18 +843,35 @@
   html.rtl-text .account-who, html.rtl-text #resultBody, html.rtl-text #resultStreak,
   html.rtl-text #brief li, html.rtl-text .story-bubble p, html.rtl-text #chapterMapHint {
     direction: rtl; text-align: right;
-    /* One step up from the rest of the RTL fix (Lalezar swap): still too
-       small to read comfortably on a phone at this console's tiny point
-       sizes. Scoped to this same prose list, not html.rtl-text * - a
-       universal em bump on every element compounds down the DOM (each
-       nested node re-multiplies its already-bumped parent), so it has to
-       land on these specific leaf text elements instead. */
-    font-size: 1.15em;
     /* A run the browser treats as unbreakable (ZWNJ-joined Persian/Arabic
        words in particular render differently across engines) was spilling
        clean out of #hint's box instead of wrapping - force a break inside
        one if it ever has to, rather than letting it escape the console. */
     overflow-wrap: anywhere;
+  }
+  /* The em bump below was sized for a phone, where the case fills the
+     screen and there's room to spare (see fitConsole's own early return for
+     max-width:820px). Desktop never resizes that layout - it renders the
+     console at its natural size first and only shrinks the whole thing
+     afterward with a transform:scale(), which scales an overflow down
+     without ever fixing it - so the same bump that reads fine on a phone
+     spills Persian/Arabic text out of #brief's fixed-width box on a wide
+     screen. Split by viewport instead of one size for both. */
+  @media (max-width:820px) {
+    html.rtl-text .rulelist, html.rtl-text .hint-block, html.rtl-text #hint,
+    html.rtl-text #status, html.rtl-text .menu-hint, html.rtl-text .account-status,
+    html.rtl-text .account-who, html.rtl-text #resultBody, html.rtl-text #resultStreak,
+    html.rtl-text #brief li, html.rtl-text .story-bubble p, html.rtl-text #chapterMapHint {
+      font-size: 1.25em;
+    }
+  }
+  @media (min-width:821px) {
+    html.rtl-text .rulelist, html.rtl-text .hint-block, html.rtl-text #hint,
+    html.rtl-text #status, html.rtl-text .menu-hint, html.rtl-text .account-status,
+    html.rtl-text .account-who, html.rtl-text #resultBody, html.rtl-text #resultStreak,
+    html.rtl-text #brief li, html.rtl-text .story-bubble p, html.rtl-text #chapterMapHint {
+      font-size: 1em;
+    }
   }
   /* The side screen is whatever height is left over after the top screen's
      own fixed square, which varies a lot from phone to phone (see the .cols
@@ -898,19 +915,21 @@
      tooltip library look. */
   .tour-scrim{position:fixed;inset:0;background:rgba(10,11,9,.6);z-index:60;
               transition:opacity .2s}
-  .tour-spot{position:fixed;z-index:61;border:2px solid var(--sel);border-radius:6px;
+  .tour-spot{position:fixed;z-index:61;border:2px solid #8b8d69;border-radius:6px;
              box-shadow:0 0 0 9999px rgba(10,11,9,.6);pointer-events:none;
              transition:left .25s,top .25s,width .25s,height .25s}
+  /* Same khaki-on-ink as .menu-btn/.tut-caption (the tutorial's own callout),
+     not the dark console-chassis palette - a coach-mark is "the game talking
+     to you" the same way those already are, so it reads as one voice
+     instead of a bolted-on tooltip library. */
   .tour-bubble{position:fixed;z-index:62;max-width:min(78vw,300px);
-               background:var(--panel);color:var(--ink);padding:12px 14px;
-               border:2px solid var(--sel);box-shadow:0 4px 0 rgba(0,0,0,.35);
+               background:#8b8d69;color:#20241a;padding:12px 14px;
+               border:1px solid #5d5f48;box-shadow:0 4px 0 rgba(0,0,0,.35);
                transition:left .25s,top .25s}
   .tour-bubble .tour-text{margin:0 0 10px;font-size:14px;line-height:1.5}
-  .tour-bubble .tour-actions{display:flex;justify-content:space-between;gap:10px}
-  .tour-bubble .tour-skip{background:none;border:none;color:var(--muted);
+  .tour-bubble .tour-actions{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .tour-bubble .tour-skip{background:none;border:none;color:#4b4d3a;
                font-size:12.5px;text-decoration:underline;cursor:pointer;padding:4px}
-  .tour-bubble .tour-next{background:var(--sel);color:#2a2410;border:none;
-               font-weight:700;font-size:13px;padding:7px 14px;cursor:pointer}
   /* the between-levels screen: same glass, printed rather than drawn — a
      big stage number the way an old cartridge splash gave you one, the
      chapter name under it, and the difficulty as a little key-shaped chip
@@ -1441,6 +1460,9 @@ function loadSettings() {
        already knows how to solve a level has still never been told what
        Chapter Map/Endless/the Story-Setup switch actually do. */
     uiTourDone: !!s.uiTourDone,
+    /* Same idea as uiTourDone, for the game screen's own controls instead
+       of the menu's - see startGameTour's own trigger in setScreen. */
+    gameTourDone: !!s.gameTourDone,
     reduceMotion: !!s.reduceMotion,
     dailyDate: s.dailyDate || '',
     dailyStage: s.dailyStage || 0,
@@ -2744,25 +2766,37 @@ function refreshMenu() {
 }
 
 /* ------------------------------------------------------------- UI tour */
-/* A one-time coach-mark walkthrough of the menu's own chrome - separate
-   from the Rules tutorial (which teaches the puzzle itself, not the
-   console) and from the Report call-outs (which explain testimony as it
-   appears). Fires from setScreen('menu') the moment settings.uiTourDone is
-   still false - which includes the very first menu a brand-new save ever
-   renders, before their first tap on Start sends them into the Rules
-   tutorial (see menuContinue's own onboardingDone check): the tour
-   explains the console's buttons first, then Start explains the puzzle.
-   An existing save simply gets it once on its first load after this
-   feature ships. Selectors, not bare ids, so the progress step can target
-   the whole .menu-progress group rather than just its thin segment bar. */
-const TOUR_STEPS = [
+/* A one-time coach-mark walkthrough of the console's own chrome - separate
+   from the Rules tutorial (which teaches the puzzle itself) and from the
+   Report call-outs (which explain testimony as it appears). Two step-sets
+   share one engine: the menu tour fires from setScreen('menu') the moment
+   settings.uiTourDone is still false (including the very first menu a
+   brand-new save ever renders, before Start sends it into the Rules
+   tutorial), and the game tour fires from setScreen('game') the moment
+   settings.gameTourDone is still false (including the tutorial's own
+   first frame - the game tour explains the console's buttons, then the
+   tutorial explains the puzzle). An existing save simply gets each once,
+   on whichever screen it next visits after this feature ships. Selectors,
+   not bare ids, so the progress step can target the whole .menu-progress
+   group rather than just its thin segment bar. */
+const MENU_TOUR_STEPS = [
   { sel: '#menuContinue', textKey: 'tourStart' },
   { sel: '.menu-progress', textKey: 'tourProgress' },
   { sel: '#menuChapterMap', textKey: 'tourChapterMap' },
   { sel: '#menuEndless', textKey: 'tourEndless' },
+  { sel: '#menuDaily', textKey: 'tourDaily' },
   { sel: '#menuSlide', textKey: 'tourSwitch' },
   { sel: '#menuHowToPlay', textKey: 'tourHowTo' },
 ];
+const GAME_TOUR_STEPS = [
+  { sel: '#slide', textKey: 'tourGameSwitch' },
+  { sel: '#toMenu', textKey: 'tourGameMenu' },
+  { sel: '#submit', textKey: 'tourGameSubmit' },
+  { sel: '#reset', textKey: 'tourGameClear' },
+  { sel: '#reveal', textKey: 'tourGameHint' },
+];
+let tourSteps = null;
+let tourDoneFlag = null;
 let tourIndex = -1;
 let tourEls = null;
 function ensureTourEls() {
@@ -2774,7 +2808,7 @@ function ensureTourEls() {
   const bubble = document.createElement('div');
   bubble.className = 'tour-bubble pixel-corners';
   bubble.innerHTML = '<p class="tour-text"></p><div class="tour-actions">' +
-    '<button class="tour-skip"></button><button class="tour-next pixel-corners"></button></div>';
+    '<button class="tour-skip"></button><button class="tour-next menu-btn pixel-corners"></button></div>';
   document.body.append(scrim, spot, bubble);
   tourEls = {
     scrim, spot, bubble,
@@ -2787,23 +2821,27 @@ function ensureTourEls() {
   addEventListener('resize', () => { if (tourIndex >= 0) placeTourStep(); });
   return tourEls;
 }
-function startUiTour() {
+function startTour(steps, doneFlag) {
   ensureTourEls();
+  tourSteps = steps;
+  tourDoneFlag = doneFlag;
   tourIndex = 0;
   placeTourStep();
 }
+function startUiTour() { startTour(MENU_TOUR_STEPS, 'uiTourDone'); }
+function startGameTour() { startTour(GAME_TOUR_STEPS, 'gameTourDone'); }
 /* Skips forward past any step whose target isn't actually on screen right
    now (a narrow layout that hides one, say) instead of aborting the whole
    tour over one missing button. */
 function placeTourStep() {
   const { scrim, spot, bubble, text, next, skip } = ensureTourEls();
-  while (tourIndex < TOUR_STEPS.length) {
-    const target = document.querySelector(TOUR_STEPS[tourIndex].sel);
+  while (tourIndex < tourSteps.length) {
+    const target = document.querySelector(tourSteps[tourIndex].sel);
     if (target && target.offsetParent !== null) break;
     tourIndex++;
   }
-  if (tourIndex >= TOUR_STEPS.length) { endUiTour(); return; }
-  const step = TOUR_STEPS[tourIndex];
+  if (tourIndex >= tourSteps.length) { endUiTour(); return; }
+  const step = tourSteps[tourIndex];
   const target = document.querySelector(step.sel);
   scrim.style.display = spot.style.display = bubble.style.display = 'block';
   const r = target.getBoundingClientRect();
@@ -2813,7 +2851,7 @@ function placeTourStep() {
   spot.style.width = (r.width + pad * 2) + 'px';
   spot.style.height = (r.height + pad * 2) + 'px';
   text.textContent = T().ui[step.textKey];
-  next.textContent = tourIndex === TOUR_STEPS.length - 1 ? T().ui.tourDone : T().ui.tourNext;
+  next.textContent = tourIndex === tourSteps.length - 1 ? T().ui.tourDone : T().ui.tourNext;
   skip.textContent = T().ui.tourSkip;
   bubble.style.visibility = 'hidden';
   const bw = bubble.offsetWidth, bh = bubble.offsetHeight;
@@ -2832,7 +2870,9 @@ function advanceUiTour() {
 function endUiTour() {
   tourIndex = -1;
   if (tourEls) tourEls.scrim.style.display = tourEls.spot.style.display = tourEls.bubble.style.display = 'none';
-  if (!settings.uiTourDone) { settings.uiTourDone = true; saveSettings(); }
+  if (tourDoneFlag && !settings[tourDoneFlag]) { settings[tourDoneFlag] = true; saveSettings(); }
+  tourSteps = null;
+  tourDoneFlag = null;
 }
 el('replayUiTour').onclick = () => { sndNavClick(); setScreen('menu'); startUiTour(); };
 
@@ -2913,6 +2953,13 @@ function setScreen(name) {
   if (name === 'game') {
     startAmbience(endlessMode || dailyMode ? 'endless' : 'campaign');
     stopMenuMusic();
+    /* First time on the game screen with its own tour still owed - fires
+       just as readily for the tutorial's very first frame as for a
+       returning save's first real level, per the same reasoning as the
+       menu tour above. The static controls (slide/toMenu/submit/reset/
+       reveal) exist before any level has loaded, so this never has to wait
+       on installTutorialFrame/loadLevel to finish. */
+    if (!settings.gameTourDone && tourIndex < 0) startGameTour();
   } else {
     stopAmbience();
     startMenuMusic();
