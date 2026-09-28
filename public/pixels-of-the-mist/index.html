@@ -2777,8 +2777,17 @@ function setScreen(name) {
     el('chapterMapHint').textContent = T().ui.chapterMapHint;
   }
   /* The fog/wind bed is only ever under actual play - on for the puzzle
-     itself, off the moment the player steps back out to any other screen. */
-  name === 'game' ? startAmbience() : stopAmbience();
+     itself, off the moment the player steps back out to any other screen.
+     The idle menu tune is the mirror image of that, and Endless/Daily gets
+     its own slightly brighter/faster ambience drift than the story chapters
+     (see startAmbience's own mode comment). */
+  if (name === 'game') {
+    startAmbience(endlessMode || dailyMode ? 'endless' : 'campaign');
+    stopMenuMusic();
+  } else {
+    stopAmbience();
+    startMenuMusic();
+  }
   fitConsole();
 }
 

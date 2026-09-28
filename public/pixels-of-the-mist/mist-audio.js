@@ -14,6 +14,7 @@ let actx = null;
 let masterGain = null, musicGain = null, sfxGain = null, ambienceGain = null;
 let audioUnlocked = false;
 let ambienceHandle = null;
+let musicHandle = null;
 
 /* Browsers block audio until a real user gesture - this is that gesture,
    captured once on whichever element the player touches first (the boot
@@ -36,6 +37,17 @@ function unlockAudio() {
   applyAudioVolumes();
   if (actx.state === 'suspended') actx.resume();
   sndPowerOn();
+  /* setScreen() may already have run once (the boot screen) before this
+     gesture ever fires, back when actx was still null and its own
+     startAmbience()/startMenuMusic() calls were no-ops - so the very first
+     unlock has to catch up and start whichever one the current screen
+     actually wants. */
+  const screen = (typeof el === 'function' && el('console')) ? el('console').dataset.screen : 'menu';
+  if (screen === 'game') {
+    startAmbience(typeof endlessMode !== 'undefined' && (endlessMode || dailyMode) ? 'endless' : 'campaign');
+  } else {
+    startMenuMusic();
+  }
 }
 addEventListener('pointerdown', unlockAudio, { once: true, passive: true });
 addEventListener('keydown', unlockAudio, { once: true });
@@ -143,9 +155,21 @@ function sndWin() {
   tone(659, 0.09, { type: 'square', vol: 0.14, delay: 0.09 });
   tone(784, 0.22, { type: 'square', vol: 0.16, delay: 0.18 });
 }
+/* A proper little fanfare rather than one more beep-pair - this is the one
+   moment (a whole chapter, not just a level) that earns actual "music", so
+   it plays on musicGain/its own slider instead of sfxGain. Square lead over
+   a triangle pedal, same two-voice budget as an old handheld's chip. */
 function sndChapterComplete() {
   sndWin();
-  tone(1047, 0.28, { type: 'triangle', vol: 0.14, delay: 0.38 });
+  const lead = [
+    [523, 0.10, 0.00], [659, 0.10, 0.10], [784, 0.10, 0.20], [1047, 0.22, 0.30],
+    [880, 0.09, 0.56], [1047, 0.34, 0.66],
+  ];
+  for (const [freq, dur, delay] of lead) {
+    tone(freq, dur, { type: 'square', vol: 0.15, gain: musicGain, delay: 0.38 + delay });
+  }
+  tone(262, 0.62, { type: 'triangle', vol: 0.09, gain: musicGain, delay: 0.38 });
+  tone(392, 0.62, { type: 'triangle', vol: 0.07, gain: musicGain, delay: 0.66 });
 }
 function sndHint() { tone(880, 0.05, { type: 'sine', vol: 0.1 }); tone(1175, 0.09, { type: 'sine', vol: 0.1, delay: 0.05 }); }
 
@@ -153,9 +177,14 @@ function sndHint() { tone(880, 0.05, { type: 'sine', vol: 0.1 }); tone(1175, 0.0
 /* A soft looping wind/fog bed under actual play - two long, slow, detuned
    noise loops through a low-pass filter that itself drifts, so it never
    sits still enough to read as a "clip" repeating. Off outside the game
-   screen (see setScreen's own start/stopAmbience calls). */
-function startAmbience() {
+   screen (see setScreen's own start/stopAmbience calls).
+   mode picks the drift: 'campaign' (default) sits low and slow, the
+   deliberate/moody read the story chapters want; 'endless' opens the
+   filter a little and drifts faster, since that mode is meant to feel
+   like a live, ongoing run rather than a single held breath. */
+function startAmbience(mode) {
   if (!actx || ambienceHandle) return;
+  const endless = mode === 'endless';
   const src = actx.createBufferSource();
   const n = actx.sampleRate * 4;
   const buf = actx.createBuffer(1, n, actx.sampleRate);
@@ -170,11 +199,11 @@ function startAmbience() {
   src.loop = true;
   const filt = actx.createBiquadFilter();
   filt.type = 'lowpass';
-  filt.frequency.setValueAtTime(500, actx.currentTime);
+  filt.frequency.setValueAtTime(endless ? 650 : 500, actx.currentTime);
   const lfo = actx.createOscillator();
-  lfo.frequency.value = 0.08;
+  lfo.frequency.value = endless ? 0.13 : 0.08;
   const lfoGain = actx.createGain();
-  lfoGain.gain.value = 180;
+  lfoGain.gain.value = endless ? 240 : 180;
   lfo.connect(lfoGain);
   lfoGain.connect(filt.frequency);
   lfo.start();
@@ -192,4 +221,55 @@ function stopAmbience() {
   g.gain.setTargetAtTime(0, t, 0.25);
   setTimeout(() => { try { src.stop(); lfo.stop(); } catch (e) {} }, 900);
   ambienceHandle = null;
+}
+
+/* ------------------------------------------------------------ menu music */
+/* A slow, sparse two-voice loop for every screen that isn't the puzzle
+   itself (menu, chapter map, how-to-play) - a title-screen idle tune, not
+   underscore, so it stays out of the way of nav clicks and never competes
+   with the game screen's own wind/fog bed (only one of the two is ever
+   running - see setScreen). Deliberately thin and a little melancholy
+   (natural A minor, mostly on the beat, real rests) to match a post-
+   collapse setting instead of reading as a cheerful main-menu jingle, but
+   built from the same two-oscillator "chip" budget as the rest of the SFX
+   so it still sounds like it's coming out of the same handheld.
+   Scheduled with a lookahead loop (Web Audio's own recommended pattern)
+   instead of one setTimeout per note, so timer jitter never turns into
+   audible drift over an eight-second loop played on repeat. */
+const MENU_STEP = 0.46;
+const MENU_MELODY = [
+  329.63, null, 293.66, null, 261.63, null, 220.00, null,
+  261.63, null, 293.66, null, 246.94, null, 220.00, null,
+];
+const MENU_BASS = [
+  110.00, null, null, null, 174.61, null, null, null,
+  130.81, null, null, null, 196.00, null, null, null,
+];
+function startMenuMusic() {
+  if (!actx || musicHandle) return;
+  let step = 0;
+  let nextTime = actx.currentTime + 0.05;
+  const lookahead = 0.2;
+  function scheduleStep(time, idx) {
+    const delay = Math.max(0, time - actx.currentTime);
+    const m = MENU_MELODY[idx % MENU_MELODY.length];
+    if (m) tone(m, MENU_STEP * 0.85, { type: 'triangle', vol: 0.05, gain: musicGain, delay, attack: 0.02 });
+    const b = MENU_BASS[idx % MENU_BASS.length];
+    if (b) tone(b, MENU_STEP * 3.4, { type: 'square', vol: 0.035, gain: musicGain, delay, attack: 0.03 });
+  }
+  function tick() {
+    while (nextTime < actx.currentTime + lookahead) {
+      scheduleStep(nextTime, step);
+      nextTime += MENU_STEP;
+      step++;
+    }
+  }
+  tick();
+  const timer = setInterval(tick, 120);
+  musicHandle = { timer };
+}
+function stopMenuMusic() {
+  if (!musicHandle) return;
+  clearInterval(musicHandle.timer);
+  musicHandle = null;
 }
