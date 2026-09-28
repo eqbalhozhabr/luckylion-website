@@ -1340,6 +1340,7 @@
 <h1 id="title" hidden>Mist</h1>
 
 <script src="mist-engine.js"></script>
+<script src="mist-campaign.js"></script>
 <script src="mist-audio.js"></script>
 <script>
 'use strict';
@@ -1416,12 +1417,17 @@ function requestHint(stage, seed, hintIndex, firesArr, cb, band) {
    pressing "New level" never waits on the generator. Tagged with the band it
    was built for (null only for an explicit-seed reload, e.g. Daily) so a
    stale prefetch - built for a different slot than the one actually needed
-   by the time it is used - is never handed out as if it matched. */
+   by the time it is used - is never handed out as if it matched. A campaign
+   band asks campaignSeedFor for the one seed that slot actually means,
+   exactly like loadLevel's own fresh request below - the prefetch is
+   pointless if it silently rebuilds a different level than the one that
+   position will ask for once the player actually gets there. */
 let prefetch = null, prefetching = false;
 function prefetchNext(stage, band) {
   if (prefetching) return;
   prefetching = true;
-  requestLevel(stage, (Math.random() * 0xffffffff) >>> 0, (lvl) => {
+  const campaignSeed = (!endlessMode && band) ? campaignSeedFor(stage, band) : null;
+  requestLevel(stage, campaignSeed !== null ? campaignSeed : (Math.random() * 0xffffffff) >>> 0, (lvl) => {
     prefetching = false;
     prefetch = lvl && lvl.stage === stage ? { lvl, band: band || null } : null;
   }, band);
@@ -2339,6 +2345,24 @@ function campaignBand(stage) {
 function freshBand(stage) {
   return endlessMode ? endlessBand(stage) : campaignBand(stage);
 }
+/* The one fixed seed a campaign slot means - "the Nth <band> level of stage
+   1" always is the same puzzle, the same way a print puzzle book's page N
+   never reshuffles between printings. Backed by mist-campaign.js, generated
+   from content/levels.ledger.json's digital-campaign rows (see
+   tools/export-campaign-seeds.js) - only ever populated for a stage this
+   project has decided is safe to ship to a browser (stage 1, the free
+   chapter). A stage with no table here (2-4, still dev-locked) falls back to
+   loadLevel's own plain random pick below, unchanged from before this
+   existed - exactly what a future server-side table for those stages should
+   also do until it exists. Never consulted for Endless, whose whole point is
+   a fresh board every time, not a fixed one. */
+function campaignSeedFor(stage, band) {
+  const table = typeof CAMPAIGN_SEEDS !== 'undefined' && CAMPAIGN_SEEDS[stage] && CAMPAIGN_SEEDS[stage][band];
+  if (!table) return null;
+  const solved = settings.solvedByStage[stage] || 0;
+  const pos = (solved % CHAPTER_LEVEL_COUNT) % CAMPAIGN_BAND_SIZE;
+  return table[pos] ?? null;
+}
 
 /* bandOverride is how Retry (and anything else reloading a specific seed
    that was originally banded) stays the same puzzle: an explicit seed always
@@ -2355,7 +2379,11 @@ function loadLevel(stage, seed, bandOverride) {
      one place that reliably knows to drop out of Daily again. */
   if (fresh) dailyMode = false;
   const band = fresh ? freshBand(stage) : (bandOverride || null);
-  if (fresh && prefetch && prefetch.lvl.stage === stage && prefetch.band === band) {
+  /* null (no table for this stage, or this is Endless) means "keep the old
+     random pick" - see campaignSeedFor's own comment. */
+  const campaignSeed = (fresh && !endlessMode && band) ? campaignSeedFor(stage, band) : null;
+  if (fresh && prefetch && prefetch.lvl.stage === stage && prefetch.band === band &&
+      (campaignSeed === null || prefetch.lvl.seed === campaignSeed)) {
     const lvl = prefetch.lvl; prefetch = null;
     if (fresh && endlessMode && band) { advanceEndlessSlot(stage); endlessRunCount++; }
     bootLevel(lvl, band);
@@ -2363,7 +2391,8 @@ function loadLevel(stage, seed, bandOverride) {
   }
   el('busy').textContent = 'generating…';
   el('busy').className = 'busy';
-  requestLevel(stage, fresh ? (Math.random() * 0xffffffff) >>> 0 : seed,
+  requestLevel(stage, campaignSeed !== null ? campaignSeed
+                     : (fresh ? (Math.random() * 0xffffffff) >>> 0 : seed),
     (lvl, ms) => {
       el('busy').textContent = ms > 0 ? `built in ${ms} ms` : '';
       el('busy').className = '';
