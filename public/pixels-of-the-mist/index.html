@@ -925,11 +925,21 @@
   .tour-bubble{position:fixed;z-index:62;max-width:min(78vw,300px);
                background:#8b8d69;color:#20241a;padding:12px 14px;
                border:1px solid #5d5f48;box-shadow:0 4px 0 rgba(0,0,0,.35);
-               transition:left .25s,top .25s}
-  .tour-bubble .tour-text{margin:0 0 10px;font-size:14px;line-height:1.5}
+               transition:left .25s,top .25s;
+               /* The console's own display face (same stack as .lcd.menutop/
+                  .slidelabel) rather than the body's plain Segoe UI - a
+                  bubble is annotating buttons already set in this font, so
+                  it needs to read as the same voice, not a bolted-on
+                  tooltip. html.rtl-text's own !important rule still wins
+                  for fa/ar (Press Start 2P has no Arabic-script glyphs
+                  anyway), and zh already falls through per-glyph to the
+                  monospace fallback exactly like every other place this
+                  stack is used. */
+               font-family:"Press Start 2P","Courier New",monospace}
+  .tour-bubble .tour-text{margin:0 0 12px;font-size:9px;line-height:1.8}
   .tour-bubble .tour-actions{display:flex;justify-content:space-between;align-items:center;gap:10px}
   .tour-bubble .tour-skip{background:none;border:none;color:#4b4d3a;
-               font-size:12.5px;text-decoration:underline;cursor:pointer;padding:4px}
+               font-size:8px;text-decoration:underline;cursor:pointer;padding:4px}
   /* the between-levels screen: same glass, printed rather than drawn — a
      big stage number the way an old cartridge splash gave you one, the
      chapter name under it, and the difficulty as a little key-shaped chip
