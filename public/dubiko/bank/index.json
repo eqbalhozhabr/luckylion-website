@@ -1,0 +1,32 @@
+{
+ "genVersion": 1,
+ "from": 1,
+ "to": 200,
+ "chunk": 50,
+ "files": [
+  {
+   "name": "levels-0001-0050.json",
+   "from": 1,
+   "to": 50,
+   "bytes": 125327
+  },
+  {
+   "name": "levels-0051-0100.json",
+   "from": 51,
+   "to": 100,
+   "bytes": 151377
+  },
+  {
+   "name": "levels-0101-0150.json",
+   "from": 101,
+   "to": 150,
+   "bytes": 149753
+  },
+  {
+   "name": "levels-0151-0200.json",
+   "from": 151,
+   "to": 200,
+   "bytes": 148900
+  }
+ ]
+}
