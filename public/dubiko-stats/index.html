@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Dubiko stats</title>
+<style>
+  :root { --bg:#f4ead8; --panel:#fffaf0; --ink:#33291c; --mut:#7d6e57; --line:#d9c9a8; --bad:#c23a24; --good:#2a8f52; --acc:#d99a3a; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#17140f; --panel:#221d15; --ink:#efe6d4; --mut:#a89878; --line:#3d3527; --bad:#f0705a; --good:#4cc07c; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+  h1 { margin: 0; font-size: 22px; } h2 { margin: 0 0 8px; font-size: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; overflow-x: auto; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .kpi b { display: block; font-size: 24px; } .kpi span { color: var(--mut); font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; } th { color: var(--mut); font-weight: 600; font-size: 13px; }
+  .bad { color: var(--bad); font-weight: 700; } .good { color: var(--good); }
+  input, button, select { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); }
+  button { cursor: pointer; background: var(--acc); color: #fff; border-color: var(--acc); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; } .mut { color: var(--mut); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Dubiko - play statistics</h1>
+  <div class="card row" id="auth">
+    <input id="key" type="password" placeholder="stats key" autocomplete="off">
+    <select id="days"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option></select>
+    <label class="row"><input id="test" type="checkbox"> include test-mode traffic</label>
+    <button id="go">Load</button>
+    <span class="mut" id="status"></span>
+  </div>
+  <div id="out"></div>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const pct = (a, b) => (b ? Math.round(100 * a / b) + '%' : '-');
+const sec = (ms) => (ms == null ? '-' : Math.round(ms / 1000) + 's');
+const num = (v, d) => (v == null ? '-' : Number(v).toFixed(d == null ? 0 : d));
+try { $('#key').value = sessionStorage.getItem('dubiko.stats.key') || ''; } catch (e) {}
+async function load() {
+  const key = $('#key').value.trim(); if (!key) return;
+  $('#status').textContent = 'loading...';
+  const r = await fetch('/api/dubiko/stats?days=' + $('#days').value + '&test=' + ($('#test').checked ? 1 : 0), { headers: { Authorization: 'Bearer ' + key } });
+  if (!r.ok) { $('#status').textContent = r.status === 401 ? 'wrong key' : r.status === 404 ? 'stats are not switched on (no key set on the server)' : 'error ' + r.status; return; }
+  try { sessionStorage.setItem('dubiko.stats.key', key); } catch (e) {}
+  $('#status').textContent = 'updated ' + new Date().toLocaleTimeString();
+  const d = await r.json(), o = d.overview, t = d.tutorial;
+  const byLvl = Object.fromEntries(d.levels.map(l => [l.lvl, l]));
+  const funnelAt = [1, 2, 3, 5, 10, 20, 30, 50];
+  let h = `<div class="card"><div class="kpis">
+    <div class="kpi"><b>${o.visitors}</b><span>visitors</span></div><div class="kpi"><b>${o.sessions}</b><span>sessions</span></div>
+    <div class="kpi"><b>${o.new_visitors}</b><span>new visitors</span></div><div class="kpi"><b>${pct(o.phone_visitors, o.visitors)}</b><span>on a phone</span></div></div></div>`;
+  h += `<div class="card"><h2>Tutorial (level 1, guided)</h2><div class="kpis">
+    <div class="kpi"><b>${t.started}</b><span>started</span></div><div class="kpi"><b>${pct(t.done, t.started)}</b><span>completed (${t.done})</span></div>
+    <div class="kpi"><b>${pct(t.skipped, t.started)}</b><span>skipped (${t.skipped})</span></div><div class="kpi"><b>${sec(t.avg_ms)}</b><span>average time</span></div></div></div>`;
+  h += `<div class="card"><h2>Funnel: who solved level N (of visitors)</h2><table><tr><th>Level</th><th>started</th><th>solved</th><th>% of visitors</th></tr>` +
+    funnelAt.map(n => { const l = byLvl[n]; return l ? `<tr><td>${n}</td><td>${l.players}</td><td>${l.solvers}</td><td>${pct(l.solvers, o.visitors)}</td></tr>` : ''; }).join('') + `</table></div>`;
+  h += `<div class="card"><h2>Retention by first day</h2><table><tr><th>Day</th><th>new</th><th>D1</th><th>D7</th><th>D30</th></tr>` +
+    d.retention.map(r => { const day = new Date(r.day * 86400000).toISOString().slice(0, 10); const age = (d.now / 86400000) - r.day;
+      return `<tr><td>${day}</td><td>${r.n}</td><td>${age >= 1 ? pct(r.d1, r.n) : '...'}</td><td>${age >= 7 ? pct(r.d7, r.n) : '...'}</td><td>${age >= 30 ? pct(r.d30, r.n) : '...'}</td></tr>`; }).join('') +
+    `</table><p class="mut">D1 / D7 / D30 = share of that day's new visitors who came back exactly 1 / 7 / 30 days later. Small numbers are noise.</p></div>`;
+  h += `<div class="card"><h2>Per level</h2><table><tr><th>Level</th><th>players</th><th>solved</th><th>left unsolved</th><th>avg time</th><th>avg hints</th><th>avg mistakes</th></tr>` +
+    d.levels.map(l => { const quit = l.starts ? l.leaves / l.starts : 0;
+      return `<tr><td>${l.lvl}</td><td>${l.players}</td><td>${pct(l.solvers, l.players)}</td><td class="${quit > 0.4 && l.starts >= 5 ? 'bad' : ''}">${pct(l.leaves, l.starts)}</td><td>${sec(l.avg_ms)}</td><td>${num(l.avg_hints, 1)}</td><td>${num(l.avg_errs, 1)}</td></tr>`; }).join('') +
+    `</table><p class="mut">Red = more than 40% of starts were left unsolved (needs at least 5 starts).</p></div>`;
+  $('#out').innerHTML = h;
+}
+$('#go').onclick = load;
+$('#key').addEventListener('keydown', (e) => { if (e.key === 'Enter') load(); });
+if ($('#key').value) load();
+</script>
+</body>
+</html>
