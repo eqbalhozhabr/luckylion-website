@@ -1,5 +1,6 @@
 import { requestLink, verify, me, setUsername, logout } from './routes/auth.js';
 import { getLevel, submit } from './routes/game.js';
+import { dubikoEvent, dubikoStats } from './routes/dubiko.js';
 import { json } from './lib/http.js';
 import { runDailyBackup } from './lib/backup.js';
 
@@ -14,6 +15,8 @@ const ROUTES = [
   ['POST', '/api/auth/logout', logout],
   ['GET', '/api/level', getLevel],
   ['POST', '/api/submit', submit],
+  ['POST', '/api/dubiko/event', dubikoEvent],
+  ['GET', '/api/dubiko/stats', dubikoStats],
 ];
 
 export default {
