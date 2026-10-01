@@ -96,9 +96,10 @@
   #intro:empty { display: none; }
   #boardWrap { direction: ltr; display: grid; justify-content: center; }
   #board { display: grid; gap: 0; user-select: none; touch-action: manipulation;
-           grid-template-columns: repeat(calc(var(--n, 5) + 1), auto);
-           grid-template-rows: repeat(calc(var(--n, 5) + 1), auto); }
-  .lab { min-width: 34px; min-height: 34px; display: flex; gap: 2px; align-items: center; justify-content: center;
+           --lw: 34px; --lh: 34px; padding: 0 var(--lw) var(--lh) 0;
+           grid-template-columns: var(--lw) repeat(var(--n, 5), auto);
+           grid-template-rows: var(--lh) repeat(var(--n, 5), auto); }
+  .lab { min-width: 0; min-height: 0; overflow: visible; display: flex; gap: 2px; align-items: center; justify-content: center;
          flex-wrap: wrap; font-size: 13px; padding: 2px; }
   .lab.col { flex-direction: column; }
   .badge { display: inline-flex; align-items: center; gap: 1px; padding: 1px 5px; border-radius: 999px;
@@ -132,7 +133,7 @@
   .tp .n { position: absolute; top: -8px; right: -8px; background: var(--ink); color: var(--bg); border-radius: 999px;
            min-width: 20px; height: 20px; font-size: 12px; display: grid; place-items: center; padding: 0 4px; }
   .mini { display: grid; gap: 1px; }
-  .mini i { width: 16px; height: 16px; border-radius: 3px; display: block; }
+  .mini i { width: var(--mc, 16px); height: var(--mc, 16px); border-radius: 3px; display: block; }
   .mini i.e { background: transparent; }
   .mini-cv { display: block; }
   ul.rules { margin: 6px 0 0; padding-inline-start: 18px; }
@@ -147,27 +148,47 @@
               padding: 10px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center;
               box-shadow: 0 6px 24px rgba(0,0,0,.28); }
   #iso { display: block; margin: 0 auto; touch-action: manipulation; cursor: pointer; max-width: 100%; }
-  .views { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+  .tools { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .views { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .acts { margin: 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .ib .ic { margin-inline-end: 6px; }
+  .ib .ic:only-child { margin: 0; }
+  #rulesBtn { display: none; }
+  #sheet .sheethead { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+  #sheet .sheethead h2 { margin: 0; }
+  #sheet ul.rules li { font-size: 16px; }
   #loading { text-align: center; color: var(--muted); padding: 30px; }
-  /* phones: the board stays put, the panel under it scrolls */
+  /* phones: icons instead of words, the board takes all the room, the buildings sit in one strip under it */
   @media (max-width: 819px) {
-    :root { --cell: min(64px, calc((100vw - 96px) / var(--n, 5)), calc(36dvh / (var(--n, 5) + 1))); }
+    #board { --cell: min(64px, calc((100vw - 20px - 2 * var(--lw)) / var(--n, 5)), calc((100dvh - 275px - 2 * var(--lh)) / var(--n, 5))); }
     #scr-game { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
-    #scr-game > header { flex: none; padding: 6px 10px; gap: 6px; flex-wrap: nowrap; }
+    #scr-game > header { flex: none; padding: 5px 8px; gap: 6px; flex-wrap: nowrap; }
     #scr-game > header small.mut { display: none; }
     #scr-game > header input[type=number] { width: 52px; }
-    #scr-game main { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 8px; width: 100%; max-width: none; margin: 0; }
-    #scr-game main > section.card { flex: none; padding: 8px; }
-    #panel { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; overscroll-behavior: contain; padding-bottom: env(safe-area-inset-bottom, 0px); }
-    #panel > .card { flex: none; }
-    .tabs button { font-size: 13px; padding: 6px 4px; }
-    #tray { gap: 8px; }
-    .tp { padding: 3px; }
-    .views { margin-bottom: 6px; gap: 5px; }
-    .views button, .views select { padding: 4px 8px; font-size: 14px; }
-    .row { margin-top: 6px; }
-    #msg { min-height: 20px; margin-top: 4px; font-size: 14px; }
-    #intro { font-size: 14px; padding: 8px 10px; }
+    #lvTitle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ib .tx { display: none; }
+    .ib { width: 40px; height: 40px; padding: 0; display: inline-grid; place-items: center; font-size: 20px; line-height: 1; flex: none; }
+    .ib .ic { margin: 0; }
+    #scr-game main { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding: 6px; width: 100%; max-width: none; margin: 0; }
+    #stage { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 6px; position: relative; }
+    .tools { flex: none; margin: 0 0 4px; flex-wrap: nowrap; }
+    .views, .acts { flex-wrap: nowrap; gap: 4px; }
+    #tiltWrap { position: absolute; left: 8px; bottom: 34px; z-index: 2; }
+    #rulesBtn { display: inline-grid; }
+    #loading { padding: 20px; }
+    #boardWrap { flex: 1; min-height: 0; align-content: center; overflow: hidden; }
+    #msg { position: absolute; left: 10px; right: 10px; top: 56px; margin: 0; min-height: 0; padding: 4px 10px; text-align: center;
+           font-size: 14px; background: var(--panel); border-radius: 10px; pointer-events: none; z-index: 2; }
+    #msg:empty { display: none; }
+    #testInfo { flex: none; margin-top: 2px !important; font-size: 11px; line-height: 1.3; }
+    #panel { flex: none; display: block; padding-bottom: env(safe-area-inset-bottom, 0px); }
+    #intro, .tabs, #tabRules, #tabTray > small { display: none !important; }
+    #tabsCard { padding: 4px 0; }
+    #tray { flex-wrap: nowrap; overflow-x: auto; gap: 8px; margin: 0; padding: 10px 12px 4px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+    .tp { flex: none; padding: 4px; scroll-snap-align: start; --mc: 24px; }
+    #stage { padding: 6px 2px; }
+    #sheet { place-items: end center; padding: 0; }
+    .sheetbox { border-radius: 16px 16px 0 0; max-width: none; max-height: 62dvh; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
     .logo { font-size: 38px; }
   }
 </style>
@@ -221,32 +242,35 @@
 <!-- ===== game ===== -->
 <div id="scr-game" class="screen" hidden>
   <header>
-    <button id="gMenu" data-i18n="nav.menu"></button>
+    <button id="gMenu" class="ib" data-i18n-title="nav.menu"><span class="ic">☰</span><span class="tx" data-i18n="nav.menu"></span></button>
     <b id="lvTitle"></b>
-    <button id="prev"></button>
-    <button id="next"></button>
+    <button id="prev" class="ib"></button>
+    <button id="next" class="ib"></button>
     <span class="sp"></span>
-    <span class="dev"><label><small class="mut" data-i18n="game.goto"></small> <input id="goto" type="number" min="1" value="1"></label>
+    <span class="dev gotoWrap"><label><small class="mut" data-i18n="game.goto"></small> <input id="goto" type="number" min="1" value="1"></label>
       <button id="go" data-i18n="game.go"></button></span>
   </header>
   <main>
-    <section class="card">
-      <div id="loading"><span data-i18n="game.loading"></span></div>
-      <div class="views" id="views">
-        <button data-v="diamond" aria-pressed="false" data-i18n="game.iso"></button>
-        <button data-v="flat" aria-pressed="false" data-i18n="game.flat"></button>
-        <button id="xray" aria-pressed="false" data-i18n="game.xray" data-i18n-title="game.xrayTitle"></button>
-        <label id="tiltWrap" class="dev"><small class="mut" data-i18n="game.camera"></small>
-          <select id="tilt"><option value="40">64×40 (39°)</option><option value="44">64×44 (43°)</option>
-          <option value="48">64×48 (49°)</option><option value="52">64×52 (54°)</option></select></label>
+    <section class="card" id="stage">
+      <div class="tools">
+        <div class="views" id="views">
+          <button class="ib" data-v="diamond" aria-pressed="false" data-i18n-title="game.iso"><span class="ic">◆</span><span class="tx" data-i18n="game.iso"></span></button>
+          <button class="ib" data-v="flat" aria-pressed="false" data-i18n-title="game.flat"><span class="ic">▦</span><span class="tx" data-i18n="game.flat"></span></button>
+          <button class="ib" id="xray" aria-pressed="false" data-i18n-title="game.xrayTitle"><span class="ic">👁</span><span class="tx" data-i18n="game.xray"></span></button>
+          <label id="tiltWrap" class="dev"><small class="mut" data-i18n="game.camera"></small>
+            <select id="tilt"><option value="40">64×40 (39°)</option><option value="44">64×44 (43°)</option>
+            <option value="48">64×48 (49°)</option><option value="52">64×52 (54°)</option></select></label>
+        </div>
+        <div class="row acts">
+          <button class="ib" id="rulesBtn" data-i18n-title="game.tabRules"><span class="ic">📜</span><span class="tx" data-i18n="game.tabRules"></span></button>
+          <button class="ib" id="rot" data-i18n-title="game.rotateTitle"><span class="ic">↻</span><span class="tx" data-i18n="game.rotate"></span></button>
+          <button class="ib" id="hint" data-i18n-title="game.hint"><span class="ic">💡</span><span class="tx" data-i18n="game.hint"></span></button>
+          <button class="ib" id="clear" data-i18n-title="game.clear"><span class="ic">🗑</span><span class="tx" data-i18n="game.clear"></span></button>
+        </div>
       </div>
+      <div id="loading"><span data-i18n="game.loading"></span></div>
       <div id="boardWrap"><canvas id="iso"></canvas><div id="board"></div></div>
       <div id="msg"></div>
-      <div class="row">
-        <button id="rot" data-i18n="game.rotate" data-i18n-title="game.rotateTitle"></button>
-        <button id="hint" data-i18n="game.hint"></button>
-        <button id="clear" data-i18n="game.clear"></button>
-      </div>
       <div id="testInfo" class="dev mut small" style="margin-top:8px;direction:ltr"></div>
     </section>
     <aside id="panel">
@@ -263,6 +287,15 @@
   </main>
 </div>
 
+<!-- phone: the rules come up as a sheet over the board -->
+<div id="sheet" class="overlay" hidden role="dialog" aria-modal="true">
+  <div class="dlg sheetbox">
+    <div class="sheethead"><h2 data-i18n="game.tabRules"></h2><button id="sheetClose" class="ib" data-i18n-title="help.close"><span class="ic">✕</span></button></div>
+    <p id="sheetIntro" class="mut small"></p>
+    <ul class="rules" id="sheetRules"></ul>
+  </div>
+</div>
+
 <div id="win"><div class="box"><b data-i18n="win.title"></b><span id="winText"></span>
   <button class="primary" id="winNext" data-i18n="win.next"></button><button id="winLevels" data-i18n="win.levels"></button></div></div>
 
@@ -275,7 +308,7 @@
   </div>
 </div>
 
-<script>window.DUBIKO_BUILD="0.1.0+2026-09-30";window.DUBIKO_WORKER="worker.5c977571.js";</script>
-<script src="dubiko.4019d5a1.js"></script>
+<script>window.DUBIKO_BUILD="0.1.0+2026-10-01";window.DUBIKO_WORKER="worker.5c977571.js";</script>
+<script src="dubiko.2962c528.js"></script>
 </body>
 </html>
