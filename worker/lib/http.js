@@ -20,6 +20,7 @@ export function isValidUsername(s) {
 export const GAMES = {
   '/pixels-of-the-mist/': { name: 'Pixels of the Mist' },
   '/blind-eye/': { name: 'Blind Eye' },
+  '/dubiko/': { name: 'Dubiko' },
 };
 export function safeNext(s) {
   return typeof s === 'string' && Object.prototype.hasOwnProperty.call(GAMES, s) ? s : '/pixels-of-the-mist/';
