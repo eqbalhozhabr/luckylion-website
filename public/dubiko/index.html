@@ -157,6 +157,12 @@
   #sheet .sheethead { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
   #sheet .sheethead h2 { margin: 0; }
   #sheet ul.rules li { font-size: 16px; }
+  .coach { display: flex; gap: 10px; align-items: center; justify-content: space-between; margin: 0 0 8px; padding: 8px 12px;
+           background: var(--note-bg); border: 1px solid var(--note-line); border-radius: 12px; font-size: 15px; font-weight: 600; }
+  .coach button { flex: none; padding: 4px 10px; font-size: 13px; font-weight: 400; }
+  .tp.pulse { animation: pulse 1.2s ease-in-out infinite; border-color: var(--accent); }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 6px var(--ring); } }
+  body.calm .tp.pulse { animation: none; box-shadow: 0 0 0 4px var(--ring); }
   #loading { text-align: center; color: var(--muted); padding: 30px; }
   /* phones: icons instead of words, the board takes all the room, the buildings sit in one strip under it */
   @media (max-width: 819px) {
@@ -230,6 +236,7 @@
       <div class="row2"><button id="sSound" aria-pressed="true"></button>
         <label class="row2" style="flex:1"><span data-i18n="settings.volume"></span><input type="range" id="sVol" min="0" max="100" step="5"></label></div></div>
     <div class="card setrow"><div class="row2"><button id="sCalm" aria-pressed="false"></button></div></div>
+    <div class="card setrow"><div class="row2"><button id="sShare" aria-pressed="false"></button></div><small class="mut" data-i18n="settings.shareHelp"></small></div>
     <div class="card setrow"><div class="row2"><button id="sTest" aria-pressed="false"></button></div><small class="mut" data-i18n="settings.testHelp"></small></div>
     <div class="card setrow"><span class="lbl" data-i18n="settings.reset"></span>
       <div class="row2"><button id="sReset" data-i18n="settings.reset"></button></div>
@@ -268,6 +275,7 @@
           <button class="ib" id="clear" data-i18n-title="game.clear"><span class="ic">🗑</span><span class="tx" data-i18n="game.clear"></span></button>
         </div>
       </div>
+      <div id="coach" class="coach" hidden><span id="coachText"></span><button id="coachBtn"></button></div>
       <div id="loading"><span data-i18n="game.loading"></span></div>
       <div id="boardWrap"><canvas id="iso"></canvas><div id="board"></div></div>
       <div id="msg"></div>
@@ -308,7 +316,7 @@
   </div>
 </div>
 
-<script>window.DUBIKO_BUILD="0.1.0+2026-10-01";window.DUBIKO_WORKER="worker.5c977571.js";</script>
-<script src="dubiko.2962c528.js"></script>
+<script>window.DUBIKO_BUILD="0.1.0+2026-10-01";window.DUBIKO_WORKER="worker.5c977571.js";window.DUBIKO_TRACK_URL='/api/dubiko/event';</script>
+<script src="dubiko.36e0d749.js"></script>
 </body>
 </html>
