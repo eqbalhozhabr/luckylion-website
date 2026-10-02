@@ -1,7 +1,7 @@
 import * as db from '../lib/db.js';
 import { sendMagicLink } from '../lib/email.js';
 import { readSessionToken, setSessionCookie, clearSessionCookie } from '../lib/session.js';
-import { json, isValidEmail, isValidUsername } from '../lib/http.js';
+import { json, isValidEmail, isValidUsername, safeNext } from '../lib/http.js';
 
 export async function requestLink(request, env) {
   let body;
@@ -20,7 +20,7 @@ export async function requestLink(request, env) {
     return json({ ok: true });
   }
   const url = new URL(request.url);
-  const link = `${url.origin}/api/auth/verify?token=${token}`;
+  const link = `${url.origin}/api/auth/verify?token=${token}&next=${encodeURIComponent(safeNext(body.next))}`;
   const result = await sendMagicLink(env, email, link);
   return json({ ok: true, ...result });
 }
@@ -42,7 +42,7 @@ export async function verify(request, env) {
   return new Response(null, {
     status: 302,
     headers: {
-      Location: '/pixels-of-the-mist/?loggedin=1',
+      Location: `${safeNext(url.searchParams.get('next'))}?loggedin=1`,
       'Set-Cookie': setSessionCookie(session),
     },
   });
