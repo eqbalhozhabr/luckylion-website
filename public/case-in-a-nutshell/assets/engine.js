@@ -245,6 +245,7 @@ let HOTLIST = [];
 
 function paintWall(wall, side, gBase) {
   const items = wall.items || [];
+  const keep = WHc; WHc = side === 'R' ? (CURROOM.wallHR || keep) : (CURROOM.wallHL || keep);   // a yard's house wall is tall, its fence low
   for (const it of items) it.g = newG(it.name, false);
   for (let sy = 0; sy < H; sy++) for (let sx = 0; sx < W; sx++) {
     let u, z;
@@ -269,6 +270,7 @@ function paintWall(wall, side, gBase) {
     }
     put(sx, sy, c, g);
   }
+  WHc = keep;
 }
 
 function renderRoom(room, st) {
@@ -299,9 +301,11 @@ function renderRoom(room, st) {
   const t = 0.3;
   quad([0, NYc, 0], [NXc, NYc, 0], [NXc, NYc, -SLAB], [0, NYc, -SLAB], col(room.slab, 0), gS);
   quad([NXc, 0, 0], [NXc, NYc, 0], [NXc, NYc, -SLAB], [NXc, 0, -SLAB], col(room.slab, -0.3), gS);
-  quad([NXc, -t, 0], [NXc, 0, 0], [NXc, 0, WHc], [NXc, -t, WHc], col(room.rim, -0.3), gS);
-  quad([-t, NYc, 0], [0, NYc, 0], [0, NYc, WHc], [-t, NYc, WHc], col(room.rim, 0), gS);
-  poly([P(-t, -t, WHc), P(NXc, -t, WHc), P(NXc, 0, WHc), P(0, 0, WHc), P(0, NYc, WHc), P(-t, NYc, WHc)], col(room.rim, 0.25), gS);
+  const hR = room.wallHR || WHc, hL = room.wallHL || WHc;
+  quad([NXc, -t, 0], [NXc, 0, 0], [NXc, 0, hR], [NXc, -t, hR], col(room.rim, -0.3), gS);
+  quad([-t, NYc, 0], [0, NYc, 0], [0, NYc, hL], [-t, NYc, hL], col(room.rim, 0), gS);
+  poly([P(-t, -t, hR), P(NXc, -t, hR), P(NXc, 0, hR), P(-t, 0, hR)], col(room.rim, 0.25), gS);
+  poly([P(-t, 0, hL), P(0, 0, hL), P(0, NYc, hL), P(-t, NYc, hL)], col(room.rim, 0.25), gS);
   // objects
   const objs = sortObjs(room.objects);
   for (const o of objs) {
@@ -1445,11 +1449,25 @@ TYPES.wateringcan = (o, g) => {
    ============================================================ */
 
 TYPES.tree = (o, g) => {
-  const cx = o.x + o.w / 2, cy = o.y + o.d / 2;
-  cyl(cx, cy, 0, 0.26, 22, 'bark', g, { tk: 0.15 });
-  const c = P(cx, cy, 22), gl = newG(o.hot, true);
-  ellFill(c[0] - 7, c[1] - 4, 9, 6.5, col('leaf', -0.1), gl); ellFill(c[0] + 7, c[1] - 5, 9, 7, col('leaf', 0), gl);
-  ellFill(c[0], c[1] - 12, 10, 8, col('leafLt', -0.05), gl); ellFill(c[0] - 3, c[1] - 17, 6, 4.5, col('leafLt', 0.15), gl);
+  // a rounded tree: a tapering trunk with roots and two branches, a canopy of clustered lobes in four tones, and a soft shadow
+  const cx = o.x + o.w / 2, cy = o.y + o.d / 2, base = P(cx, cy, 0);
+  ellFill(base[0] + 2, base[1] + 1, 13, 4.5, col('grassDk', -0.4), newG(null, false));
+  cyl(cx, cy, 0, 0.34, 3, 'bark', g, { tk: 0.1, topKey: 'bark' });
+  cyl(cx, cy, 2, 0.24, 19, 'bark', g, { tk: 0.15 });
+  const top = P(cx, cy, 20), gb = newG(o.hot, true);
+  for (const [dx, dy] of [[-8, -8], [8, -9]]) lineS(top[0], top[1], top[0] + dx, top[1] + dy, col('bark', -0.15), gb);       // branches into the canopy
+  const gl = newG(o.hot, true), c = P(cx, cy, 25);
+  const lobes = [[-11, -3, 8, 6.5], [11, -4, 8, 6.5], [0, -2, 10, 7], [-7, -11, 8, 7], [8, -12, 8, 7], [0, -17, 8, 6.5], [-12, -12, 5, 4.5], [13, -13, 5, 4.5]];
+  const lay = (key, k, dx, dy, sc) => { for (const [x, y, rx, ry] of lobes) ellFill(c[0] + x * sc + dx, c[1] + y * sc + dy, rx * sc, ry * sc, col(key, k), gl); };
+  lay('leaf', -0.32, 1, 2, 1);        // the shaded underside
+  lay('leaf', -0.08, 0, 0, 1);        // the body of the crown
+  lay('leafLt', -0.1, -2, -3, 0.68);  // lit side, up and to the left
+  lay('leafLt', 0.16, -3, -6, 0.36);  // sun on top
+  for (let py = Math.floor(c[1] - 30); py < c[1] + 12; py++) for (let px = Math.floor(c[0] - 26); px < c[0] + 26; px++) {   // leaf speckle, only on canopy pixels
+    const i = py * W + px; if (py < 0 || px < 0 || px >= W || py >= H || ids[i] !== gl) continue;
+    const h = hash2(px, py);
+    if (h > 0.9) pix[i] = col('leafLt', py < c[1] - 10 ? 0.2 : 0.02); else if (h < 0.07) pix[i] = col('leaf', -0.3);
+  }
   if (o.fruit) for (const [dx, dy] of [[-8, -4], [6, -9], [2, -2], [9, -3], [-3, -14]]) ellFill(c[0] + dx, c[1] + dy, 1.4, 1.4, col('orange', 0), gl);
 };
 TYPES.bush = (o, g) => {
@@ -1875,6 +1893,11 @@ function wallBase(style, side, o) {
         if (z < 49) return col('brass', -0.2 + dk);
         return n < 0.05 ? col('wallTop', 0.1 + dk) : col('wallTop', -0.08 + dk);
       }
+      case 'facade': {   // the outside of a house: stucco on a concrete foundation
+        if (z < 7) return col('concrete', dk + (n > 0.9 ? 0.08 : -0.05));
+        if (z < 8) return col('concreteDk', dk);
+        return z % 11 === 0 ? col('wallTop', -0.1 + dk) : col('wallTop', dk + (n > 0.94 ? 0.08 : n < 0.05 ? -0.07 : 0));
+      }
       case 'slat': return (z % 4 === 0 || Math.floor(u * 3) !== Math.floor((u - 0.06) * 3)) ? col('wallTop', -0.1 + dk) : col('wallTop', dk + (z % 4 === 1 ? 0.06 : 0));
       case 'shelves': {
         if (z < 6) return col('woodDk', dk);
@@ -1943,6 +1966,14 @@ const ITEM_PAINT = {
     if (ix === Math.floor(w / 2) || iz === Math.floor(h / 2)) return col('trim', -0.1);
     if (day === 'auto' ? ((CURROOM.env.time || 'day') === 'day') : day) { const c = (iz > h * 0.55 && hash2(ix >> 2, iz >> 1) > 0.78); return c ? col('cloud', 0) : col('sky', iz / h * 0.3 - 0.1); }
     return hash2(ix, iz) > 0.965 ? col('star', 0.1) : col('skyDk', iz / h > 0.55 ? 0.3 : 0);
+  },
+  /* a window seen from outside: lit amber at night, a pale reflection by day */
+  litwindow: (day) => (ix, iz, w, h) => {
+    if (ix === 0 || ix === w - 1 || iz === h - 1 || iz === 0) return col('woodDk', 0);
+    if (ix < 2 || ix >= w - 2 || iz >= h - 2 || iz < 2) return col('trim', 0);
+    if (ix === Math.floor(w / 2) || iz === Math.floor(h / 2)) return col('trim', -0.15);
+    if (day === 'auto' ? ((CURROOM.env.time || 'day') === 'day') : day) return col('sky', iz / h * 0.2 - 0.05);
+    return (ix < 5 || ix >= w - 5) && iz > 3 ? col('curtainDk', -0.1) : col('shadeOn', iz / h * 0.15 - 0.1);
   },
   picture: (seed) => (ix, iz, w, h) => {
     if (ix < 2 || ix >= w - 2 || iz < 2 || iz >= h - 2) return col('frame', 0);
@@ -2140,6 +2171,8 @@ function makeSpace(type, opts) {
   for (const w of Object.keys(stairSpan)) taken[w].push(stairSpan[w]);   // no windows or pictures behind the stairs
   const free = (wall, a, b) => !taken[wall].some((t) => a < t[1] && b > t[0]);
   const outdoor = OUTDOOR[type] != null, openAir = ['yard', 'garden', 'parking'].includes(type);
+  const tallWall = { L: false, R: false };   // the wall of the house that a door leads through is as tall as the rooms inside
+  if (openAir) for (const d of doors) tallWall[SL(d.slot).wall] = true;
   const wantWindows = openAir ? 0 : (['basement', 'elevator', 'greenhouse'].includes(type) ? 0 : (type === 'stairs' || type === 'library' ? 0.5 : 1));
   const auto = opts.time === 'auto', day = auto ? 'auto' : (opts.time || 'day') === 'day';
   const styleOf = STYLE_OF[type], onGlass = (wall) => type === 'balcony' && wall === 'L';
@@ -2147,8 +2180,9 @@ function makeSpace(type, opts) {
     const len = wall === 'R' ? nx : ny;
     for (let a = 0.8; a + 2 <= len - 0.4; a += 2.4) {
       const b = a + 2;
-      if (!free(wall, a, b) || openAir || onGlass(wall) || type === 'greenhouse' || type === 'traincar') continue;
+      if (!free(wall, a, b) || (openAir && !tallWall[wall]) || onGlass(wall) || type === 'greenhouse' || type === 'traincar') continue;
       const roll = r();
+      if (openAir) { if (roll < 0.8) kinds[wall].push({ name: 'window', u0: a, u1: b, z0: 24, z1: 48, paint: ITEM_PAINT.litwindow(day) }); continue; }
       if (type === 'bathroom') { if (roll < 0.5) kinds[wall].push({ name: 'mirror', u0: a + 0.3, u1: b - 0.5, z0: 24, z1: 46, paint: ITEM_PAINT.mirror() }); continue; }
       if (type === 'elevator') { if (wall === 'L' && roll < 2) kinds[wall].push({ name: 'mirror', u0: 1.0, u1: ny - 1.0, z0: 18, z1: 46, paint: ITEM_PAINT.mirror() }); if (wall === 'R') kinds[wall].push({ name: 'panel', u0: nx - 1.6, u1: nx - 0.8, z0: 20, z1: 38, paint: ITEM_PAINT.panel() }); break; }
       if (type === 'balcony') { if (wall === 'R' && roll < 0.8) kinds[wall].push({ name: 'hangplant', u0: a + 0.5, u1: a + 1.5, z0: 14, z1: 46, paint: ITEM_PAINT.hangplant() }); continue; }
@@ -2167,15 +2201,16 @@ function makeSpace(type, opts) {
   }
 
   const pal = Object.assign({}, BASE_PAL, themes[theme], opts.pal || {});
-  const wallH = outdoor ? OUTDOOR[type] : 56;
+  const wallH = outdoor ? OUTDOOR[type] : 56, wallHL = tallWall.L ? 56 : wallH, wallHR = tallWall.R ? 56 : wallH;
   const style = typeof styleOf === 'string' ? { L: styleOf, R: styleOf } : (mirror ? { L: styleOf.R, R: styleOf.L } : styleOf);
+  for (const w of ['L', 'R']) if (tallWall[w]) style[w] = 'facade';
   const rugRoll = ['living', 'bedroom', 'lobby', 'library', 'balcony'].includes(type) && r() < 0.8;
   const rug = rugRoll ? { kind: 'oval', cx: nx * (0.45 + r() * 0.1), cy: ny * (0.52 + r() * 0.1), rx: Math.min(1.8, nx * 0.22), ry: Math.min(1.2, ny * 0.15) } : null;
   if (rug) { pal.rugA = r.pick(['#3f9aa8', '#a84a4a', '#6a8a4a', '#8a6aa8']); }
   const slotsLines = type === 'parking' ? [[0.6, 0.2, 2.2], [3.9, 0.2, 2.2], [7.2, 0.2, 2.2], [0.6, 4.6, 6.6], [3.9, 4.6, 6.6], [7.2, 4.6, 6.6]] : null;
   const name = opts.name || ('room.' + (opts.id || type));
   const room = {
-    id: opts.id || type, name, type, seed, slab: 'slab', rim: 'rim', hasRug: !!rug, wallH, nx, ny,
+    id: opts.id || type, name, type, seed, slab: 'slab', rim: 'rim', hasRug: !!rug, wallH: Math.max(wallHL, wallHR), wallHL, wallHR, nx, ny,
     spec: { type, seed, theme, layout, mirror, time: auto ? 'day' : (opts.time || 'day'), size: [nx, ny] },
     env: Object.assign({ slots: slotsLines, pool }, opts.env || {}),
     pal, floor: floorFn(FLOOR_OF[type], rug),

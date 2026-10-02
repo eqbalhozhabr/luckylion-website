@@ -231,7 +231,7 @@ const CASE = {
   hots: {
     greenhouse: ['door:yard', 'door:shed', 'door:kitchen', 'plantbench', 'mistmeter', 'ladder', 'planter', 'wateringcan', 'floorlamp', 'cup', 'chalk'],
     kitchen: ['window', 'door:greenhouse', 'fridge', 'kcounter', 'bin', 'table', 'phone', 'keylist', 'chair'],
-    yard: ['door:greenhouse', 'bush', 'bin', 'bench', 'camerapost', 'tree', 'flowerbed'],
+    yard: ['window', 'door:greenhouse', 'bush', 'bin', 'bench', 'camerapost', 'tree', 'flowerbed'],
     shed: ['window', 'door:greenhouse', 'workbench', 'notebook', 'report', 'shelfunit', 'boxes', 'crates', 'barrel']
   },
 
