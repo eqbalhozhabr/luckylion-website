@@ -16,7 +16,7 @@ export function isValidUsername(s) {
 }
 
 // Where a sign-in link may send the player back to (an open redirect would be a phishing hole): a fixed list.
-const NEXT_PAGES = ['/pixels-of-the-mist/', '/blind-eye/'];
+const NEXT_PAGES = ['/pixels-of-the-mist/', '/blind-eye/', '/dubiko/'];
 export function safeNext(s) {
   return typeof s === 'string' && NEXT_PAGES.includes(s) ? s : '/pixels-of-the-mist/';
 }

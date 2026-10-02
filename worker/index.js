@@ -1,6 +1,6 @@
 import { requestLink, verify, me, setUsername, logout } from './routes/auth.js';
 import { getLevel, submit } from './routes/game.js';
-import { dubikoEvent, dubikoStats } from './routes/dubiko.js';
+import { dubikoEvent, dubikoStats, dubikoSolve, dubikoLeaderboard } from './routes/dubiko.js';
 import { getProgress, saveProgress, getLeaderboard, setVisibility } from './routes/blindeye.js';
 import { json } from './lib/http.js';
 import { runDailyBackup } from './lib/backup.js';
@@ -18,6 +18,8 @@ const ROUTES = [
   ['POST', '/api/submit', submit],
   ['POST', '/api/dubiko/event', dubikoEvent],
   ['GET', '/api/dubiko/stats', dubikoStats],
+  ['POST', '/api/dubiko/solve', dubikoSolve],
+  ['GET', '/api/dubiko/leaderboard', dubikoLeaderboard],
   ['GET', '/api/blind-eye/progress', getProgress],
   ['POST', '/api/blind-eye/progress', saveProgress],
   ['GET', '/api/blind-eye/leaderboard', getLeaderboard],
