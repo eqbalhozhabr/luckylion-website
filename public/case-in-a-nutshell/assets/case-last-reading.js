@@ -231,7 +231,7 @@ const CASE = {
   hots: {
     library: ['chalk', 'window', 'picture', 'door:office', 'armchair', 'nook', 'ladder', 'floorlamp', 'chair', 'bookpile', 'table', 'cup', 'shelflist'],
     office: ['window', 'door:yard', 'picture', 'door:library', 'cabinet', 'desk', 'phonelog', 'recording', 'plant', 'table', 'statements', 'keylog'],
-    yard: ['door:office', 'bin', 'bush', 'bench', 'camerapost', 'tree', 'flowerbed']
+    yard: ['window', 'door:office', 'bin', 'bush', 'bench', 'camerapost', 'tree', 'flowerbed']
   },
 
   hints: [
