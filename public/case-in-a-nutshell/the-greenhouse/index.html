@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Greenhouse | Case in a Nutshell</title>
+<meta name="description" content="The family matriarch is found at the foot of a stepladder in her greenhouse. Everyone calls it an accident. The floor says otherwise. A short murder case in a pixel isometric model, about 28 minutes, in your browser.">
+<link rel="canonical" href="https://www.luckylion.games/case-in-a-nutshell/the-greenhouse/">
+<link rel="alternate" hreflang="en" href="https://www.luckylion.games/case-in-a-nutshell/the-greenhouse/">
+<link rel="alternate" hreflang="fa" href="https://www.luckylion.games/case-in-a-nutshell/fa/the-greenhouse/">
+<link rel="alternate" hreflang="x-default" href="https://www.luckylion.games/case-in-a-nutshell/the-greenhouse/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="The Greenhouse | Case in a Nutshell">
+<meta property="og:description" content="The family matriarch is found at the foot of a stepladder in her greenhouse. Everyone calls it an accident. The floor says otherwise. A short murder case in a pixel isometric model, about 28 minutes, in your browser.">
+<meta property="og:url" content="https://www.luckylion.games/case-in-a-nutshell/the-greenhouse/">
+<meta property="og:image" content="https://www.luckylion.games/case-in-a-nutshell/assets/og.png">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#1c1a28">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Pixelify+Sans:wght@400;600;700&family=Vazirmatn:wght@400;600;800&display=swap">
+<script>try{var s=JSON.parse(localStorage.getItem("nutshell:settings")||"{}"),h=document.documentElement;if(s.font)h.dataset.font=s.font;if(s.size)h.dataset.size=s.size;if(s.motion)h.dataset.motion=s.motion;}catch(e){}</script>
+<link rel="stylesheet" href="../assets/nutshell.css?v=47428bd3">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"Case in a Nutshell: The Greenhouse","alternateName":"The Greenhouse","description":"The family matriarch is found at the foot of a stepladder in her greenhouse. Everyone calls it an accident. The floor says otherwise. A short murder case in a pixel isometric model, about 28 minutes, in your browser.","inLanguage":"en","url":"https://www.luckylion.games/case-in-a-nutshell/the-greenhouse/","image":"https://www.luckylion.games/case-in-a-nutshell/assets/og.png","genre":["Mystery","Puzzle"],"gamePlatform":"Web browser","applicationCategory":"Game","playMode":"SinglePlayer","isPartOf":{"@type":"VideoGameSeries","name":"Case in a Nutshell","url":"https://www.luckylion.games/case-in-a-nutshell/"},"publisher":{"@type":"Organization","name":"Lucky Lion","url":"https://www.luckylion.games/"}}</script>
+</head>
+<body class="casepage">
+<div class="app" id="app">
+  <header class="appbar">
+    <button type="button" class="ibtn" id="menu-btn" data-icon="menu" aria-haspopup="dialog" aria-label="Menu" title="Menu"></button>
+    <div class="ttl"><h1>The Greenhouse</h1><span id="roomname" class="roomname"></span></div>
+    <div class="tools">
+      <button type="button" class="ibtn" id="mapbtn" data-icon="map" aria-label="Map" title="Map"></button>
+      <button type="button" class="ibtn" id="lens" data-icon="lens" aria-pressed="false" aria-label="Magnifier" title="Magnifier"></button>
+      <button type="button" class="ibtn" id="sparkle" data-icon="spots" aria-pressed="false" aria-label="Show tappable spots" title="Show tappable spots"></button>
+      <button type="button" class="ibtn cat" id="hintbtn" aria-label="Ask Marmalade" title="Ask Marmalade"><canvas id="cat-icon" width="16" height="16" aria-hidden="true"></canvas></button>
+      <button type="button" class="ibtn" id="listbtn" data-icon="list" aria-label="List of things in the room (for keyboard use)" title="List of things in the room (for keyboard use)"></button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <div id="stagewrap"><canvas id="cv" width="176" height="164" role="img" aria-label="Picture of the room; the list of objects is just below"></canvas></div>
+    <div class="hl" id="hl" aria-hidden="true"></div>
+    <div id="toasts" aria-live="polite"></div>
+  </div>
+
+  <div class="msg" id="msg" aria-live="polite"></div>
+
+  <section class="moments" id="moments" aria-label="Moments bar: the room at other times">
+    <div class="mrow" id="mrow" role="group"></div>
+    <button type="button" class="ibtn wide red" id="compare" aria-pressed="false" title="Difference finder"><span class="lbl">Difference finder</span> <span class="count" id="dcount"></span></button>
+  </section>
+
+  <div class="right">
+    <nav class="stabs" role="tablist" id="stabs">
+      <button type="button" class="stab on" role="tab" data-tab="notebook" data-icon="notebook" aria-selected="true"><span class="stt">Notebook</span><span class="dot" hidden></span></button>
+      <button type="button" class="stab" role="tab" data-tab="suspects" data-icon="people" aria-selected="false"><span class="stt">Suspects</span></button>
+      <button type="button" class="stab" role="tab" data-tab="accuse" data-icon="accuse" aria-selected="false"><span class="stt">Accuse</span><span class="dot" hidden></span></button>
+    </nav>
+    <aside class="side" id="side">
+      <div class="sheet">
+        <button type="button" class="sheet-x" id="sheet-x" aria-label="Close">×</button>
+        <section class="spanel" id="tab-notebook" role="tabpanel"></section>
+        <section class="spanel" id="tab-suspects" role="tabpanel" hidden></section>
+        <section class="spanel" id="tab-accuse" role="tabpanel" hidden></section>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<section class="about wrap sr-only">
+  <p class="eyebrow">Case 4 · Difficulty 3 of 5 · about 28 min</p>
+  <h2>About this case</h2>
+  <p>Model No. 4. Aldermere House, the greenhouse.</p>
+    <p>Beatrix Aldermere, 74, orchid grower and head of the family, was found at 06:40 on Sunday morning at the foot of a stepladder in her greenhouse, beside a spilled watering can. She always checked the mist system at half past ten, so the family and the local police agree on a story: she climbed the ladder at 22:30 and fell. On Monday she was to sign a new will.</p>
+    <p>Four people were in the house or the grounds that night. Read the greenhouse's own records, test the family's stories against the room, and say who did it, how and why. People tell stories. Floors, doors and cameras do not.</p>
+  <h2>How to play</h2>
+  <ul>
+    <li>Tap things in the room. Anything interesting has something to say.</li>
+    <li>The moments bar shows the room as witnesses saw it. A witness may lie, the room does not.</li>
+    <li>Each puzzle adds a fact to your notebook. Use the facts to say who did it, how, and why.</li>
+  </ul>
+  <p>Progress is saved on this device.</p>
+  <footer class="site">Made by <a href="https://www.luckylion.games/">Lucky Lion Studio</a></footer>
+</section>
+
+<script>window.NUT_ROOT = "../";</script>
+<script type="application/json" id="nut-menu">{"about":{"h":"About this case","paras":["Model No. 4. Aldermere House, the greenhouse.","Beatrix Aldermere, 74, orchid grower and head of the family, was found at 06:40 on Sunday morning at the foot of a stepladder in her greenhouse, beside a spilled watering can. She always checked the mist system at half past ten, so the family and the local police agree on a story: she climbed the ladder at 22:30 and fell. On Monday she was to sign a new will.","Four people were in the house or the grounds that night. Read the greenhouse's own records, test the family's stories against the room, and say who did it, how and why. People tell stories. Floors, doors and cameras do not."],"h2":"How to play","how":["Tap things in the room. Anything interesting has something to say.","The moments bar shows the room as witnesses saw it. A witness may lie, the room does not.","Each puzzle adds a fact to your notebook. Use the facts to say who did it, how, and why."],"saved":"Progress is saved on this device."},"hub":"../","cases":[{"label":"1. Three Seventeen","sub":"Apartment 4","href":"../three-seventeen/","current":false},{"label":"2. Monday, 9 A.M.","sub":"Apartment 7","href":"../monday-nine/","current":false},{"label":"3. The Last Reading","sub":"The Reading Room","href":"../last-reading/","current":false},{"label":"4. The Greenhouse","sub":"The Greenhouse","href":"./","current":true},{"label":"5. Room 12","sub":"Coming soon","locked":true}],"langs":[{"name":"English","lang":"en","current":true,"href":"./"},{"name":"فارسی","lang":"fa","current":false,"href":"../fa/the-greenhouse/"}],"t":{"title":"Menu","close":"Close","cases":"Cases","board":"All cases","language":"Language","font":"Font style","fontMixed":"Mixed","fontPixel":"All pixel","fontClean":"Clean","size":"Text size","sizeS":"Small","sizeM":"Medium","sizeL":"Large","motion":"Motion","motionAuto":"Automatic","motionReduce":"Reduced","sample":"Sample: the quick brown fox jumps over the lazy dog."}}</script>
+<script src="../assets/icons.js?v=c70c8d7e"></script>
+<script src="../assets/menu.js?v=18a3008a"></script>
+<script src="../assets/engine.js?v=631912d8"></script>
+<script src="../assets/case-the-greenhouse.js?v=7c4e7769"></script>
+<script src="../assets/i18n-the-greenhouse.en.js?v=baae661f"></script>
+<script src="../assets/game.js?v=cbf7999c"></script>
+</body>
+</html>
