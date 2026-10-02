@@ -426,3 +426,48 @@ html[data-motion="reduce"] * { animation: none !important; transition: none !imp
 .board .card .lockmark .pxi { width: 30px; height: 30px; }
 .board .card.locked p { color: #7a7060; padding-inline-end: 40px; }
 @media (max-width: 560px) { .board { grid-template-columns: 1fr; gap: 40px; padding-inline: 18px; } .board .card { transform: rotate(calc(var(--r, 0deg) * .6)); } }
+
+/* ---- the locks: keypad, fuse box, wire panel (pixel-style hardware) ---- */
+.keypad { justify-self: center; width: min(100%, 230px); background: #5a5a72; border: 4px solid #3a3a4e; box-shadow: inset 0 0 0 3px #7a7a96; padding: 12px; display: grid; gap: 10px; }
+.kdisp { background: #1c2a1c; color: #8ee08e; font: 600 1.7rem/1.4 var(--f-px); text-align: center; letter-spacing: .3em; border: 3px solid #2a2a38; padding: 2px 0; direction: ltr; }
+.kgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.key { background: #e8e8f0; color: #2a2a3a; border: 3px solid #2a2a3a; box-shadow: 0 4px 0 #2a2a3a; min-height: 48px; font: 700 1.3rem var(--f-px); }
+.key:active { transform: translateY(3px); box-shadow: 0 1px 0 #2a2a3a; }
+.fuses { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; background: #c8963e; border: 4px solid #8a6424; padding: 14px; }
+.fuse { display: grid; justify-items: center; gap: 6px; background: #5a5a6e; border: 3px solid #2a2a3a; padding: 10px 14px; min-width: 84px; color: #f3e9d3; }
+.fuse .lamp { width: 14px; height: 14px; background: #4a2a2a; border: 2px solid #1a1a22; }
+.fuse b { background: #c8c8d4; color: #2a2a3a; padding: 6px 12px; border: 3px solid #2a2a3a; box-shadow: 0 4px 0 #2a2a3a; font: 700 .9rem var(--f-px); }
+.fuse[aria-pressed="true"] .lamp { background: #8ee08e; }
+.fuse[aria-pressed="true"] b { background: #8ee08e; transform: translateY(-2px); }
+.fuse span { font-size: .8rem; }
+.wires { display: flex; justify-content: space-between; gap: 30px; background: #3a3a4e; border: 4px solid #5a5a72; padding: 16px 22px; }
+.wcol { display: grid; gap: 10px; align-content: start; }
+.wire { width: 80px; height: 22px; background: var(--wc); border: 3px solid #1a1a22; box-shadow: 0 3px 0 #0006; }
+.wire.on { outline: 3px solid var(--amber); }
+.wire.linked { opacity: .6; }
+.sock { width: 44px; height: 44px; background: #5a5a72; color: #e8e8f0; border: 4px solid var(--wc, transparent); box-shadow: 0 0 0 3px #1a1a22; font-size: 1.3rem; line-height: 1; display: grid; place-items: center; }
+.shake { animation: shake .35s; }
+
+/* ---- the case board, pixel-art version: a tan cork board with a brown frame, coloured notes held by white tape ---- */
+.board { background-color: #d6bb8c; background-image: radial-gradient(#b8985f55 1.2px, transparent 1.6px), radial-gradient(#ffffff22 1px, transparent 1.4px); background-size: 14px 14px, 22px 22px; background-position: 0 0, 7px 9px;
+  border: 14px solid #b5823a; box-shadow: inset 0 0 0 4px #8a5f24, inset 0 6px 0 #00000022, 0 8px 0 #0007; padding: 46px 28px 50px; gap: 46px 30px; image-rendering: pixelated; }
+.board .strings { display: none; }
+.board .card { --paper: #f0e8a0; background: var(--paper); box-shadow: none; padding: 26px 18px 18px; filter: drop-shadow(5px 6px 0 #00000040); border-radius: 0;
+  clip-path: polygon(0 6px, 6px 6px, 6px 0, calc(100% - 6px) 0, calc(100% - 6px) 6px, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 6px calc(100% - 6px), 0 calc(100% - 6px)); }
+.board .card:nth-child(6n+1) { --paper: #f0e8a0; } .board .card:nth-child(6n+2) { --paper: #7ee4de; } .board .card:nth-child(6n+3) { --paper: #ececf0; }
+.board .card:nth-child(6n+4) { --paper: #ee9086; } .board .card:nth-child(6n+5) { --paper: #a0dc78; } .board .card:nth-child(6n) { --paper: #eede6c; }
+.board .card .pin { inset-block-start: -22px; inset-inline-start: calc(50% - 9px); width: 18px; height: 32px; border-radius: 0; background: #f4f4f6; box-shadow: 3px 3px 0 #00000040; }
+.board .card:nth-child(n) .pin { background: #f4f4f6; }
+.board .card .no { color: #3a3a6a; font-size: .78rem; }
+.board .card h2 { font-size: 1.3rem; color: #22223a; }
+.board .card p, .board .card .meta { color: #3a3a4a; }
+.board .card .prog { color: #1f6a2f; }
+.board a.card:hover { transform: rotate(0deg) translateY(-3px); }
+.board .card.locked { filter: saturate(.3) brightness(.97) drop-shadow(5px 6px 0 #00000030); }
+.board .card.locked .no, .board .card.locked h2, .board .card.locked p { color: #5a5a64; }
+.board .card.locked h2 { filter: none; }
+.board .card .lockmark { color: #3a3a4a; }
+@media (max-width: 560px) { .board { padding: 40px 18px 44px; border-width: 10px; } }
+.modal-body > .wires, .modal-body > .fuses { display: flex; }
+.modal-body > .keypad { display: grid; }
+.fuses { flex-wrap: nowrap; gap: 8px; padding: 12px 8px; } .fuse { flex: 1; min-width: 0; padding: 8px 4px; }

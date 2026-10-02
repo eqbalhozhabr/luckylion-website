@@ -216,7 +216,7 @@ const CASE = {
   items: { basementkey: {} },
   finds: { 'lobby:rug': { give: 'basementkey' } },
   gates: { 'lobby:basement': { need: 'basementkey' } },
-  containers: { 'living:tvunit': { code: '734', fact: 'pledge', clue: 'basement:shelfunit' } },
+  containers: { 'living:tvunit': { kind: 'keypad', code: '734', fact: 'pledge', clue: 'basement:shelfunit' } },
   /* which thing opens which board */
   bind: { 'basement:meter': 'window', 'lobby:ledger': 'buzz', 'lobby:monitor': 'figure', 'basement:monitor': 'boiler', 'lobby:file': 'bar' },
 

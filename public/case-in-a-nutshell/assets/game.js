@@ -479,27 +479,78 @@
     renderNotebook();
     return true;
   }
-  function openCode(key, C) {
+  /* the locks: wheels (digits), keypad (digits), fuses (switches) and wires (colour to symbol). Each calls ok() when solved. */
+  const SYMS = { square: '■', circle: '●', triangle: '▲', cross: '✖', star: '★' };
+  const WIRES = { red: '#e0584a', blue: '#4a86e0', green: '#5ab45a', yellow: '#e8c04a', white: '#e8e4d8' };
+  function lockWheels(C, body, ok, bad) {
+    const vals = new Array(C.code.length).fill(0), w = el('div', 'wheels');
+    vals.forEach((v, i) => {
+      const col = el('div', 'wheel'), out2 = document.createElement('output'); out2.textContent = '0';
+      const up = btn('▲', '', () => { vals[i] = (vals[i] + 1) % 10; out2.textContent = vals[i]; }); up.setAttribute('aria-label', t('ui.lock.up', { n: num(i + 1) }));
+      const dn = btn('▼', '', () => { vals[i] = (vals[i] + 9) % 10; out2.textContent = vals[i]; }); dn.setAttribute('aria-label', t('ui.lock.down', { n: num(i + 1) }));
+      col.append(up, out2, dn); w.append(col);
+    });
+    body.append(w, btn(t('ui.lock.try'), 'btn main', () => { if (vals.join('') === C.code) ok(); else { bad(); w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake'); } }));
+  }
+  function lockKeypad(C, body, ok, bad) {
+    let typed = '';
+    const wrap = el('div', 'keypad'), disp = el('output', 'kdisp'), grid = el('div', 'kgrid');
+    const show = () => { disp.textContent = typed.padEnd(C.code.length, '·'); };
+    const press = (k) => {
+      if (k === '✱') typed = '';
+      else if (k === '#') { if (typed === C.code) return ok(); bad(); wrap.classList.remove('shake'); void wrap.offsetWidth; wrap.classList.add('shake'); typed = ''; }
+      else if (typed.length < C.code.length) typed += k;
+      show();
+    };
+    for (const k of ['1', '2', '3', '4', '5', '6', '7', '8', '9', '✱', '0', '#']) { const b = btn(k, 'key', () => press(k)); b.setAttribute('aria-label', k === '✱' ? t('ui.lock.clear') : (k === '#' ? t('ui.lock.try') : k)); grid.append(b); }
+    show(); wrap.append(disp, grid); body.append(wrap);
+  }
+  function lockFuses(C, key, body, ok, bad) {
+    const st = C.pattern.split('').map(() => 0), row = el('div', 'fuses');
+    C.pattern.split('').forEach((_, i) => {
+      const f = el('button', 'fuse'); f.type = 'button'; f.setAttribute('aria-pressed', 'false');
+      const lamp = el('i', 'lamp'), lab = el('span', null, t('container.' + key + '.sw.' + i)), sw = el('b', null, 'OFF');
+      f.append(lamp, sw, lab);
+      f.addEventListener('click', () => { st[i] ^= 1; f.setAttribute('aria-pressed', st[i] ? 'true' : 'false'); sw.textContent = st[i] ? 'ON' : 'OFF'; });
+      row.append(f);
+    });
+    body.append(row, btn(t('ui.lock.try'), 'btn main', () => { if (st.join('') === C.pattern) ok(); else { bad(); row.classList.remove('shake'); void row.offsetWidth; row.classList.add('shake'); } }));
+  }
+  function lockWires(C, body, ok, bad) {
+    const pairs = C.pairs, colors = Object.keys(pairs).concat(C.decoys ? C.decoys.colors : []), syms = Object.values(pairs).concat(C.decoys ? C.decoys.symbols : []);
+    const link = {}; let pickC = null;
+    const left = el('div', 'wcol'), right = el('div', 'wcol'), box = el('div', 'wires');
+    const lb = {}, rb = {};
+    const paint = () => {
+      for (const c of colors) lb[c].classList.toggle('on', pickC === c);
+      for (const sy of syms) { const c = Object.keys(link).find((k) => link[k] === sy); rb[sy].style.setProperty('--wc', c ? WIRES[c] : 'transparent'); rb[sy].classList.toggle('linked', !!c); }
+      for (const c of colors) lb[c].classList.toggle('linked', !!link[c]);
+    };
+    for (const c of colors) { const b = el('button', 'wire'); b.type = 'button'; b.style.setProperty('--wc', WIRES[c]); b.setAttribute('aria-label', t('ui.wire.' + c)); b.addEventListener('click', () => { pickC = pickC === c ? null : c; paint(); }); lb[c] = b; left.append(b); }
+    for (const sy of syms) { const b = el('button', 'sock', SYMS[sy]); b.type = 'button'; b.setAttribute('aria-label', t('ui.sym.' + sy)); b.addEventListener('click', () => { if (!pickC) return; for (const k of Object.keys(link)) if (link[k] === sy) delete link[k]; link[pickC] = sy; pickC = null; paint(); }); rb[sy] = b; right.append(b); }
+    box.append(left, right); paint();
+    body.append(box, btn(t('ui.lock.try'), 'btn main', () => {
+      const good = Object.keys(pairs).every((c) => link[c] === pairs[c]) && Object.keys(link).length === Object.keys(pairs).length;
+      if (good) ok(); else { bad(); box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake'); }
+    }));
+  }
+  function openLockUI(key, C, done) {
     openModal(t('container.' + key + '.title'), (body) => {
-      const vals = new Array(C.code.length).fill(0), w = el('div', 'wheels'), msg2 = el('p', 'bad');
+      const msg2 = el('p', 'bad');
       body.append(el('p', 'muted', t('container.' + key + '.hint')));
-      vals.forEach((v, i) => {
-        const col = el('div', 'wheel'), out2 = document.createElement('output'); out2.textContent = '0';
-        const up = btn('▲', '', () => { vals[i] = (vals[i] + 1) % 10; out2.textContent = vals[i]; }); up.setAttribute('aria-label', t('ui.lock.up', { n: num(i + 1) }));
-        const dn = btn('▼', '', () => { vals[i] = (vals[i] + 9) % 10; out2.textContent = vals[i]; }); dn.setAttribute('aria-label', t('ui.lock.down', { n: num(i + 1) }));
-        col.append(up, out2, dn); w.append(col);
+      const okf = () => { closeModal(); done(); }, badf = () => { msg2.textContent = t('ui.lock.wrong'); };
+      const kind = C.kind || 'wheels';
+      if (kind === 'keypad') lockKeypad(C, body, okf, badf); else if (kind === 'fuses') lockFuses(C, key, body, okf, badf); else if (kind === 'wires') lockWires(C, body, okf, badf); else lockWheels(C, body, okf, badf);
+      body.append(msg2);
+    });
+  }
+  function openCode(key, C) {
+    openLockUI(key, C, () => {
+      gain(C.fact);
+      openModal(t('container.' + key + '.paperTitle'), (b2) => {
+        const paper = el('div', 'paper'); paper.append(el('p', null, t('container.' + key + '.paper')));
+        b2.append(paper, btn(t('ui.close'), 'btn main', closeModal));
       });
-      body.append(w, msg2, btn(t('ui.lock.try'), 'btn main', () => {
-        if (vals.join('') === C.code) {
-          closeModal(); gain(C.fact);
-          openModal(t('container.' + key + '.paperTitle'), (b2) => {
-            const paper = el('div', 'paper'); paper.append(el('p', null, t('container.' + key + '.paper')));
-            b2.append(paper, btn(t('ui.close'), 'btn main', closeModal));
-          });
-          return;
-        }
-        msg2.textContent = t('ui.lock.wrong'); w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake');
-      }));
     });
   }
 

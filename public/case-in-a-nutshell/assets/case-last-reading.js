@@ -202,6 +202,8 @@ const CASE = {
   items: { yardkey: {} },
   finds: { 'library:nook': { give: 'yardkey' } },
   gates: { 'office:yard': { need: 'yardkey' } },
+  /* the filing cabinet has a wire panel; the pairing is on a scrap of paper in the reading room */
+  containers: { 'office:cabinet': { kind: 'wires', pairs: { red: 'square', blue: 'circle', green: 'triangle' }, decoys: { colors: ['yellow'], symbols: ['star'] }, fact: 'marked', clue: 'library:bookpile' } },
   bind: { 'office:phonelog': 'lure', 'office:recording': 'reading', 'office:statements': 'slip', 'office:keylog': 'cabinet', 'yard:camerapost': 'yard' },
 
   facts: {
@@ -211,7 +213,8 @@ const CASE = {
     slip: { required: true, eliminates: ['lucia', 'gideon'] },
     cabinet: { required: true, eliminates: ['wanda', 'gideon'] },
     yard: { required: true, eliminates: ['wanda'] },
-    ladder: { required: false, eliminates: [] }
+    ladder: { required: false, eliminates: [] },
+    marked: { required: false, eliminates: [] }
   },
   observe: { ladder: { fact: 'ladder' } },
 
