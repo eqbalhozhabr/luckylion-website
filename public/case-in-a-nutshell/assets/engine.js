@@ -944,11 +944,11 @@ function chalkFn(ox, oy, inner) {
 
 /* the chalk outline on the floor, where the victim was found (o.dir: 'x' or 'y' = the long way, o.s = scale) */
 TYPES.chalk = (o, g) => {
-  const e = 0.075, sc = o.s || 0.75, sw = o.dir === 'x';
+  const e = 0.16, sc = o.s || 0.75, sw = o.dir === 'x';   // a thick white line, so it still reads on a phone
   topPixels(o.x, o.y, o.w, o.d, 0.3, (lx, ly) => {
     const bx = (sw ? ly : lx) / sc + 0.15, by = (sw ? lx : ly) / sc + 0.5;
     if (!inBody(bx, by)) return null;
-    return (!inBody(bx + e, by) || !inBody(bx - e, by) || !inBody(bx, by + e) || !inBody(bx, by - e)) ? col('chalk', 0) : null;
+    return (!inBody(bx + e, by) || !inBody(bx - e, by) || !inBody(bx, by + e) || !inBody(bx, by - e)) ? col('chalkW', 0.3) : null;
   }, g);
 };
 
@@ -1637,7 +1637,7 @@ const BASE_PAL = {
   bookA: '#c05a4a', bookB: '#e3c06a', bookC: '#4f7aa8', bookD: '#4f7a5a', bookE: '#8a4a6a', bookF: '#d2a24a', bookG: '#3a5a7a', accent: '#7a4b8a',
   railGreen: '#3d6a5a', railTop: '#6b4a3a', stairRail: '#7a4f30', curtainA: '#e8e8f0', curtainB: '#5a7ab0', waterBottle: '#9fd4ee',
   // bedroom pieces
-  bedwood: '#4a3433', navy: '#2b4a5e', cab: '#2f4b5d', cabLt: '#3d6279', blue: '#2f6f8f', blueLt: '#d3e8ec', sheet: '#d9d3c4', pillow: '#ece7d8', brassBox: '#c8963e', pouf: '#3b84a6', ghost: '#f1f8f2',
+  bedwood: '#4a3433', navy: '#2b4a5e', cab: '#2f4b5d', cabLt: '#3d6279', blue: '#2f6f8f', blueLt: '#d3e8ec', sheet: '#d9d3c4', pillow: '#ece7d8', brassBox: '#c8963e', pouf: '#3b84a6', ghost: '#f1f8f2', chalkW: '#ffffff',
   sky: '#8ec5ea', skyDk: '#17203a', cloud: '#f4f8fb', star: '#f5f0c8', curtain: '#d6b36a', curtainDk: '#a98a48', skin: '#e9b99a', chalk: '#f6f3e8',
   crt: '#cdbf9c', camSky: '#1c2a44', camGround: '#33503a', camTap: '#6fb7e8', camMan: '#e08a2a',
   tea: '#7a3e22', teaLow: '#a8764a', residue: '#efe9dc', herb: '#5f9a4c', cupBlue: '#3b7fb8', saucer: '#f1e8d3', folder: '#d8c28a', folderBlue: '#3b5f8a', meterBody: '#8d98a4', meterDial: '#e8e4d0',
@@ -1946,11 +1946,15 @@ function makeSpace(type, opts) {
   }
   const spansOf = (wall) => doors.filter((d) => SL(d.slot).wall === wall).map((d) => [SL(d.slot).u0 - 0.25, SL(d.slot).u1 + 0.25]);
   // pieces against a wall are laid out in the gaps the doors leave; whatever does not fit is dropped
-  const against = (wall, specs) => {
+  const hitRect = (a, b) => a.x < b.x + b.w + 0.05 && a.x + a.w + 0.05 > b.x && a.y < b.y + b.d + 0.05 && a.y + a.d + 0.05 > b.y;
+  const against = (wall, specs, avoid) => {
     const blocked = spansOf(wall), out = [], len = wall === 'R' ? nx : ny;
     let pos = 0.25;
     for (const sp of specs) {
       for (let guard = 0; guard < 6; guard++) { const hit = blocked.find((b) => pos < b[1] && pos + sp.len > b[0]); if (!hit) break; pos = hit[1]; }
+      const rectAt = (p) => (wall === 'R' ? { x: p, y: 0, w: sp.len, d: sp.depth } : { x: 0, y: p, w: sp.depth, d: sp.len });
+      // pieces of the other wall stand in the back corner: start this wall's row after them
+      for (let guard = 0; guard < 6; guard++) { const hit = (avoid || []).find((o) => hitRect(rectAt(pos), o)); if (!hit) break; pos = (wall === 'R' ? hit.x + hit.w : hit.y + hit.d) + 0.1; }
       if (pos + sp.len > len - 0.1) continue;
       const base = wall === 'R' ? { x: pos, y: 0, w: sp.len, d: sp.depth, face: 'y' } : { x: 0, y: pos, w: sp.depth, d: sp.len, face: 'x' };
       const { len: _l, depth, gap, ...rest } = sp;
@@ -1965,7 +1969,8 @@ function makeSpace(type, opts) {
   const zone = (o, d) => { const sl = SL(d.slot), depth = d.kind === 'gate' || d.kind === 'stairs' ? 2.4 : 1.6; return sl.wall === 'L' ? (o.x < depth && o.y < sl.u1 + 0.2 && o.y + o.d > sl.u0 - 0.2) : (o.y < depth && o.x < sl.u1 + 0.2 && o.x + o.w > sl.u0 - 0.2); };
   const inside = (o) => o.x >= 0 && o.y >= 0 && o.x + o.w <= nx + 0.01 && o.y + o.d <= ny + 0.01;
   freeObjs = freeObjs.filter((o) => !doors.some((d) => zone(o, d)) && inside(o));
-  const wallObjs = against(mirror ? 'L' : 'R', lay.R || []).concat(against(mirror ? 'R' : 'L', lay.L || []));
+  const firstRow = against(mirror ? 'L' : 'R', lay.R || []);
+  const wallObjs = firstRow.concat(against(mirror ? 'R' : 'L', lay.L || [], firstRow));
   const objs = wallObjs.concat(freeObjs);
   // scatter a few small fillers on free floor so rooms do not look bare (never in doorways, never overlapping)
   const overlaps = (a, b, m) => a.x < b.x + b.w + m && a.x + a.w + m > b.x && a.y < b.y + b.d + m && a.y + a.d + m > b.y;

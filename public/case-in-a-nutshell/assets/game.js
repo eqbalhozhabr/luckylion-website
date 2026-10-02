@@ -243,10 +243,10 @@
     lastFocus = document.activeElement;
     const back = el('div', 'modal-back'), box = el('div', 'modal ' + (cls || ''));
     box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
-    const h = el('h2', null, title); h.id = 'modal-title'; box.setAttribute('aria-labelledby', 'modal-title');
+    const head = el('div', 'modal-head'), h = el('h2', null, title); h.id = 'modal-title'; box.setAttribute('aria-labelledby', 'modal-title');
     const x = el('button', 'modal-x', '×'); x.type = 'button'; x.setAttribute('aria-label', t('ui.close')); x.addEventListener('click', closeModal);
     const body = el('div', 'modal-body');
-    box.append(x, h, body); back.append(box); document.body.append(back);
+    head.append(h, x); box.append(head, body); back.append(box); document.body.append(back);
     back.addEventListener('click', (e) => { if (e.target === back) closeModal(); });
     modal = back; onModalClose = onClose || null;
     build(body);
