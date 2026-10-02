@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Space kit viewer</title>
+<link rel="stylesheet" href="../../assets/nutshell.css?v=5c8a886d">
+<style>
+.dev { display: grid; gap: 14px; padding-block: 18px 40px; }
+.dev .ctl { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.dev label { display: grid; gap: 2px; font-size: .8rem; color: var(--muted); }
+.dev select, .dev input { background: var(--panel); color: var(--fg); border: 2px solid var(--line); padding: 4px 8px; min-height: 38px; font: inherit; }
+.dev canvas { image-rendering: pixelated; width: min(100%, 704px); border: 2px solid var(--line); background: var(--stage); }
+.dev pre { background: var(--code-bg); border: 1px solid var(--line); padding: 8px 12px; font-size: .8rem; overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="wrap dev">
+  <h1>Space kit viewer</h1>
+  <p class="muted">Every space type, any seed. Same type + same seed always gives the same room. Developer tool, not part of the game.</p>
+  <div class="ctl">
+    <label>Type<select id="type"></select></label>
+    <label>Seed<input id="seed" type="number" value="1" min="0" max="9999" style="width:6em"></label>
+    <label>Theme<select id="theme"><option value="">auto</option><option>0</option><option>1</option><option>2</option></select></label>
+    <label>Layout<select id="layout"><option value="">auto</option><option>0</option><option>1</option></select></label>
+    <label>Mirror<select id="mirror"><option value="">auto</option><option value="1">yes</option><option value="0">no</option></select></label>
+    <label>Time<select id="time"><option>day</option><option>night</option></select></label>
+    <label>Doors<select id="doors"><option value="two">two doors</option><option value="none">none</option><option value="left">left wall</option><option value="right">right wall</option><option value="special">elevator + stairs + gate</option></select></label>
+    <button type="button" class="btn" id="rand">Random seed</button>
+  </div>
+  <canvas id="cv" width="176" height="164"></canvas>
+  <pre id="spec"></pre>
+</div>
+<script src="../../assets/engine.js?v=587531ba"></script>
+<script>
+(function () {
+  var $ = function (i) { return document.getElementById(i); };
+  SPACE_TYPES.forEach(function (t) { var o = document.createElement('option'); o.textContent = t; $('type').appendChild(o); });
+  var ctx = $('cv').getContext('2d'), img = ctx.createImageData(W, H), img32 = new Uint32Array(img.data.buffer);
+  var presets = {
+    two: [{ slot: 'RB', to: 'hall', kind: 'door' }, { slot: 'LA', to: 'storage', kind: 'door', locked: true }],
+    none: [], left: [{ slot: 'LB', to: 'hall', kind: 'door' }], right: [{ slot: 'RB', to: 'hall', kind: 'door' }],
+    special: [{ slot: 'RB', to: 'lift', kind: 'elevator' }, { slot: 'LB', to: 'stairs', kind: 'stairs' }, { slot: 'LA', to: 'street', kind: 'gate' }]
+  };
+  function draw() {
+    var o = { seed: +$('seed').value, time: $('time').value, doors: presets[$('doors').value] };
+    if ($('theme').value !== '') o.theme = +$('theme').value;
+    if ($('layout').value !== '') o.layout = +$('layout').value;
+    if ($('mirror').value !== '') o.mirror = $('mirror').value === '1';
+    var sp = makeSpace($('type').value, o), r = resolveRoom(sp, []);
+    renderRoom(r, { variant: 0, lampT: 0, flags: {} });
+    compose(sp.light({ lampT: 0 }, 0, r), 0, 0);
+    img32.set(out); ctx.putImageData(img, 0, 0);
+    $('spec').textContent = JSON.stringify(sp.spec) + '\nobjects: ' + sp.objects.map(function (x) { return x.t; }).join(', ');
+  }
+  ['type', 'seed', 'theme', 'layout', 'mirror', 'time', 'doors'].forEach(function (i) { $(i).addEventListener('input', draw); });
+  $('rand').addEventListener('click', function () { $('seed').value = Math.floor(Math.random() * 9999); draw(); });
+  draw();
+})();
+</script>
+</body>
+</html>
