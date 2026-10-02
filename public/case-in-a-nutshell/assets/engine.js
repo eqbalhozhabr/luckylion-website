@@ -657,6 +657,16 @@ function drawFrame(c, spec, people) {
     R('#241c2c', 0, 0, 96, 56); R('#4a3a52', 0, 6, 96, 26); R('#2c2634', 0, 32, 96, 24);
     R('#8a6a3a', 6, 30, 84, 6); R('#b9804d', 6, 28, 84, 3); R('#9fd4ee', 60, 18, 12, 9); R('#3a4a5a', 62, 20, 8, 5);
     R('#e0b04a', 14, 22, 5, 6); R('#6a4a3a', 78, 14, 8, 14);
+  } else if (S === 'platform') {                                    // a country station at night: the train's lit windows, a lamp, the yellow line
+    R('#10131f', 0, 0, 96, 56); R('#1c2236', 0, 6, 96, 3);
+    R('#3a4660', 0, 8, 96, 22); for (let i = 0; i < 6; i++) { R('#e8d8a0', 4 + i * 16, 12, 11, 8); R('#cfc07c', 4 + i * 16, 20, 11, 1); }   // carriage windows
+    R('#26304a', 0, 30, 96, 3); R('#4a4a52', 0, 33, 96, 23); R('#e0b04a', 0, 50, 96, 2);
+    R('#8a8a94', 80, 14, 2, 36); R('#e8d8a0', 76, 10, 10, 4); R('#cfc07c', 74, 8, 14, 1);                                                  // station lamp
+  } else if (S === 'galley') {                                       // the steward's galley: steel counters, a coat on a hook
+    R('#26282e', 0, 0, 96, 56); R('#3a4048', 0, 6, 96, 26); R('#202228', 0, 32, 96, 24);
+    R('#9aa3ae', 4, 28, 88, 5); R('#cfd6dc', 4, 27, 88, 2); R('#6a7078', 10, 14, 18, 12); R('#8a929c', 12, 16, 14, 8);
+    R('#7a2f3a', 70, 12, 8, 14); R('#2a2630', 72, 10, 4, 2);                                                                               // the steward's coat on its hook
+    for (let i = 0; i < 5; i++) R('#e8e4d8', 36 + i * 6, 22, 4, 5);                                                                          // cups
   } else if (S === 'glassfloor') {                                  // the greenhouse floor seen from above: soaked, except where someone lay
     R('#2a4560', 0, 0, 96, 56);
     for (let i = 0; i < 160; i++) { const hx = (i * 37) % 96, hy = (i * 53) % 56; R('#7aa0c0', hx, hy, 1, 1); }
@@ -695,6 +705,7 @@ function drawFrame(c, spec, people) {
     if (f.hold === 'umbrella') R('#15182a', gx + bw + 1, top + 4, 1, hpx - 6);
     if (f.hold === 'card') { R('#e8e4d0', gx + bw, top + 14, 5, 3); R('#3b7fb8', gx + bw, top + 14, 5, 1); }
     if (f.hold === 'wrench') { R('#9aa3ae', gx + bw, top + 10, 1, 9); R('#9aa3ae', gx + bw - 1, top + 9, 3, 2); }
+    if (f.hold === 'lantern') { R('#6a6a72', gx + bw, top + 12, 1, 4); R('#e0b04a', gx + bw - 1, top + 16, 3, 3); }
     if (f.hold === 'bin') { R('#3f7f5a', gx + bw, top + 14, 6, 8); R('#2a5a3c', gx + bw, top + 14, 6, 1); }
     if (f.hold === 'trolley') { R('#cfd6dc', gx + bw + 2, top + 14, 10, 2); R('#9aa3ae', gx + bw + 3, top + 16, 1, 8); R('#9aa3ae', gx + bw + 10, top + 16, 1, 8); }
   }
