@@ -1502,8 +1502,11 @@ TYPES.nook = (o, g) => {
 
 /* door slots: A near the back corner, B toward the front, C at the very end of the wall; relative to the wall's length */
 const SLOT_NAMES = ['LA', 'LB', 'LC', 'RA', 'RB', 'RC'];
+/* slot N: a narrow door at the far end of the wall (used where a staircase takes the back corner) */
 function slotOf(name, nx, ny) {
-  const wall = name[0], len = wall === 'R' ? nx : ny, u0 = name[1] === 'A' ? 0.8 : name[1] === 'B' ? len - 3.4 : len - 2.1;
+  const wall = name[0], len = wall === 'R' ? nx : ny;
+  if (name[1] === 'N') { const k = +name[2] || 0, u1 = len - 0.4 - k * 1.9; return { wall, u0: u1 - 1.4, u1 }; }
+  const u0 = name[1] === 'A' ? 0.8 : name[1] === 'B' ? len - 3.4 : len - 2.1;
   return { wall, u0, u1: u0 + 2 };
 }
 const SPACE_TYPES = ['hallway', 'lobby', 'yard', 'garden', 'basement', 'parking', 'living', 'bedroom', 'kitchen', 'bathroom', 'storage', 'stairs', 'elevator', 'balcony', 'library', 'office'];
@@ -1772,7 +1775,7 @@ Object.assign(LAYOUTS, {
   ],
   stairs: [
     (r) => ({ R: [WP('stairs', 5.2, 1.5, { steps: 8 })], L: [WP('bench', 2.0, 0.8)], free: [OBJ('plant', 6.6, 4.4, 0.9, 0.9)], fixed: true }),
-    (r) => ({ R: [WP('stairs', 5.2, 1.5, { steps: 8, open: true })], L: [WP('plant', 0.9, 0.9)], free: [OBJ('plant', 6.6, 4.4, 0.9, 0.9)], fixed: true }),
+    (r) => ({ R: [WP('stairs', 5.2, 1.5, { steps: 8, open: true })], L: [], free: [OBJ('plant', 6.6, 4.4, 0.9, 0.9)], fixed: true }),
   ],
   elevator: [(r) => ({ R: [], L: [], free: [] })],
   garden: [
@@ -1821,7 +1824,19 @@ function makeSpace(type, opts) {
   let [nx, ny] = opts.size || SIZE_OF[type] || [8, 8];
   if (mirror) [nx, ny] = [ny, nx];
   const SL = (name) => slotOf(name, nx, ny);
-  const doors = (opts.doors || []).map((d) => Object.assign({}, d, { slot: mirror ? SLOT_MIRROR[d.slot] : d.slot }));
+  let doors = (opts.doors || []).map((d) => Object.assign({}, d, { slot: mirror ? SLOT_MIRROR[d.slot] : d.slot }));
+  // a staircase owns the back corner: doors that would sit behind it move to the far end of their wall, narrower
+  const stairLay = [].concat(lay.R || [], lay.L || []).find((q) => q.t === 'stairs');
+  const stairSpan = {};
+  if (stairLay) {
+    stairSpan[mirror ? 'L' : 'R'] = [0, stairLay.len + 0.45];
+    stairSpan[mirror ? 'R' : 'L'] = [0, 0.25 + stairLay.depth + 0.3];
+    for (const w of Object.keys(stairSpan)) {
+      const onWall = doors.filter((d) => d.slot[0] === w);
+      if (!onWall.some((d) => { const s = slotOf(d.slot, nx, ny); return s.u0 < stairSpan[w][1] && s.u1 > stairSpan[w][0]; })) continue;
+      onWall.sort((a, b) => slotOf(b.slot, nx, ny).u0 - slotOf(a.slot, nx, ny).u0).forEach((d, k) => { d.slot = w + 'N' + k; });
+    }
+  }
   const spansOf = (wall) => doors.filter((d) => SL(d.slot).wall === wall).map((d) => [SL(d.slot).u0 - 0.25, SL(d.slot).u1 + 0.25]);
   // pieces against a wall are laid out in the gaps the doors leave; whatever does not fit is dropped
   const against = (wall, specs) => {
@@ -1858,6 +1873,7 @@ function makeSpace(type, opts) {
   // windows and pictures in the wall spans doors leave free
   const kinds = { L: [], R: [] }, taken = { L: [], R: [] };
   for (const d of doors) { const s = SL(d.slot); taken[s.wall].push([s.u0 - 0.3, s.u1 + 0.3]); }
+  for (const w of Object.keys(stairSpan)) taken[w].push(stairSpan[w]);   // no windows or pictures behind the stairs
   const free = (wall, a, b) => !taken[wall].some((t) => a < t[1] && b > t[0]);
   const outdoor = OUTDOOR[type] != null, openAir = ['yard', 'garden', 'parking'].includes(type);
   const wantWindows = openAir ? 0 : (['basement', 'elevator'].includes(type) ? 0 : (type === 'stairs' || type === 'library' ? 0.5 : 1));
