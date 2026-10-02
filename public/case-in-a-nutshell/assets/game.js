@@ -29,12 +29,12 @@
   const KEY = 'nutshell:' + CASE.id;
   const SCENE = CASE.sceneRoom || 'bedroom';          // the room whose moments the player can compare
   const S = {
-    room: CASE.map.start, moment: 'scene', compare: false, lens: false, lensHot: 0,
-    world: { lamp: false, box: false }, facts: {}, order: [], diffFound: [], docsSeen: {}, clockPushed: false,
+    room: CASE.map.start, moment: 'scene', compare: false,
+    world: { lamp: false, box: false }, items: [], facts: {}, order: [], diffFound: [], docsSeen: {}, clockPushed: false,
     tries: 0, hints: 0, solved: false, stars: 0, playMs: 0, introSeen: false, visited: [],
     hover: 0, lampT: 0, sparkle: false, cur: null, tab: 'notebook', catN: 0, pick: {}, fresh: {}, lastHint: '', feedback: [], feedbackText: [], hintTier: {}
   };
-  const SAVED = ['world', 'facts', 'order', 'diffFound', 'docsSeen', 'clockPushed', 'tries', 'hints', 'solved', 'stars', 'playMs', 'introSeen', 'visited'];
+  const SAVED = ['world', 'items', 'facts', 'order', 'diffFound', 'docsSeen', 'clockPushed', 'tries', 'hints', 'solved', 'stars', 'playMs', 'introSeen', 'visited'];
   function load() {
     try { const j = JSON.parse(localStorage.getItem(KEY) || 'null'); if (j) for (const k of SAVED) if (k in j) S[k] = j[k]; } catch (e) { /* no storage: play without saving */ }
   }
@@ -79,13 +79,12 @@
   function rebuild() {
     S.cur = resolveRoom(ROOMS[S.room], patchesFor());
     renderRoom(S.cur, { variant: 0, lampT: S.lampT, flags: {} });
-    buildChips();
   }
   const snapLamp = () => { S.lampT = S.cur.env.lampOn ? 1 : 0; };
   const label = (name) => {
     const own = 'hot.' + S.room + '.' + name + '.label';
     if (has(own)) return t(own);
-    if (name.startsWith('door:')) return t('ui.door.to', { name: t('room.' + name.slice(5)) });
+    if (name.startsWith('door:')) return t('ui.door.to', { name: t('room.' + name.slice(5)) }) + (isGateClosed(S.room, name.slice(5)) ? ' ' + t('ui.door.lockedTag') : '');
     const generic = 'obj.' + name + '.label';
     return has(generic) ? t(generic) : name;
   };
@@ -102,9 +101,9 @@
   }
 
   /* ---------- toasts, facts ---------- */
-  function toast(title, text) {
+  function toast(title, text, key) {
     const box = el('div', 'toast');
-    box.append(el('b', null, t('ui.toast.fact', { title })), el('span', null, text));
+    box.append(el('b', null, t(key || 'ui.toast.fact', { title })), el('span', null, text));
     $('toasts').append(box);
     setTimeout(() => box.remove(), 5200);
   }
@@ -120,46 +119,40 @@
   }
 
   /* ---------- rooms ---------- */
-  function buildRoomTabs() {
-    const box = $('tabs'); box.textContent = '';
-    for (const id of CASE.rooms) {
-      const b = el('button', 'pill' + (S.room === id ? ' on' : ''), t('room.' + id));
-      b.type = 'button'; b.setAttribute('aria-pressed', S.room === id ? 'true' : 'false');
-      b.addEventListener('click', () => { if (id !== S.room) go(id, true); });
-      box.append(b);
-    }
-  }
+  function updateRoomName() { $('roomname').textContent = t('room.' + S.room); }
   function go(id, silent) {
     stage.classList.add('swap');
     setTimeout(() => {
       S.room = id; S.hover = 0; if (id !== SCENE) setCompare(false);
       if (!S.visited.includes(id)) { S.visited.push(id); save(); }
-      rebuild(); snapLamp(); buildRoomTabs(); updateMoments();
+      rebuild(); snapLamp(); updateRoomName(); updateMoments();
       stage.classList.remove('swap');
       if (!silent) say(t('ui.msg.enter.' + id));
     }, reduced() ? 0 : 220);
   }
-  function buildChips() {
-    const box = $('objs'); box.textContent = '';
-    const seen = new Set();
-    for (const h of HOTLIST) {
-      if (seen.has(h.name)) continue; seen.add(h.name);
-      const b = el('button', 'chip', label(h.name)); b.type = 'button';
-      b.addEventListener('focus', () => { S.hover = h.idx; });
-      b.addEventListener('blur', () => { S.hover = 0; });
-      b.addEventListener('mouseenter', () => { S.hover = h.idx; });
-      b.addEventListener('mouseleave', () => { S.hover = 0; });
-      b.addEventListener('click', () => act(h.name));
-      box.append(b);
-    }
+  /* the list of things in the room: for keyboard and screen-reader users, and for anyone who prefers a list */
+  function openList() {
+    openModal(t('ui.page.list'), (body) => {
+      const box = el('div', 'chips in-modal'), seen = new Set();
+      for (const h of HOTLIST) {
+        if (seen.has(h.name)) continue; seen.add(h.name);
+        const b = el('button', 'chip', label(h.name) + (isLocked(h.name) ? ' ' + t('ui.door.lockedTag') : '')); b.type = 'button';
+        b.addEventListener('click', () => { closeModal(); act(h.name); });
+        box.append(b);
+      }
+      body.append(box);
+    });
   }
+  window.addEventListener('nut-list', openList);   // the menu's "things in this room" entry
   function fit() {
-    // as big as the column allows, but short enough that the moments bar and message stay on screen
-    const avail = $('stagewrap').clientWidth;
-    let s = Math.min(avail / W, Math.max(2.4, (window.innerHeight - 400) / H));
-    if (s >= 3) s = Math.min(Math.floor(s), 5);
-    cv.style.width = Math.round(W * s) + 'px';
-    cv.style.height = Math.round(H * s) + 'px';
+    // phone: the room takes the height the other bars leave it, so nothing needs scrolling. Desktop: as wide as the column, but not taller than the window.
+    const wrap = $('stagewrap'), availW = wrap.clientWidth, desk = window.matchMedia && matchMedia('(min-width: 960px)').matches;
+    const bars = ['.appbar', '#moments', '#stabs'].reduce((n, q) => { const e = document.querySelector(q); return n + (e && !e.hidden ? e.offsetHeight : 0); }, 0);
+    const availH = desk ? Math.max(260, window.innerHeight - 330) : Math.max(120, window.innerHeight - bars - 130);
+    let sc = Math.min(availW / W, availH / H);
+    if (sc >= 3) sc = Math.min(Math.floor(sc), 5);
+    cv.style.width = Math.round(W * sc) + 'px';
+    cv.style.height = Math.round(H * sc) + 'px';
   }
 
   /* ---------- the moments bar ---------- */
@@ -182,23 +175,23 @@
       row.append(b);
     }
   }
-  function setMoment(id) {
+  function setMoment(id, silent) {
     S.moment = id; S.hover = 0;
     if (!(id === D.a || id === D.b)) setCompare(false);
     rebuild(); snapLamp(); updateMoments();
+    if (!silent) say(t('moment.' + id + '.caption'));
   }
   function setCompare(on) {
     S.compare = on; stage.classList.toggle('compare', on);
     const b = $('compare'); b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.classList.toggle('on', on);
-    if (on) setLens(false);
   }
   function updateMoments() {
     $('moments').hidden = S.room !== SCENE;
     document.querySelectorAll('.mbtn').forEach((b) => { const on = b.dataset.id === S.moment; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
-    $('mcap').textContent = t('moment.' + S.moment + '.caption');
     const can = S.moment === D.a || S.moment === D.b;
-    $('compare').hidden = !can; $('dcount').hidden = !can;
-    $('dcount').textContent = t('ui.diff.count', { n: num(S.diffFound.length), total: num(NDIFF) }) + (S.facts.changed ? '' : t('ui.diff.need', { need: num(D.need) }));
+    $('compare').hidden = !can;
+    $('dcount').textContent = num(S.diffFound.length) + '/' + num(NDIFF);
+    $('compare').title = t('ui.diff.count', { n: num(S.diffFound.length), total: num(NDIFF) }) + (S.facts.changed ? '' : t('ui.diff.need', { need: num(D.need) }));
   }
   $('compare').addEventListener('click', () => {
     setCompare(!S.compare);
@@ -215,25 +208,6 @@
     say(D.notes.includes(name) ? t('diff.note.' + name) : t('ui.diff.none'));
   }
 
-  /* ---------- magnifier: a close-up of the thing under the pointer, drawn finer than the room ---------- */
-  const lensbox = el('div', 'lensbox'), lensCv = document.createElement('canvas'), lensLab = el('span');
-  lensbox.hidden = true; lensbox.append(lensCv, lensLab); stage.append(lensbox);
-  function setLens(on) {
-    S.lens = on; S.lensHot = 0; lensbox.hidden = true;
-    $('lens').setAttribute('aria-pressed', on ? 'true' : 'false'); $('lens').classList.toggle('on', on); stage.classList.toggle('lens', on);
-    if (on) { setCompare(false); say(t('ui.lens.on')); }
-  }
-  $('lens').addEventListener('click', () => setLens(!S.lens));
-  function showLens(e) {
-    const h = pick(e), name = HOTS[h];
-    if (!name || !drawDetail(name, lensCv, S.cur)) { lensbox.hidden = true; return false; }
-    lensLab.textContent = label(name);
-    const r = stage.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
-    lensbox.style.left = Math.max(4, Math.min(r.width - 200, x - 98)) + 'px';
-    lensbox.style.top = (y - 236 > 4 ? y - 236 : Math.min(r.height - 230, y + 26)) + 'px';
-    lensbox.hidden = false; return true;
-  }
-
   /* ---------- modal plumbing ---------- */
   let modal = null, lastFocus = null, onModalClose = null;
   function closeModal() {
@@ -247,10 +221,10 @@
     lastFocus = document.activeElement;
     const back = el('div', 'modal-back'), box = el('div', 'modal ' + (cls || ''));
     box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
-    const h = el('h2', null, title); h.id = 'modal-title'; box.setAttribute('aria-labelledby', 'modal-title');
+    const head = el('div', 'modal-head'), h = el('h2', null, title); h.id = 'modal-title'; box.setAttribute('aria-labelledby', 'modal-title');
     const x = el('button', 'modal-x', '×'); x.type = 'button'; x.setAttribute('aria-label', t('ui.close')); x.addEventListener('click', closeModal);
     const body = el('div', 'modal-body');
-    box.append(x, h, body); back.append(box); document.body.append(back);
+    head.append(h, x); box.append(head, body); back.append(box); document.body.append(back);
     back.addEventListener('click', (e) => { if (e.target === back) closeModal(); });
     modal = back; onModalClose = onClose || null;
     build(body);
@@ -493,9 +467,97 @@
     });
   }
 
+  /* ---------- keys, hidden things and code locks (the puzzle layer around the rooms) ---------- */
+  const hasItem = (id) => S.items.includes(id);
+  const gateOf = (a, b) => (CASE.gates && (CASE.gates[a + ':' + b] || CASE.gates[b + ':' + a])) || null;
+  const isGateClosed = (a, b) => { const g = gateOf(a, b); return !!g && !hasItem(g.need); };
+  const isLocked = (name) => name.startsWith('door:') && isGateClosed(S.room, name.slice(5));
+  function giveItem(id) {
+    if (hasItem(id)) return false;
+    S.items.push(id); save(); track('item', { item: id });
+    toast(t('item.' + id + '.name'), t('item.' + id + '.text'), 'ui.toast.item');
+    renderNotebook();
+    return true;
+  }
+  /* the locks: wheels (digits), keypad (digits), fuses (switches) and wires (colour to symbol). Each calls ok() when solved. */
+  const SYMS = { square: '■', circle: '●', triangle: '▲', cross: '✖', star: '★' };
+  const WIRES = { red: '#e0584a', blue: '#4a86e0', green: '#5ab45a', yellow: '#e8c04a', white: '#e8e4d8' };
+  function lockWheels(C, body, ok, bad) {
+    const vals = new Array(C.code.length).fill(0), w = el('div', 'wheels');
+    vals.forEach((v, i) => {
+      const col = el('div', 'wheel'), out2 = document.createElement('output'); out2.textContent = '0';
+      const up = btn('▲', '', () => { vals[i] = (vals[i] + 1) % 10; out2.textContent = vals[i]; }); up.setAttribute('aria-label', t('ui.lock.up', { n: num(i + 1) }));
+      const dn = btn('▼', '', () => { vals[i] = (vals[i] + 9) % 10; out2.textContent = vals[i]; }); dn.setAttribute('aria-label', t('ui.lock.down', { n: num(i + 1) }));
+      col.append(up, out2, dn); w.append(col);
+    });
+    body.append(w, btn(t('ui.lock.try'), 'btn main', () => { if (vals.join('') === C.code) ok(); else { bad(); w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake'); } }));
+  }
+  function lockKeypad(C, body, ok, bad) {
+    let typed = '';
+    const wrap = el('div', 'keypad'), disp = el('output', 'kdisp'), grid = el('div', 'kgrid');
+    const show = () => { disp.textContent = typed.padEnd(C.code.length, '·'); };
+    const press = (k) => {
+      if (k === '✱') typed = '';
+      else if (k === '#') { if (typed === C.code) return ok(); bad(); wrap.classList.remove('shake'); void wrap.offsetWidth; wrap.classList.add('shake'); typed = ''; }
+      else if (typed.length < C.code.length) typed += k;
+      show();
+    };
+    for (const k of ['1', '2', '3', '4', '5', '6', '7', '8', '9', '✱', '0', '#']) { const b = btn(k, 'key', () => press(k)); b.setAttribute('aria-label', k === '✱' ? t('ui.lock.clear') : (k === '#' ? t('ui.lock.try') : k)); grid.append(b); }
+    show(); wrap.append(disp, grid); body.append(wrap);
+  }
+  function lockFuses(C, key, body, ok, bad) {
+    const st = C.pattern.split('').map(() => 0), row = el('div', 'fuses');
+    C.pattern.split('').forEach((_, i) => {
+      const f = el('button', 'fuse'); f.type = 'button'; f.setAttribute('aria-pressed', 'false');
+      const lamp = el('i', 'lamp'), lab = el('span', null, t('container.' + key + '.sw.' + i)), sw = el('b', null, 'OFF');
+      f.append(lamp, sw, lab);
+      f.addEventListener('click', () => { st[i] ^= 1; f.setAttribute('aria-pressed', st[i] ? 'true' : 'false'); sw.textContent = st[i] ? 'ON' : 'OFF'; });
+      row.append(f);
+    });
+    body.append(row, btn(t('ui.lock.try'), 'btn main', () => { if (st.join('') === C.pattern) ok(); else { bad(); row.classList.remove('shake'); void row.offsetWidth; row.classList.add('shake'); } }));
+  }
+  function lockWires(C, body, ok, bad) {
+    const pairs = C.pairs, colors = Object.keys(pairs).concat(C.decoys ? C.decoys.colors : []), syms = Object.values(pairs).concat(C.decoys ? C.decoys.symbols : []);
+    const link = {}; let pickC = null;
+    const left = el('div', 'wcol'), right = el('div', 'wcol'), box = el('div', 'wires');
+    const lb = {}, rb = {};
+    const paint = () => {
+      for (const c of colors) lb[c].classList.toggle('on', pickC === c);
+      for (const sy of syms) { const c = Object.keys(link).find((k) => link[k] === sy); rb[sy].style.setProperty('--wc', c ? WIRES[c] : 'transparent'); rb[sy].classList.toggle('linked', !!c); }
+      for (const c of colors) lb[c].classList.toggle('linked', !!link[c]);
+    };
+    for (const c of colors) { const b = el('button', 'wire'); b.type = 'button'; b.style.setProperty('--wc', WIRES[c]); b.setAttribute('aria-label', t('ui.wire.' + c)); b.addEventListener('click', () => { pickC = pickC === c ? null : c; paint(); }); lb[c] = b; left.append(b); }
+    for (const sy of syms) { const b = el('button', 'sock', SYMS[sy]); b.type = 'button'; b.setAttribute('aria-label', t('ui.sym.' + sy)); b.addEventListener('click', () => { if (!pickC) return; for (const k of Object.keys(link)) if (link[k] === sy) delete link[k]; link[pickC] = sy; pickC = null; paint(); }); rb[sy] = b; right.append(b); }
+    box.append(left, right); paint();
+    body.append(box, btn(t('ui.lock.try'), 'btn main', () => {
+      const good = Object.keys(pairs).every((c) => link[c] === pairs[c]) && Object.keys(link).length === Object.keys(pairs).length;
+      if (good) ok(); else { bad(); box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake'); }
+    }));
+  }
+  function openLockUI(key, C, done) {
+    openModal(t('container.' + key + '.title'), (body) => {
+      const msg2 = el('p', 'bad');
+      body.append(el('p', 'muted', t('container.' + key + '.hint')));
+      const okf = () => { closeModal(); done(); }, badf = () => { msg2.textContent = t('ui.lock.wrong'); };
+      const kind = C.kind || 'wheels';
+      if (kind === 'keypad') lockKeypad(C, body, okf, badf); else if (kind === 'fuses') lockFuses(C, key, body, okf, badf); else if (kind === 'wires') lockWires(C, body, okf, badf); else lockWheels(C, body, okf, badf);
+      body.append(msg2);
+    });
+  }
+  function openCode(key, C) {
+    openLockUI(key, C, () => {
+      gain(C.fact);
+      openModal(t('container.' + key + '.paperTitle'), (b2) => {
+        const paper = el('div', 'paper'); paper.append(el('p', null, t('container.' + key + '.paper')));
+        b2.append(paper, btn(t('ui.close'), 'btn main', closeModal));
+      });
+    });
+  }
+
   /* ---------- actions ---------- */
   function useDoor(name) {
     const to = name.slice(5);
+    if (isGateClosed(S.room, to)) return say(t('gate.' + S.room + '.' + to));
     if (ROOMS[to]) return go(to);
     return say(hotText(name) || t('ui.door.locked'));
   }
@@ -508,7 +570,12 @@
   /* cases built from boards: a thing is either a board (documents + one question), something to observe, or just something to look at */
   function actBoards(name) {
     if (S.compare && S.room === SCENE && (S.moment === D.a || S.moment === D.b)) return markDiff(name);
-    const board = CASE.bind && CASE.bind[S.room + ':' + name];
+    const key = S.room + ':' + name;
+    const find = CASE.finds && CASE.finds[key];
+    if (find && !hasItem(find.give)) { giveItem(find.give); return say(t('find.' + S.room + '.' + name)); }
+    const box = CASE.containers && CASE.containers[key];
+    if (box) { if (S.facts[box.fact]) return say(t('container.' + key + '.open')); return openCode(key, box); }
+    const board = CASE.bind && CASE.bind[key];
     if (board) return openBoard(board);
     const ob = CASE.observe && CASE.observe[name];
     if (ob && S.room === SCENE && S.moment === 'scene') { gain(ob.fact); return say(t('observe.' + name)); }
@@ -554,6 +621,11 @@
     const got = REQUIRED.filter(k => S.facts[k]).length, meter = el('div', 'meter');
     REQUIRED.forEach((k, i) => meter.append(el('i', i < got ? 'on' : '')));
     box.append(meter, el('p', null, t('ui.nb.progress', { n: num(got), total: num(REQUIRED.length) })));
+    if (S.items.length) {
+      const bag = el('div', 'bag'); bag.append(el('b', null, t('ui.nb.items')));
+      for (const id of S.items) { const it = el('div', 'bagitem'); it.append(window.NUT_ICON('key'), el('span', null, t('item.' + id + '.name') + ': ' + t('item.' + id + '.text'))); bag.append(it); }
+      box.append(bag);
+    }
     if (!S.order.length) box.append(el('p', null, t('ui.nb.empty')));
     for (const id of S.order) {
       const c = el('div', 'fact' + (CASE.facts[id].required ? '' : ' opt') + (S.fresh[id] ? ' new' : ''));
@@ -622,12 +694,19 @@
     S.tries++; save(); S.feedback = bad; S.feedbackText = lines; track('wrong_accusation', { tries: S.tries });
     renderAccuse();
   }
-  function setTab(tb) {
+  const isDesk = () => window.matchMedia && matchMedia('(min-width: 960px)').matches;
+  function setSheet(open) { $('side').classList.toggle('open', open); document.documentElement.classList.toggle('sheet-open', open); }
+  function setTab(tb, fromNav) {
+    const same = S.tab === tb && $('side').classList.contains('open');
     S.tab = tb;
-    document.querySelectorAll('.stab').forEach(b => { const on = b.dataset.tab === tb; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); const d = b.querySelector('.dot'); if (on && d) d.hidden = true; });
+    document.querySelectorAll('.stab').forEach(b => { const on = b.dataset.tab === tb && (isDesk() || $('side').classList.contains('open') || !fromNav || true); b.classList.toggle('on', b.dataset.tab === tb); b.setAttribute('aria-selected', b.dataset.tab === tb ? 'true' : 'false'); const d = b.querySelector('.dot'); if (b.dataset.tab === tb && d) d.hidden = true; });
     for (const id of ['notebook', 'suspects', 'accuse']) $('tab-' + id).hidden = id !== tb;
+    if (fromNav && !isDesk()) setSheet(!same);
   }
-  document.querySelectorAll('.stab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
+  document.querySelectorAll('.stab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab, true)));
+  $('sheet-x').addEventListener('click', () => setSheet(false));
+  $('side').addEventListener('click', (e) => { if (e.target === $('side')) setSheet(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal) setSheet(false); });
 
   /* ---------- the cat gives hints. Tier a is free; tier b goes through an optional provider
        (window.NUT_HINT_PROVIDER({stage, tier}) -> Promise<boolean>), which is where a rewarded ad can plug in ---------- */
@@ -645,29 +724,29 @@
     S.lastHint = text; renderNotebook(); say(t('ui.hint.say', { text })); track('hint', { stage, tier });
   });
 
-  /* ---------- the map: a simple plan of the spaces and the doors between them ---------- */
+  /* ---------- the map: a small floor plan of the spaces you can enter, with the doors drawn in ---------- */
   function openMap() {
     openModal(t('ui.map.title'), (body) => {
       const M = CASE.map, cols = Math.max(...M.nodes.map(n => n.x)) + 1, rows = Math.max(...M.nodes.map(n => n.y)) + 1;
-      const plan = el('div', 'plan'), W2 = 100 / cols, H2 = 100 / rows;
-      plan.style.setProperty('--cols', cols); plan.style.setProperty('--rows', rows);
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('viewBox', '0 0 100 100'); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('aria-hidden', 'true');
-      const at = (id) => { const n = M.nodes.find(q => q.id === id); return [(n.x + 0.5) * W2, (n.y + 0.5) * H2]; };
-      for (const [a, b] of M.edges) { const p = at(a), q = at(b), ln = document.createElementNS('http://www.w3.org/2000/svg', 'line'); ln.setAttribute('x1', p[0]); ln.setAttribute('y1', p[1]); ln.setAttribute('x2', q[0]); ln.setAttribute('y2', q[1]); svg.append(ln); }
-      plan.append(svg);
+      const plan = el('div', 'plan'); plan.style.setProperty('--cols', cols); plan.style.setProperty('--rows', rows);
       const near = (id) => M.edges.some(([a, b]) => (a === S.room && b === id) || (b === S.room && a === id));
       for (const n of M.nodes) {
         const here = n.id === S.room, known = S.visited.includes(n.id) || near(n.id);
-        const b = el('button', 'node' + (here ? ' here' : '') + (known ? '' : ' unknown'));
-        b.type = 'button'; b.style.left = ((n.x + 0.5) * W2) + '%'; b.style.top = ((n.y + 0.5) * H2) + '%';
+        const b = el('button', 'node' + (here ? ' here' : '') + (known ? '' : ' unknown')); b.type = 'button';
+        b.style.gridColumn = n.x + 1; b.style.gridRow = n.y + 1;
         b.append(el('b', null, known ? t('room.' + n.id) : '?'), el('small', null, here ? t('ui.map.here') : (known ? t('ui.map.go') : t('ui.map.unknown'))));
+        // doors: a gap in the wall on the side that touches a neighbour; a locked one is drawn as a bar
+        for (const [a, c] of M.edges) {
+          const other = a === n.id ? c : (c === n.id ? a : null); if (!other) continue;
+          const o = M.nodes.find(q => q.id === other), side = o.x > n.x ? 'r' : o.x < n.x ? 'l' : o.y > n.y ? 'b' : 't';
+          b.append(el('i', 'gap ' + side + (isGateClosed(n.id, other) ? ' shut' : '')));
+        }
         b.disabled = !known || here;
         b.addEventListener('click', () => { closeModal(); go(n.id); });
         plan.append(b);
       }
       body.append(plan, el('p', 'muted', t('ui.map.tip')));
-    }, 'wide');
+    }, 'small');
   }
   $('mapbtn').addEventListener('click', openMap);
 
@@ -693,9 +772,9 @@
     }, 'wide');
   }
   function reset() {
-    Object.assign(S, { room: CASE.map.start, moment: 'scene', compare: false, world: { lamp: false, box: false }, facts: {}, order: [], diffFound: [], docsSeen: {}, clockPushed: false, tries: 0, hints: 0, solved: false, stars: 0, playMs: 0, introSeen: true, visited: [CASE.map.start], pick: {}, fresh: {}, lastHint: '', feedback: [], feedbackText: [], hintTier: {} });
+    Object.assign(S, { room: CASE.map.start, moment: 'scene', compare: false, world: { lamp: false, box: false }, items: [], facts: {}, order: [], diffFound: [], docsSeen: {}, clockPushed: false, tries: 0, hints: 0, solved: false, stars: 0, playMs: 0, introSeen: true, visited: [CASE.map.start], pick: {}, fresh: {}, lastHint: '', feedback: [], feedbackText: [], hintTier: {} });
     try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
-    setCompare(false); setLens(false); rebuild(); snapLamp(); buildRoomTabs(); updateMoments(); renderNotebook(); renderAccuse(); setTab('notebook');
+    setCompare(false); rebuild(); snapLamp(); updateRoomName(); updateMoments(); renderNotebook(); renderAccuse(); setTab('notebook'); setSheet(false);
     say(t('ui.msg.reset'));
   }
 
@@ -712,20 +791,15 @@
   cv.addEventListener('pointermove', (e) => {
     if (e.pointerType !== 'mouse') return;
     S.hover = pick(e);
-    if (S.lens) showLens(e);
     cv.style.cursor = S.hover ? 'pointer' : (S.compare ? 'crosshair' : 'default');
     const n = HOTS[S.hover];
     $('hl').textContent = n ? label(n) : ''; $('hl').classList.toggle('on', !!n);
   });
-  cv.addEventListener('pointerleave', () => { S.hover = 0; $('hl').classList.remove('on'); lensbox.hidden = true; });
-  let tapT = 0;
+  cv.addEventListener('pointerleave', () => { S.hover = 0; $('hl').classList.remove('on'); });
+  let tapT = 0, lastType = 'mouse';
+  cv.addEventListener('pointerdown', (e) => { lastType = e.pointerType || 'mouse'; });
   cv.addEventListener('click', (e) => {
-    const touch = e.pointerType !== 'mouse' && e.pointerType !== undefined && e.pointerType !== '';
-    if (S.lens && touch) {
-      // touch: the first tap on a thing shows its close-up, a second tap on the same thing acts
-      const hh = pick(e);
-      if (hh !== S.lensHot) { S.lensHot = hh; showLens(e); return; }
-    }
+    const touch = lastType !== 'mouse';
     const h = pick(e); if (!h) return;
     if (touch) { S.hover = h; clearTimeout(tapT); tapT = setTimeout(() => { S.hover = 0; }, 600); }
     act(HOTS[h]);
@@ -765,11 +839,11 @@
   drawCatIcon($('cat-icon'));
   load();
   if (!S.visited.includes(S.room)) S.visited.push(S.room);
-  buildMoments(); buildRoomTabs(); rebuild(); snapLamp(); updateMoments(); renderNotebook(); renderSuspects(); renderAccuse(); fit();
+  buildMoments(); updateRoomName(); rebuild(); snapLamp(); updateMoments(); renderNotebook(); renderSuspects(); renderAccuse(); fit();
   window.addEventListener('resize', fit);
   if (window.ResizeObserver) new ResizeObserver(fit).observe($('stagewrap'));
   if (!S.introSeen) openIntro();
   else say(t(S.order.length ? 'ui.msg.back' : 'ui.msg.start'));
   requestAnimationFrame(frame);
-  window.NUT = { S, t, act, go, openBoard, setMoment, setCompare, setLens, gain, reset, openClock, openDocs, openLock, showEnd, closeModal, rebuild, submitAccuse, setTab };
+  window.NUT = { S, t, act, go, openBoard, setMoment, setCompare, gain, reset, openClock, openDocs, openLock, showEnd, closeModal, rebuild, submitAccuse, setTab };
 })();

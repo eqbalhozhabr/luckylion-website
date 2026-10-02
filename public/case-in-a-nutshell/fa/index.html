@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Pixelify+Sans:wght@400;600;700&family=Vazirmatn:wght@400;600;800&display=swap">
 <script>try{var s=JSON.parse(localStorage.getItem("nutshell:settings")||"{}"),h=document.documentElement;if(s.font)h.dataset.font=s.font;if(s.size)h.dataset.size=s.size;if(s.motion)h.dataset.motion=s.motion;}catch(e){}</script>
-<link rel="stylesheet" href="../assets/nutshell.css?v=5c8a886d">
+<link rel="stylesheet" href="../assets/nutshell.css?v=f6d18a61">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGameSeries","name":"Case in a Nutshell","description":"پرونده‌های قتل کوتاه در ماکت‌های ایزومتریک پیکسلی. اتاق‌ها را بگرد، شاهدها را بسنج و بگو چه کسی، چطور و چرا. بازی مرورگر.","inLanguage":"fa","gamePlatform":"Web browser","genre":["Mystery","Puzzle"],"publisher":{"@type":"Organization","name":"Lucky Lion","url":"https://www.luckylion.games/"}}</script>
 </head>
 <body>
@@ -29,20 +29,34 @@
   <div class="topbar"><span></span><div class="topbar-r"><nav class="langs" aria-label="زبان"><a href="../" hreflang="en" lang="en">English</a><span aria-current="true">فارسی</span></nav><button type="button" class="menu-btn" id="menu-btn" aria-haspopup="dialog">☰ منو</button></div></div>
   <header class="hero">
     <h1>پرونده در یک پوست‌گردو</h1>
-    <p>پرونده‌های قتلِ کوتاه در ماکت‌های کوچک و پیکسلی. هر پرونده حدود ۲۵ دقیقه است، تنهایی کامل بازی می‌شود و در مرورگر باز می‌شود. اتاق‌ها را بگرد، شاهدها را بسنج و بگو چه کسی، چطور و چرا.</p>
+    <p>پرونده‌های قتلِ کوتاه در ماکت‌های کوچک و پیکسلی. هر پرونده حدود ۳۰ دقیقه است، تنهایی کامل بازی می‌شود و در مرورگر باز می‌شود. اتاق‌ها را بگرد، شاهدها را بسنج و بگو چه کسی، چطور و چرا.</p>
     <p>الهام از ماکت‌های صحنه‌ی جرمِ دهه‌ی ۱۹۴۰ که برای آموزش کارآگاه‌ها ساخته می‌شد. تو کارآگاهِ کارآموزی و همه‌ی پرونده‌ها از یک ساختمان‌اند.</p>
   </header>
 
   <main>
     <div class="board" id="board" data-done="بسته شد {stars}" data-prog="در جریان: {n} واقعیت" data-lang="fa">
-      <span class="thread-line" aria-hidden="true"></span>
+      <svg class="strings" id="strings" aria-hidden="true"></svg>
       <a class="card" href="three-seventeen/" data-case="three-seventeen"><span class="pin"></span>
         <span class="no">پرونده‌ی ۱ · واحد ۴</span><h2>ساعت سه و هفده</h2><p>ساعت‌سازی در تختش مرده پیدا می‌شود و ساعت کنار تخت روی ۳:۱۷ ایستاده است.</p>
         <span class="meta">سختی ۱ از ۵ · حدود ۱۲ دقیقه</span><span class="prog"></span></a>
       <a class="card" href="monday-nine/" data-case="monday-nine"><span class="pin"></span>
-        <span class="no">پرونده‌ی ۲ · Apartment 7</span><h2>Monday, 9 A.M.</h2><p>A ceramic artist is found dead the day before she was due to sign her divorce settlement. Everybody has an alibi, and one of them is made of receipts.</p>
+        <span class="no">پرونده‌ی ۲ · آپارتمان ۷</span><h2>دوشنبه، ۹ صبح</h2><p>یک هنرمند سفالگر، یک روز پیش از امضای توافقنامه طلاقش، مرده پیدا می‌شود. همه یک آلیبی دارند و آلیبی یکی از آن‌ها از جنس رسید است.</p>
         <span class="meta">سختی ۲ از ۵ · حدود ۲۵ دقیقه</span><span class="prog"></span></a>
-      <div class="card locked"><span class="pin"></span><span class="no">پرونده‌ی ۳ · The Last Reading</span><h2>Coming soon</h2><p>پشت یک ستاره‌ی برنجی عددی کنده شده و دری در راهرو هنوز قفل است.</p></div>
+      <a class="card" href="last-reading/" data-case="last-reading"><span class="pin"></span>
+        <span class="no">پرونده‌ی ۳ · سالن مطالعه</span><h2>آخرین روخوانی</h2><p>کتابدار ارشد در حین آخرین روخوانی فصل، در سالن مطالعه مرده پیدا می‌شود. کل کتابخانه در حال گوش دادن به یک شعر بودند. یک نفر نبود.</p>
+        <span class="meta">سختی ۳ از ۵ · حدود ۲۸ دقیقه</span><span class="prog"></span></a>
+      <a class="card" href="the-greenhouse/" data-case="the-greenhouse"><span class="pin"></span>
+        <span class="no">پرونده‌ی ۴ · گلخانه</span><h2>گلخانه</h2><p>مادرسالار خانواده در گلخانه‌اش پای یک نردبان پیدا می‌شود. همه آن را یک حادثه می‌دانند. اما کف زمین چیز دیگری می‌گوید.</p>
+        <span class="meta">سختی ۳ از ۵ · حدود ۲۸ دقیقه</span><span class="prog"></span></a>
+      <a class="card" href="room-twelve/" data-case="room-twelve"><span class="pin"></span>
+        <span class="no">پرونده‌ی ۵ · اتاق ۱۲</span><h2>اتاق ۱۲</h2><p>یک حسابرس هتل پشت یک در قفل‌شده مرده پیدا می‌شود، در حالی که یک لیوان آب و یک قوطی قرص کنارش است. در ابتدا از داخل و سپس از بیرون قفل شده بود.</p>
+        <span class="meta">سختی ۴ از ۵ · حدود ۲۸ دقیقه</span><span class="prog"></span></a>
+      <a class="card" href="night-train/" data-case="night-train"><span class="pin"></span>
+        <span class="no">پرونده‌ی ۶ · کوپه ۴</span><h2>قطار شبانه</h2><p>یک ارزیاب عتیقه در کوپه خوابش در قطار سریع‌السیر شبانه مرده پیدا می‌شود، در حالی که در از داخل با شب‌بند قفل شده است. قطار در طول شب به مدت هشت دقیقه توقف داشت.</p>
+        <span class="meta">سختی ۴ از ۵ · حدود ۳۰ دقیقه</span><span class="prog"></span></a>
+      <div class="card locked"><span class="pin"></span><span class="no">پرونده‌ی ۷ · به‌زودی</span><h2>امتحان آخر</h2><span class="lockmark" data-icon="lock" role="img" aria-label="پشت یک ستاره‌ی برنجی عددی کنده شده و دری در راهرو هنوز قفل است."></span><p>پشت یک ستاره‌ی برنجی عددی کنده شده و دری در راهرو هنوز قفل است.</p></div>
+      <div class="card locked"><span class="pin"></span><span class="no">پرونده‌ی ۸ · به‌زودی</span><h2>جزر</h2><span class="lockmark" data-icon="lock" role="img" aria-label="پشت یک ستاره‌ی برنجی عددی کنده شده و دری در راهرو هنوز قفل است."></span><p>پشت یک ستاره‌ی برنجی عددی کنده شده و دری در راهرو هنوز قفل است.</p></div>
+      <div class="card locked"><span class="pin"></span><span class="no">پرونده‌ی ۹ · به‌زودی</span><h2>نامه‌ی گمشده</h2><span class="lockmark" data-icon="lock" role="img" aria-label="پشت یک ستاره‌ی برنجی عددی کنده شده و دری در راهرو هنوز قفل است."></span><p>پشت یک ستاره‌ی برنجی عددی کنده شده و دری در راهرو هنوز قفل است.</p></div>
     </div>
   </main>
 
@@ -53,9 +67,22 @@
   </section>
   <footer class="site">ساخته‌ی <a href="https://www.luckylion.games/">استودیوی شیر خوش‌شانس</a></footer>
 </div>
-<script type="application/json" id="nut-menu">{"hub":"./","cases":[{"label":"1. ساعت سه و هفده","sub":"واحد ۴","href":"three-seventeen/","current":false},{"label":"2. Monday, 9 A.M.","sub":"Apartment 7","href":"monday-nine/","current":false},{"label":"3. The Last Reading","sub":"Coming soon","locked":true}],"langs":[{"name":"English","lang":"en","current":false,"href":"../"},{"name":"فارسی","lang":"fa","current":true,"href":"./"}],"t":{"title":"منو","close":"بستن","cases":"پرونده‌ها","board":"همه‌ی پرونده‌ها","language":"زبان","font":"سبک فونت","fontMixed":"ترکیبی","fontPixel":"همه پیکسلی","fontClean":"ساده","size":"اندازه‌ی متن","sizeS":"کوچک","sizeM":"متوسط","sizeL":"بزرگ","motion":"حرکت","motionAuto":"خودکار","motionReduce":"کم","sample":"نمونه: گنجشک‌ها از روی شاخه‌های بلند پریدند."}}</script>
-<script src="../assets/menu.js?v=4bebc3c6"></script>
+<script type="application/json" id="nut-menu">{"about":null,"hub":"./","cases":[{"label":"1. ساعت سه و هفده","sub":"واحد ۴","href":"three-seventeen/","current":false},{"label":"2. دوشنبه، ۹ صبح","sub":"آپارتمان ۷","href":"monday-nine/","current":false},{"label":"3. آخرین روخوانی","sub":"سالن مطالعه","href":"last-reading/","current":false},{"label":"4. گلخانه","sub":"گلخانه","href":"the-greenhouse/","current":false},{"label":"5. اتاق ۱۲","sub":"اتاق ۱۲","href":"room-twelve/","current":false},{"label":"6. قطار شبانه","sub":"کوپه ۴","href":"night-train/","current":false},{"label":"7. امتحان نهایی","sub":"به زودی","locked":true}],"langs":[{"name":"English","lang":"en","current":false,"href":"../"},{"name":"فارسی","lang":"fa","current":true,"href":"./"}],"t":{"title":"منو","close":"بستن","cases":"پرونده‌ها","board":"همه‌ی پرونده‌ها","language":"زبان","font":"سبک فونت","fontMixed":"ترکیبی","fontPixel":"همه پیکسلی","fontClean":"ساده","size":"اندازه‌ی متن","sizeS":"کوچک","sizeM":"متوسط","sizeL":"بزرگ","motion":"حرکت","motionAuto":"خودکار","motionReduce":"کم","sample":"نمونه: گنجشک‌ها از روی شاخه‌های بلند پریدند."}}</script>
+<script src="../assets/icons.js?v=c70c8d7e"></script>
+<script src="../assets/menu.js?v=0d859cd6"></script>
 <script>
+/* red string between the pins, drawn from where the pins really are (so it follows any layout, phone or desktop) */
+(function () {
+  var b = document.getElementById('board'), svg = document.getElementById('strings'); if (!b || !svg) return;
+  function draw() {
+    var pins = b.querySelectorAll('.pin'), br = b.getBoundingClientRect(), pts = [], d = '';
+    svg.setAttribute('viewBox', '0 0 ' + br.width + ' ' + br.height); svg.setAttribute('width', br.width); svg.setAttribute('height', br.height);
+    pins.forEach(function (p) { var r = p.getBoundingClientRect(); pts.push([r.left - br.left + r.width / 2, r.top - br.top + r.height / 2]); });
+    pts.forEach(function (p, i) { if (!i) { d += 'M' + p[0] + ' ' + p[1]; return; } var q = pts[i - 1], mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2 + 26; d += ' Q' + mx + ' ' + my + ' ' + p[0] + ' ' + p[1]; });
+    svg.innerHTML = '<path d="' + d + '" fill="none" stroke="#c43a31" stroke-width="2.5" stroke-linecap="round"/>';
+  }
+  draw(); window.addEventListener('resize', draw); if (window.ResizeObserver) new ResizeObserver(draw).observe(b); window.addEventListener('load', draw);
+})();
 /* show finished cases on the board (browser storage may be blocked, so every read is guarded) */
 (function () {
   var b = document.getElementById('board'); if (!b) return;

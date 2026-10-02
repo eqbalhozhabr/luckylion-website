@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Train | Case in a Nutshell</title>
+<meta name="description" content="An antiques appraiser is found dead in her sleeping cabin on the night express, the door bolted from inside. The train stopped for eight minutes in the night. A short murder case in a pixel isometric model, about 30 minutes, in your browser.">
+<link rel="canonical" href="https://www.luckylion.games/case-in-a-nutshell/night-train/">
+<link rel="alternate" hreflang="en" href="https://www.luckylion.games/case-in-a-nutshell/night-train/">
+<link rel="alternate" hreflang="fa" href="https://www.luckylion.games/case-in-a-nutshell/fa/night-train/">
+<link rel="alternate" hreflang="x-default" href="https://www.luckylion.games/case-in-a-nutshell/night-train/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Night Train | Case in a Nutshell">
+<meta property="og:description" content="An antiques appraiser is found dead in her sleeping cabin on the night express, the door bolted from inside. The train stopped for eight minutes in the night. A short murder case in a pixel isometric model, about 30 minutes, in your browser.">
+<meta property="og:url" content="https://www.luckylion.games/case-in-a-nutshell/night-train/">
+<meta property="og:image" content="https://www.luckylion.games/case-in-a-nutshell/assets/og.png">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#1c1a28">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Pixelify+Sans:wght@400;600;700&family=Vazirmatn:wght@400;600;800&display=swap">
+<script>try{var s=JSON.parse(localStorage.getItem("nutshell:settings")||"{}"),h=document.documentElement;if(s.font)h.dataset.font=s.font;if(s.size)h.dataset.size=s.size;if(s.motion)h.dataset.motion=s.motion;}catch(e){}</script>
+<link rel="stylesheet" href="../assets/nutshell.css?v=f6d18a61">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"Case in a Nutshell: Night Train","alternateName":"Night Train","description":"An antiques appraiser is found dead in her sleeping cabin on the night express, the door bolted from inside. The train stopped for eight minutes in the night. A short murder case in a pixel isometric model, about 30 minutes, in your browser.","inLanguage":"en","url":"https://www.luckylion.games/case-in-a-nutshell/night-train/","image":"https://www.luckylion.games/case-in-a-nutshell/assets/og.png","genre":["Mystery","Puzzle"],"gamePlatform":"Web browser","applicationCategory":"Game","playMode":"SinglePlayer","isPartOf":{"@type":"VideoGameSeries","name":"Case in a Nutshell","url":"https://www.luckylion.games/case-in-a-nutshell/"},"publisher":{"@type":"Organization","name":"Lucky Lion","url":"https://www.luckylion.games/"}}</script>
+</head>
+<body class="casepage">
+<div class="app" id="app">
+  <header class="appbar">
+    <button type="button" class="ibtn" id="menu-btn" data-icon="menu" aria-haspopup="dialog" aria-label="Menu" title="Menu"></button>
+    <div class="ttl"><h1>Night Train</h1><span id="roomname" class="roomname"></span></div>
+    <div class="tools">
+      <button type="button" class="ibtn" id="mapbtn" data-icon="map" aria-label="Map" title="Map"></button>
+      <button type="button" class="ibtn" id="sparkle" data-icon="spots" aria-pressed="false" aria-label="Show tappable spots" title="Show tappable spots"></button>
+      <button type="button" class="ibtn cat" id="hintbtn" aria-label="Ask Marmalade" title="Ask Marmalade"><canvas id="cat-icon" width="16" height="16" aria-hidden="true"></canvas></button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <div id="stagewrap"><canvas id="cv" width="176" height="164" role="img" aria-label="Picture of the room; the list of objects is just below"></canvas></div>
+    <div class="hl" id="hl" aria-hidden="true"></div>
+    <div id="toasts" aria-live="polite"></div>
+  </div>
+
+  <div class="msg" id="msg" aria-live="polite"></div>
+
+  <section class="moments" id="moments" aria-label="Moments bar: the room at other times">
+    <div class="mrow" id="mrow" role="group"></div>
+    <button type="button" class="ibtn wide red" id="compare" aria-pressed="false" title="Difference finder"><span class="lbl">Difference finder</span> <span class="count" id="dcount"></span></button>
+  </section>
+
+  <div class="right">
+    <nav class="stabs" role="tablist" id="stabs">
+      <button type="button" class="stab on" role="tab" data-tab="notebook" data-icon="notebook" aria-selected="true"><span class="stt">Notebook</span><span class="dot" hidden></span></button>
+      <button type="button" class="stab" role="tab" data-tab="suspects" data-icon="people" aria-selected="false"><span class="stt">Suspects</span></button>
+      <button type="button" class="stab" role="tab" data-tab="accuse" data-icon="accuse" aria-selected="false"><span class="stt">Accuse</span><span class="dot" hidden></span></button>
+    </nav>
+    <aside class="side" id="side">
+      <div class="sheet">
+        <button type="button" class="sheet-x" id="sheet-x" aria-label="Close">×</button>
+        <section class="spanel" id="tab-notebook" role="tabpanel"></section>
+        <section class="spanel" id="tab-suspects" role="tabpanel" hidden></section>
+        <section class="spanel" id="tab-accuse" role="tabpanel" hidden></section>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<section class="about wrap sr-only">
+  <p class="eyebrow">Case 6 · Difficulty 4 of 5 · about 30 min</p>
+  <h2>About this case</h2>
+  <p>Model No. 6. Night Express 417, Cabin 4.</p>
+    <p>Alma Voss, 61, an antiques appraiser, was found dead in her berth in Cabin 4 at 06:40 on Sunday morning by the conductor, who had to use the override: the door was bolted from inside. A cup stood on the dresser, her heart pills lay beside it, and her auction catalogue was nowhere to be seen. The doctor on board says her heart gave out. She was carrying a very valuable brooch to an auction on Monday.</p>
+    <p>Four people were near her that night. Read the lock, the platform camera, the receipts and the punch clock, and watch the timetable: the train only stops once. Say who did it, how and why.</p>
+  <h2>How to play</h2>
+  <ul>
+    <li>Tap things in the room. Anything interesting has something to say.</li>
+    <li>The moments bar shows the room as witnesses saw it. A witness may lie, the room does not.</li>
+    <li>Each puzzle adds a fact to your notebook. Use the facts to say who did it, how, and why.</li>
+  </ul>
+  <p>Progress is saved on this device.</p>
+  <footer class="site">Made by <a href="https://www.luckylion.games/">Lucky Lion Studio</a></footer>
+</section>
+
+<script>window.NUT_ROOT = "../";</script>
+<script type="application/json" id="nut-menu">{"about":{"h":"About this case","paras":["Model No. 6. Night Express 417, Cabin 4.","Alma Voss, 61, an antiques appraiser, was found dead in her berth in Cabin 4 at 06:40 on Sunday morning by the conductor, who had to use the override: the door was bolted from inside. A cup stood on the dresser, her heart pills lay beside it, and her auction catalogue was nowhere to be seen. The doctor on board says her heart gave out. She was carrying a very valuable brooch to an auction on Monday.","Four people were near her that night. Read the lock, the platform camera, the receipts and the punch clock, and watch the timetable: the train only stops once. Say who did it, how and why."],"h2":"How to play","how":["Tap things in the room. Anything interesting has something to say.","The moments bar shows the room as witnesses saw it. A witness may lie, the room does not.","Each puzzle adds a fact to your notebook. Use the facts to say who did it, how, and why."],"saved":"Progress is saved on this device.","list":"List of things in the room (for keyboard use)"},"hub":"../","cases":[{"label":"1. Three Seventeen","sub":"Apartment 4","href":"../three-seventeen/","current":false},{"label":"2. Monday, 9 A.M.","sub":"Apartment 7","href":"../monday-nine/","current":false},{"label":"3. The Last Reading","sub":"The Reading Room","href":"../last-reading/","current":false},{"label":"4. The Greenhouse","sub":"The Greenhouse","href":"../the-greenhouse/","current":false},{"label":"5. Room 12","sub":"Room 12","href":"../room-twelve/","current":false},{"label":"6. Night Train","sub":"Cabin 4","href":"./","current":true},{"label":"7. Final Exam","sub":"Coming soon","locked":true}],"langs":[{"name":"English","lang":"en","current":true,"href":"./"},{"name":"فارسی","lang":"fa","current":false,"href":"../fa/night-train/"}],"t":{"title":"Menu","close":"Close","cases":"Cases","board":"All cases","language":"Language","font":"Font style","fontMixed":"Mixed","fontPixel":"All pixel","fontClean":"Clean","size":"Text size","sizeS":"Small","sizeM":"Medium","sizeL":"Large","motion":"Motion","motionAuto":"Automatic","motionReduce":"Reduced","sample":"Sample: the quick brown fox jumps over the lazy dog."}}</script>
+<script src="../assets/icons.js?v=c70c8d7e"></script>
+<script src="../assets/menu.js?v=0d859cd6"></script>
+<script src="../assets/engine.js?v=d87aad54"></script>
+<script src="../assets/case-night-train.js?v=eac0b41c"></script>
+<script src="../assets/i18n-night-train.en.js?v=c09fd31d"></script>
+<script src="../assets/game.js?v=f814390d"></script>
+</body>
+</html>

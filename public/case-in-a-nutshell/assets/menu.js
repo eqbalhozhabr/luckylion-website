@@ -33,7 +33,7 @@
     var back = el('div', 'menu-back'), m = el('div', 'menu');
     m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true'); m.setAttribute('aria-label', T.title);
     var x = el('button', 'x', '×'); x.type = 'button'; x.setAttribute('aria-label', T.close); x.addEventListener('click', close);
-    m.appendChild(x); m.appendChild(el('h2', null, T.title));
+    var head = el('div', 'head'); head.appendChild(el('h2', null, T.title)); head.appendChild(x); m.appendChild(head);
 
     var cases = el('div', 'group-b'); cases.appendChild(el('h3', null, T.cases));
     var list = el('div', 'list');
@@ -58,6 +58,18 @@
     m.appendChild(seg(T.size, 'size', [['m', T.sizeM], ['s', T.sizeS], ['l', T.sizeL]], function (v) { html.dataset.size = v; }));
     m.appendChild(seg(T.motion, 'motion', [['auto', T.motionAuto], ['reduce', T.motionReduce]], function (v) { html.dataset.motion = v; }));
     m.appendChild(el('p', 'sample', T.sample));
+    if (data.about) {
+      var lb = el('button', 'item listbtn', data.about.list); lb.type = 'button';
+      lb.addEventListener('click', function () { close(); window.dispatchEvent(new CustomEvent('nut-list')); });
+      var lg = el('div', 'group-b'); lg.appendChild(lb); m.insertBefore(lg, m.children[1]);
+    }
+    if (data.about) {
+      var ab = el('div', 'group-b about-b'); ab.appendChild(el('h3', null, data.about.h));
+      data.about.paras.forEach(function (p) { ab.appendChild(el('p', null, p)); });
+      ab.appendChild(el('h3', null, data.about.h2));
+      var ul = el('ul'); data.about.how.forEach(function (p) { ul.appendChild(el('li', null, p)); }); ab.appendChild(ul);
+      ab.appendChild(el('p', null, data.about.saved)); m.appendChild(ab);
+    }
 
     back.appendChild(m); document.body.appendChild(back); openEl = back;
     back.addEventListener('click', function (e) { if (e.target === back) close(); });
