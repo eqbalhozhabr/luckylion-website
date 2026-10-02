@@ -2,6 +2,7 @@ import { requestLink, verify, confirmVerify, me, setUsername, logout } from './r
 import { getLevel, submit } from './routes/game.js';
 import { dubikoEvent, dubikoStats, dubikoSolve, dubikoLeaderboard } from './routes/dubiko.js';
 import { getProgress, saveProgress, getLeaderboard, setVisibility } from './routes/blindeye.js';
+import { blindEyeEvent, blindEyeReport, blindEyeStats } from './routes/blindeye-stats.js';
 import { json } from './lib/http.js';
 import { runDailyBackup } from './lib/backup.js';
 
@@ -25,6 +26,9 @@ const ROUTES = [
   ['POST', '/api/blind-eye/progress', saveProgress],
   ['GET', '/api/blind-eye/leaderboard', getLeaderboard],
   ['POST', '/api/blind-eye/visibility', setVisibility],
+  ['POST', '/api/blind-eye/event', blindEyeEvent],
+  ['POST', '/api/blind-eye/report', blindEyeReport],
+  ['GET', '/api/blind-eye/stats', blindEyeStats],
 ];
 
 export default {

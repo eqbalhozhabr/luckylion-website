@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Blind Eye stats</title>
+<style>
+  :root { --bg:#0d1017; --panel:#1c2130; --ink:#e8ecf4; --mut:#8e98ad; --line:#2b3347; --bad:#ff6b7d; --warn:#ffc54a; --good:#41d392; --acc:#ff3b52; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+  h1 { margin: 0; font-size: 22px; } h2 { margin: 0 0 8px; font-size: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; overflow-x: auto; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+  .kpi b { display: block; font-size: 24px; } .kpi span { color: var(--mut); font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child, td.l, th.l { text-align: left; } th { color: var(--mut); font-weight: 600; font-size: 13px; cursor: pointer; user-select: none; }
+  .bad { color: var(--bad); font-weight: 700; } .warn { color: var(--warn); } .good { color: var(--good); } .mut { color: var(--mut); font-size: 13px; }
+  .tag { display: inline-block; padding: 0 6px; margin-right: 4px; border-radius: 4px; font-size: 12px; background: #3a2230; color: var(--bad); } .tag.w { background: #3a3220; color: var(--warn); } .tag.g { background: #1d3a2e; color: var(--good); }
+  input, button, select { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+  button { cursor: pointer; background: var(--acc); color: #fff; border-color: var(--acc); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  td.note { white-space: normal; text-align: left; min-width: 220px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Blind Eye - play statistics and reports</h1>
+  <div class="card row">
+    <input id="key" type="password" placeholder="stats key" autocomplete="off">
+    <select id="days"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option></select>
+    <label class="row"><input id="test" type="checkbox"> test traffic (localhost)</label>
+    <button id="go">Load</button><button id="copy" style="display:none">Copy JSON</button>
+    <span class="mut" id="status"></span>
+  </div>
+  <div id="out"></div>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const pct = (a, b) => (b ? Math.round(100 * a / b) : null);
+const P = (v) => (v == null ? '-' : v + '%');
+const sec = (ms) => (ms == null ? '-' : Math.round(ms / 1000) + 's');
+const num = (v, d) => (v == null ? '-' : Number(v).toFixed(d == null ? 0 : d));
+const esc = (x) => String(x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const KIND = { too_hard: 'too hard', too_easy: 'too easy', confusing: 'confusing', bug: 'bug', other: 'other' };
+let data = null, sortKey = 'lvl', sortDir = 1;
+try { $('#key').value = sessionStorage.getItem('blindeye.stats.key') || ''; } catch (e) {}
+
+// What each level looks like, in plain words. Needs a few players before it says anything.
+function flags(l, reps) {
+  const out = [], starts = l.starts || 0;
+  if ((l.players || 0) < 4) return [['w', 'few players']];
+  const solveRate = pct(l.solvers, l.players), caughtRate = pct(l.caught, starts), leaveRate = pct(l.leaves, starts);
+  if (solveRate != null && solveRate < 60) out.push(['', 'few solve it']);
+  if (caughtRate != null && caughtRate > 35) out.push(['', 'caught often']);
+  if (leaveRate != null && leaveRate > 50) out.push(['w', 'players leave']);
+  if (starts && l.hint_taps / starts > 0.8) out.push(['w', 'hint-heavy']);
+  if (starts && l.mistakes / starts > 2.5) out.push(['w', 'many mistakes']);
+  if (l.moves_over_par != null && l.moves_over_par > 1.8) out.push(['w', 'far above par']);
+  if (solveRate != null && solveRate >= 95 && (l.mistakes || 0) / starts < 0.1 && (l.hint_taps || 0) / starts < 0.1 && l.avg_ms != null && l.avg_ms < 20000 && l.moves_over_par != null && l.moves_over_par < 1.15) out.push(['g', 'maybe too easy']);
+  for (const r of reps) out.push([r.n >= 2 ? '' : 'w', r.n + ' x ' + KIND[r.kind]]);
+  return out;
+}
+function render() {
+  const d = data, o = d.overview || {};
+  const repBy = {}; for (const r of d.reports) (repBy[r.lvl] = repBy[r.lvl] || []).push(r);
+  let h = `<div class="card"><div class="kpis">
+    <div class="kpi"><b>${o.players || 0}</b><span>players</span></div><div class="kpi"><b>${o.sessions || 0}</b><span>sessions</span></div>
+    <div class="kpi"><b>${P(pct(o.phone_players, o.players))}</b><span>on a phone</span></div><div class="kpi"><b>${o.wins || 0}</b><span>levels won</span></div>
+    <div class="kpi"><b>${o.caught || 0}</b><span>times caught</span></div><div class="kpi"><b>${o.mistakes || 0}</b><span>alarms</span></div>
+    <div class="kpi"><b>${o.hints || 0}</b><span>hints</span></div><div class="kpi"><b>${o.ads || 0}</b><span>ad screens</span></div></div></div>`;
+  const known = new Set(d.levels.map((l) => l.lvl)), extra = d.reports.filter((r) => !known.has(r.lvl)).map((r) => r.lvl).filter((v, i, a) => a.indexOf(v) === i).map((lvl) => ({ lvl, players: 0, starts: 0, solvers: 0, wins: 0, caught: 0, leaves: 0, mistakes: 0, hint_taps: 0 }));
+  const rows = d.levels.concat(extra).map((l) => Object.assign({}, l, { solveRate: pct(l.solvers, l.players), caughtPer: l.starts ? l.caught / l.starts : null, hintsPer: l.starts ? l.hint_taps / l.starts : null, mistakesPer: l.starts ? l.mistakes / l.starts : null, fl: flags(l, repBy[l.lvl] || []) }));
+  rows.sort((a, b) => ((a[sortKey] == null ? -1e9 : a[sortKey]) - (b[sortKey] == null ? -1e9 : b[sortKey])) * sortDir);
+  const th = (k, t) => `<th data-k="${k}">${t}${sortKey === k ? (sortDir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
+  h += `<div class="card"><h2>Levels</h2><div class="mut">Click a heading to sort. Flags need at least 4 players on the level.</div><table><tr>${th('lvl', 'Level')}${th('par', 'Par')}${th('players', 'Players')}${th('starts', 'Starts')}${th('solveRate', 'Solved %')}${th('caughtPer', 'Caught / start')}${th('mistakesPer', 'Alarms / start')}${th('hintsPer', 'Hints / start')}${th('moves_over_par', 'Moves / par')}${th('avg_ms', 'Time')}${th('leaves', 'Left')}<th class="l">Flags</th></tr>
+    ${rows.map((l) => `<tr><td>${l.lvl}</td><td>${num(l.par)}</td><td>${l.players}</td><td>${l.starts}</td><td class="${l.solveRate != null && l.solveRate < 60 && l.players >= 4 ? 'bad' : ''}">${P(l.solveRate)}</td><td>${num(l.caughtPer, 2)}</td><td>${num(l.mistakesPer, 1)}</td><td>${num(l.hintsPer, 2)}</td><td>${num(l.moves_over_par, 2)}</td><td>${sec(l.avg_ms)}</td><td>${l.leaves}</td><td class="l">${l.fl.map(([c, t]) => `<span class="tag ${c}">${esc(t)}</span>`).join('')}</td></tr>`).join('') || '<tr><td colspan="12" class="l mut">No events yet.</td></tr>'}</table></div>`;
+  h += `<div class="card"><h2>Player notes</h2><table><tr><th>When</th><th>Level</th><th class="l">Kind</th><th class="l">Note</th><th>Lang</th></tr>
+    ${d.notes.map((n) => `<tr><td>${new Date(n.rcv).toLocaleString()}</td><td>${n.lvl}</td><td class="l">${esc(KIND[n.kind] || n.kind)}</td><td class="note">${esc(n.note)}</td><td>${esc(n.lang || '')}</td></tr>`).join('') || '<tr><td colspan="5" class="l mut">No notes.</td></tr>'}</table></div>`;
+  $('#out').innerHTML = h;
+  document.querySelectorAll('th[data-k]').forEach((t) => { t.onclick = () => { const k = t.dataset.k; if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = k === 'lvl' ? 1 : -1; } render(); }; });
+}
+async function load() {
+  const key = $('#key').value.trim(); if (!key) return;
+  $('#status').textContent = 'loading...';
+  const r = await fetch('/api/blind-eye/stats?days=' + $('#days').value + '&test=' + ($('#test').checked ? 1 : 0), { headers: { Authorization: 'Bearer ' + key } });
+  if (!r.ok) { $('#status').textContent = r.status === 401 ? 'wrong key' : r.status === 404 ? 'stats are not switched on (no key set on the server)' : 'error ' + r.status; return; }
+  try { sessionStorage.setItem('blindeye.stats.key', key); } catch (e) {}
+  data = await r.json(); $('#status').textContent = 'updated ' + new Date().toLocaleTimeString(); $('#copy').style.display = ''; render();
+}
+$('#go').onclick = load;
+$('#copy').onclick = async () => { try { await navigator.clipboard.writeText(JSON.stringify(data)); $('#status').textContent = 'JSON copied'; } catch (e) { $('#status').textContent = 'could not copy'; } };
+$('#key').addEventListener('keydown', (e) => { if (e.key === 'Enter') load(); });
+if ($('#key').value) load();
+</script>
+</body>
+</html>
