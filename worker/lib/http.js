@@ -14,3 +14,9 @@ const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
 export function isValidUsername(s) {
   return typeof s === 'string' && USERNAME_RE.test(s);
 }
+
+// Where a sign-in link may send the player back to (an open redirect would be a phishing hole): a fixed list.
+const NEXT_PAGES = ['/pixels-of-the-mist/', '/blind-eye/'];
+export function safeNext(s) {
+  return typeof s === 'string' && NEXT_PAGES.includes(s) ? s : '/pixels-of-the-mist/';
+}
