@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ساعت سه و هفده | پرونده در یک پوست‌گردو</title>
+<meta name="description" content="ساعت‌سازی در تختش مرده پیدا می‌شود و ساعت کنار تخت روی ۳:۱۷ ایستاده است. یک پرونده‌ی کوتاه قتل در ماکتی ایزومتریک و پیکسلی، حدود ۱۲ دقیقه، در مرورگر.">
+<link rel="canonical" href="https://www.luckylion.games/case-in-a-nutshell/fa/three-seventeen/">
+<link rel="alternate" hreflang="en" href="https://www.luckylion.games/case-in-a-nutshell/three-seventeen/">
+<link rel="alternate" hreflang="fa" href="https://www.luckylion.games/case-in-a-nutshell/fa/three-seventeen/">
+<link rel="alternate" hreflang="x-default" href="https://www.luckylion.games/case-in-a-nutshell/three-seventeen/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ساعت سه و هفده | پرونده در یک پوست‌گردو">
+<meta property="og:description" content="ساعت‌سازی در تختش مرده پیدا می‌شود و ساعت کنار تخت روی ۳:۱۷ ایستاده است. یک پرونده‌ی کوتاه قتل در ماکتی ایزومتریک و پیکسلی، حدود ۱۲ دقیقه، در مرورگر.">
+<meta property="og:url" content="https://www.luckylion.games/case-in-a-nutshell/fa/three-seventeen/">
+<meta property="og:image" content="https://www.luckylion.games/case-in-a-nutshell/assets/og.png">
+<meta property="og:locale" content="fa_IR">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#1c1a28">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Pixelify+Sans:wght@400;600;700&family=Vazirmatn:wght@400;600;800&display=swap">
+<script>try{var s=JSON.parse(localStorage.getItem("nutshell:settings")||"{}"),h=document.documentElement;if(s.font)h.dataset.font=s.font;if(s.size)h.dataset.size=s.size;if(s.motion)h.dataset.motion=s.motion;}catch(e){}</script>
+<link rel="stylesheet" href="../../assets/nutshell.css?v=5c8a886d">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"Case in a Nutshell: Three Seventeen","alternateName":"ساعت سه و هفده","description":"ساعت‌سازی در تختش مرده پیدا می‌شود و ساعت کنار تخت روی ۳:۱۷ ایستاده است. یک پرونده‌ی کوتاه قتل در ماکتی ایزومتریک و پیکسلی، حدود ۱۲ دقیقه، در مرورگر.","inLanguage":"fa","url":"https://www.luckylion.games/case-in-a-nutshell/fa/three-seventeen/","image":"https://www.luckylion.games/case-in-a-nutshell/assets/og.png","genre":["Mystery","Puzzle"],"gamePlatform":"Web browser","applicationCategory":"Game","playMode":"SinglePlayer","isPartOf":{"@type":"VideoGameSeries","name":"Case in a Nutshell","url":"https://www.luckylion.games/case-in-a-nutshell/"},"publisher":{"@type":"Organization","name":"Lucky Lion","url":"https://www.luckylion.games/"}}</script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="topbar">
+      <a class="back" href="../">→ تابلوی پرونده‌ها</a>
+      <div class="topbar-r"><nav class="langs" aria-label="زبان"><a href="../../three-seventeen/" hreflang="en" lang="en">English</a><span aria-current="true">فارسی</span></nav><button type="button" class="menu-btn" id="menu-btn" aria-haspopup="dialog">☰ منو</button></div>
+    </div>
+    <p class="eyebrow">پرونده‌ی ۱ · سختی ۱ از ۵ · حدود ۱۲ دقیقه</p>
+    <h1>ساعت سه و هفده</h1>
+  </header>
+
+  <main class="game" id="game">
+    <div class="col">
+      <div class="bar">
+        <div class="tabs" id="tabs" role="group" aria-label="اتاق‌ها"></div>
+        <div class="row">
+          <button type="button" class="pill" id="mapbtn">نقشه</button>
+          <button type="button" class="pill" id="lens" aria-pressed="false">ذره‌بین</button>
+          <button type="button" class="pill" id="sparkle" aria-pressed="false">نمایش نقاط قابل لمس</button>
+          <button type="button" class="pill cat" id="hintbtn"><canvas id="cat-icon" width="16" height="16" aria-hidden="true"></canvas>از مارمالاد بپرس</button>
+        </div>
+      </div>
+
+      <div class="stage" id="stage">
+        <div id="stagewrap"><canvas id="cv" width="176" height="164" role="img" aria-label="تصویر اتاق؛ فهرست اشیا همین پایین است"></canvas></div>
+        <div class="hl" id="hl" aria-hidden="true"></div>
+        <div id="toasts" aria-live="polite"></div>
+      </div>
+
+      <section class="moments" id="moments" aria-label="نوار زمان: اتاق در چهار لحظه">
+        <h2>نوار زمان: اتاق در چهار لحظه</h2>
+        <div class="mrow" id="mrow" role="group"></div>
+        <p class="mcap" id="mcap"></p>
+        <div class="mtools">
+          <button type="button" class="pill red" id="compare" aria-pressed="false">تفاوت‌یاب</button>
+          <span class="count" id="dcount"></span>
+        </div>
+      </section>
+
+      <div class="msg" id="msg" aria-live="polite"></div>
+
+      <details>
+        <summary>فهرست اشیای اتاق (برای استفاده با صفحه‌کلید)</summary>
+        <div class="chips" id="objs"></div>
+      </details>
+    </div>
+
+    <aside class="side">
+      <div class="stabs" role="tablist" id="stabs">
+        <button type="button" class="stab on" role="tab" data-tab="notebook" aria-selected="true">دفترچه<span class="dot" hidden></span></button>
+        <button type="button" class="stab" role="tab" data-tab="suspects" aria-selected="false">مظنون‌ها</button>
+        <button type="button" class="stab" role="tab" data-tab="accuse" aria-selected="false">اتهام<span class="dot" hidden></span></button>
+      </div>
+      <section class="spanel" id="tab-notebook" role="tabpanel"></section>
+      <section class="spanel" id="tab-suspects" role="tabpanel" hidden></section>
+      <section class="spanel" id="tab-accuse" role="tabpanel" hidden></section>
+    </aside>
+  </main>
+
+  <section class="about">
+    <h2>درباره‌ی این پرونده</h2>
+    <p>ماکت شماره‌ی ۱. ساختمان اورنج گرو، واحد ۴.</p>
+    <p>الیاس برانت، ساعت‌ساز بازنشسته‌ی ۷۱ ساله، صبح ساعت ۷:۰۵ در تختش مرده پیدا شد. ساعت کنار تخت روی ۳:۱۷ ایستاده بود و همه نتیجه گرفتند که پیرمرد نیمه‌شب در خواب مرده.</p>
+    <p>تو کارآموز کارآگاهی و این ماکت را به تو سپرده‌اند. اتاق‌ها را بگرد، شاهدها را بشنو و بگو چه کسی، چطور و چرا.</p>
+    <h2>چطور بازی می‌شود؟</h2>
+    <ul>
+      <li>روی اشیای اتاق بزن. هر چیز که جالب باشد حرفی برای گفتن دارد.</li>
+      <li>نوار زمان اتاق را آن‌طور نشان می‌دهد که شاهدها دیده‌اند. شاهد ممکن است دروغ بگوید، اتاق نه.</li>
+      <li>هر معما یک واقعیت به دفترچه اضافه می‌کند. با واقعیت‌ها بگو چه کسی، چطور و چرا.</li>
+    </ul>
+    <p>پیشرفتت روی همین دستگاه ذخیره می‌شود.</p>
+  </section>
+  <footer class="site">ساخته‌ی <a href="https://www.luckylion.games/">استودیوی شیر خوش‌شانس</a></footer>
+</div>
+
+<script>window.NUT_ROOT = "../";</script>
+<script type="application/json" id="nut-menu">{"hub":"../","cases":[{"label":"1. ساعت سه و هفده","sub":"واحد ۴","href":"./","current":true},{"label":"2. واحد ۷","sub":"به‌زودی","locked":true}],"langs":[{"name":"English","lang":"en","current":false,"href":"../../three-seventeen/"},{"name":"فارسی","lang":"fa","current":true,"href":"./"}],"t":{"title":"منو","close":"بستن","cases":"پرونده‌ها","board":"همه‌ی پرونده‌ها","language":"زبان","font":"سبک فونت","fontMixed":"ترکیبی","fontPixel":"همه پیکسلی","fontClean":"ساده","size":"اندازه‌ی متن","sizeS":"کوچک","sizeM":"متوسط","sizeL":"بزرگ","motion":"حرکت","motionAuto":"خودکار","motionReduce":"کم","sample":"نمونه: گنجشک‌ها از روی شاخه‌های بلند پریدند."}}</script>
+<script src="../../assets/menu.js?v=4bebc3c6"></script>
+<script src="../../assets/engine.js?v=b8729d16"></script>
+<script src="../../assets/case-three-seventeen.js?v=482082a4"></script>
+<script src="../../assets/i18n-three-seventeen.fa.js?v=cd1e5e00"></script>
+<script src="../../assets/game.js?v=f8eca30c"></script>
+</body>
+</html>

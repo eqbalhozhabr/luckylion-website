@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case in a Nutshell</title>
+<meta name="description" content="Short murder cases in pixel isometric dioramas. Search the rooms, weigh the witnesses and say who did it, how and why. A browser game.">
+<link rel="canonical" href="https://www.luckylion.games/case-in-a-nutshell/">
+<link rel="alternate" hreflang="en" href="https://www.luckylion.games/case-in-a-nutshell/">
+<link rel="alternate" hreflang="fa" href="https://www.luckylion.games/case-in-a-nutshell/fa/">
+<link rel="alternate" hreflang="x-default" href="https://www.luckylion.games/case-in-a-nutshell/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Case in a Nutshell">
+<meta property="og:description" content="Short murder cases in pixel isometric dioramas. Search the rooms, weigh the witnesses and say who did it, how and why. A browser game.">
+<meta property="og:url" content="https://www.luckylion.games/case-in-a-nutshell/">
+<meta property="og:image" content="https://www.luckylion.games/case-in-a-nutshell/assets/og.png">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#1c1a28">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Pixelify+Sans:wght@400;600;700&family=Vazirmatn:wght@400;600;800&display=swap">
+<script>try{var s=JSON.parse(localStorage.getItem("nutshell:settings")||"{}"),h=document.documentElement;if(s.font)h.dataset.font=s.font;if(s.size)h.dataset.size=s.size;if(s.motion)h.dataset.motion=s.motion;}catch(e){}</script>
+<link rel="stylesheet" href="assets/nutshell.css?v=5c8a886d">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGameSeries","name":"Case in a Nutshell","description":"Short murder cases in pixel isometric dioramas. Search the rooms, weigh the witnesses and say who did it, how and why. A browser game.","inLanguage":"en","gamePlatform":"Web browser","genre":["Mystery","Puzzle"],"publisher":{"@type":"Organization","name":"Lucky Lion","url":"https://www.luckylion.games/"}}</script>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar"><span></span><div class="topbar-r"><nav class="langs" aria-label="Language"><span aria-current="true">English</span><a href="fa/" hreflang="fa" lang="fa">فارسی</a></nav><button type="button" class="menu-btn" id="menu-btn" aria-haspopup="dialog">☰ Menu</button></div></div>
+  <header class="hero">
+    <h1>Case in a Nutshell</h1>
+    <p>Short murder cases in small pixel dioramas. Each case takes about 12 minutes, can be played on its own, and opens in your browser. Search the rooms, weigh the witnesses, and say who did it, how, and why.</p>
+    <p>Inspired by the 1940s crime-scene models built to train detectives. You are a trainee detective, and every case comes from the same building.</p>
+  </header>
+
+  <main>
+    <div class="board" id="board" data-done="Closed {stars}" data-prog="In progress: {n} facts" data-lang="en">
+      <span class="thread-line" aria-hidden="true"></span>
+      <a class="card" href="three-seventeen/" data-case="three-seventeen"><span class="pin"></span>
+        <span class="no">Case 1 · Apartment 4</span><h2>Three Seventeen</h2><p>A retired clockmaker is found dead in bed, and the clock beside him has stopped at 3:17.</p>
+        <span class="meta">Difficulty 1 of 5 · about 12 min</span><span class="prog"></span></a>
+      <div class="card locked"><span class="pin"></span><span class="no">Case 2 · Apartment 7</span><h2>Coming soon</h2><p>A brass star has a number on its back, and a door in the hallway is still locked.</p></div>
+    </div>
+  </main>
+
+  <section class="about">
+    <h2>What is different here?</h2>
+    <p>The goal is not to escape, it is to accuse. Puzzles do not hand you keys, they hand you truth: each one adds a fact to your notebook, and in the end you must prove who did it with those facts. Witnesses lie, the room does not.</p>
+    <p>Every case ends with a loose thread that leads to the next one.</p>
+  </section>
+  <footer class="site">Made by <a href="https://www.luckylion.games/">Lucky Lion Studio</a></footer>
+</div>
+<script type="application/json" id="nut-menu">{"hub":"./","cases":[{"label":"1. Three Seventeen","sub":"Apartment 4","href":"three-seventeen/","current":false},{"label":"2. Apartment 7","sub":"Coming soon","locked":true}],"langs":[{"name":"English","lang":"en","current":true,"href":"./"},{"name":"فارسی","lang":"fa","current":false,"href":"fa/"}],"t":{"title":"Menu","close":"Close","cases":"Cases","board":"All cases","language":"Language","font":"Font style","fontMixed":"Mixed","fontPixel":"All pixel","fontClean":"Clean","size":"Text size","sizeS":"Small","sizeM":"Medium","sizeL":"Large","motion":"Motion","motionAuto":"Automatic","motionReduce":"Reduced","sample":"Sample: the quick brown fox jumps over the lazy dog."}}</script>
+<script src="assets/menu.js?v=4bebc3c6"></script>
+<script>
+/* show finished cases on the board (browser storage may be blocked, so every read is guarded) */
+(function () {
+  var b = document.getElementById('board'); if (!b) return;
+  var nf = new Intl.NumberFormat(b.getAttribute('data-lang'));
+  document.querySelectorAll('[data-case]').forEach(function (c) {
+    try {
+      var s = JSON.parse(localStorage.getItem('nutshell:' + c.getAttribute('data-case')) || 'null'), p = c.querySelector('.prog');
+      if (!s || !p) return;
+      if (s.solved) p.textContent = b.getAttribute('data-done').replace('{stars}', '★'.repeat(s.stars || 1));
+      else if (s.order && s.order.length) p.textContent = b.getAttribute('data-prog').replace('{n}', nf.format(s.order.length));
+    } catch (e) { /* ignore */ }
+  });
+})();
+</script>
+</body>
+</html>
