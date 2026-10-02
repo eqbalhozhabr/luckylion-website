@@ -27,8 +27,9 @@
 
   /* ---------- state + saving (browser storage may be blocked: every touch is guarded) ---------- */
   const KEY = 'nutshell:' + CASE.id;
+  const SCENE = CASE.sceneRoom || 'bedroom';          // the room whose moments the player can compare
   const S = {
-    room: 'bedroom', moment: 'scene', compare: false, lens: false, lensHot: 0,
+    room: CASE.map.start, moment: 'scene', compare: false, lens: false, lensHot: 0,
     world: { lamp: false, box: false }, facts: {}, order: [], diffFound: [], docsSeen: {}, clockPushed: false,
     tries: 0, hints: 0, solved: false, stars: 0, playMs: 0, introSeen: false, visited: [],
     hover: 0, lampT: 0, sparkle: false, cur: null, tab: 'notebook', catN: 0, pick: {}, fresh: {}, lastHint: '', feedback: [], feedbackText: [], hintTier: {}
@@ -70,9 +71,9 @@
 
   /* ---------- scene ---------- */
   function patchesFor() {
-    if (S.room !== 'bedroom') return [];
+    if (S.room !== SCENE) return [];
     const p = moment(S.moment).patches.slice();
-    if (S.moment === 'scene') p.push({ id: 'lamp', set: { lit: S.world.lamp } }, { id: 'musicbox', set: { open: S.world.box } });
+    if (S.moment === 'scene' && !CASE.boards) p.push({ id: 'lamp', set: { lit: S.world.lamp } }, { id: 'musicbox', set: { open: S.world.box } });
     return p;
   }
   function rebuild() {
@@ -131,7 +132,7 @@
   function go(id, silent) {
     stage.classList.add('swap');
     setTimeout(() => {
-      S.room = id; S.hover = 0; if (id !== 'bedroom') setCompare(false);
+      S.room = id; S.hover = 0; if (id !== SCENE) setCompare(false);
       if (!S.visited.includes(id)) { S.visited.push(id); save(); }
       rebuild(); snapLamp(); buildRoomTabs(); updateMoments();
       stage.classList.remove('swap');
@@ -192,7 +193,7 @@
     if (on) setLens(false);
   }
   function updateMoments() {
-    $('moments').hidden = S.room !== 'bedroom';
+    $('moments').hidden = S.room !== SCENE;
     document.querySelectorAll('.mbtn').forEach((b) => { const on = b.dataset.id === S.moment; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     $('mcap').textContent = t('moment.' + S.moment + '.caption');
     const can = S.moment === D.a || S.moment === D.b;
@@ -386,6 +387,84 @@
     }, 'wide');
   }
 
+  /* ---------- puzzle boards: a few documents and one question that earns a fact ---------- */
+  function docPaper(prefix, d) {
+    const paper = el('div', 'paper');
+    paper.append(el('h3', null, t(prefix + '.title')), el('p', null, t(prefix + '.note')));
+    if (d.rows) {
+      const tb = el('table', 'doc'), hd = el('tr');
+      for (let i = 0; i < d.cols; i++) hd.append(el('th', null, t(prefix + '.col.' + i)));
+      tb.append(hd);
+      d.rows.forEach((r) => { const tr = el('tr'); r.forEach((v) => { const c = typeof v === 'object' && v.k ? { text: t('cell.' + v.k) } : cell(v); tr.append(el('td', c.ltr ? 'ltr' : null, c.text)); }); tb.append(tr); });
+      const wrap = el('div', 'tablewrap'); wrap.append(tb); paper.append(wrap);
+    }
+    if (d.frames) {
+      const people = {}; for (const s2 of CASE.suspects) people[s2.id] = s2.portrait;
+      const cam = el('div', 'cam'), wrap = el('div', 'camwrap'), c = document.createElement('canvas'), ts = el('span', 'ts'), cap = el('p'), fr = el('div', 'frames');
+      wrap.append(c, ts); cam.append(wrap, cap, fr);
+      const set = (i) => { drawFrame(c, d.frames[i].spec, people); ts.textContent = dig(d.frames[i].t); cap.textContent = t(prefix + '.frame.' + i); fr.querySelectorAll('button').forEach((b, j) => b.classList.toggle('on', j === i)); };
+      d.frames.forEach((f, i) => { const b = el('button', null, dig(f.t)); b.type = 'button'; b.addEventListener('click', () => set(i)); fr.append(b); });
+      paper.append(cam); set(0);
+    }
+    paper.append(el('p', 'foot', t(prefix + '.foot')));
+    return paper;
+  }
+  function openBoard(id) {
+    const B = CASE.boards[id], keys = Object.keys(B.docs);
+    openModal(t('board.' + id + '.title'), (body) => {
+      const tabs = el('div', 'dtabs'), view = el('div'), zone = el('div');
+      body.append(tabs, view, zone);
+      let cur = keys[0];
+      const seen = (k) => S.docsSeen[id + '.' + k];
+      const ask = () => {
+        zone.textContent = '';
+        if (S.facts[B.fact]) { zone.append(el('p', 'ok', t('fact.' + B.fact + '.text'))); return; }
+        if (!keys.every(seen)) { zone.append(el('p', 'muted', t('ui.docs.seeAll'))); return; }
+        const Q = B.question, fb = el('div'), grid = el('div', 'pickrow'), chosen = new Set();
+        zone.append(el('p', null, t('board.' + id + '.ask')));
+        const done = () => { gain(B.fact); ask(); drawTabs(); };
+        if (Q.kind === 'choice') {
+          for (const o of Q.options) {
+            const b = el('button', 'opt', t('board.' + id + '.opt.' + o)); b.type = 'button';
+            b.addEventListener('click', () => { fb.textContent = ''; if (o === Q.answer) return done(); fb.append(el('p', 'bad', t('board.' + id + '.opt.' + o + '.wrong'))); });
+            grid.append(b);
+          }
+          zone.append(grid, fb); return;
+        }
+        for (const s of CASE.suspects) {
+          const b = pickButton(s, () => {
+            if (Q.kind === 'one') { fb.textContent = ''; if (s.id === Q.answer) return done(); fb.append(el('p', 'bad', t('board.' + id + '.wrong.' + s.id))); return; }
+            chosen.has(s.id) ? chosen.delete(s.id) : chosen.add(s.id); b.setAttribute('aria-pressed', chosen.has(s.id) ? 'true' : 'false');
+          });
+          if (Q.kind === 'many') b.setAttribute('aria-pressed', 'false');
+          grid.append(b);
+        }
+        zone.append(grid, fb);
+        if (Q.kind === 'many') zone.append(btn(t('ui.check'), 'btn main', () => {
+          fb.textContent = '';
+          const want = new Set(Q.answer), ok = chosen.size === want.size && [...want].every((i) => chosen.has(i));
+          if (ok) return done();
+          if (!chosen.size) fb.append(el('p', 'bad', t('board.' + id + '.none')));
+          for (const i of chosen) if (!want.has(i)) fb.append(el('p', 'bad', t('board.' + id + '.wrong.' + i)));
+          for (const i of want) if (!chosen.has(i) && chosen.size) fb.append(el('p', 'bad', t('ui.clock.missed') + ' ' + t('board.' + id + '.wrong.' + i)));
+        }));
+      };
+      const drawTabs = () => {
+        tabs.textContent = '';
+        for (const k of keys) {
+          const b = el('button', 'pill' + (k === cur ? ' on' : ''), t('doc.' + id + '.' + k + '.title') + (seen(k) ? ' ✓' : '')); b.type = 'button';
+          b.addEventListener('click', () => { cur = k; show(); });
+          tabs.append(b);
+        }
+      };
+      const show = () => {
+        S.docsSeen[id + '.' + cur] = true; save(); drawTabs(); ask();
+        view.textContent = ''; view.append(docPaper('doc.' + id + '.' + cur, B.docs[cur]));
+      };
+      show();
+    }, 'wide');
+  }
+
   /* ---------- puzzle: the music box ---------- */
   function openLock() {
     const L = CASE.lock;
@@ -423,7 +502,17 @@
   function act(name) {
     if (modal) return;
     if (name.startsWith('door:')) return useDoor(name);
+    if (CASE.boards) return actBoards(name);
     return S.room === 'bedroom' ? actBedroom(name) : actHall(name);
+  }
+  /* cases built from boards: a thing is either a board (documents + one question), something to observe, or just something to look at */
+  function actBoards(name) {
+    if (S.compare && S.room === SCENE && (S.moment === D.a || S.moment === D.b)) return markDiff(name);
+    const board = CASE.bind && CASE.bind[S.room + ':' + name];
+    if (board) return openBoard(board);
+    const ob = CASE.observe && CASE.observe[name];
+    if (ob && S.room === SCENE && S.moment === 'scene') { gain(ob.fact); return say(t('observe.' + name)); }
+    return say(hotText(name));
   }
   function actBedroom(name) {
     const scene = S.moment === 'scene', m = S.moment;
@@ -484,7 +573,7 @@
       const pc = personCard(s, false);
       pc.info.append(el('b', null, sname(s.id)), el('span', 'role', t('suspect.' + s.id + '.role')), el('span', 'tag', t('ui.sus.motive', { x: t('suspect.' + s.id + '.hint') })), el('q', null, t('suspect.' + s.id + '.statement')));
       const m = CASE.moments.find(mm => mm.who === s.id);
-      if (m) pc.info.append(btn(t('ui.sus.room'), 'pill', () => { if (S.room !== 'bedroom') go('bedroom', true); setTimeout(() => setMoment(m.id), reduced() ? 0 : 240); }));
+      if (m) pc.info.append(btn(t('ui.sus.room'), 'pill', () => { if (S.room !== SCENE) go(SCENE, true); setTimeout(() => setMoment(m.id), reduced() ? 0 : 240); }));
       box.append(pc.p);
     }
   }
@@ -604,7 +693,7 @@
     }, 'wide');
   }
   function reset() {
-    Object.assign(S, { room: 'bedroom', moment: 'scene', compare: false, world: { lamp: false, box: false }, facts: {}, order: [], diffFound: [], docsSeen: {}, clockPushed: false, tries: 0, hints: 0, solved: false, stars: 0, playMs: 0, introSeen: true, visited: [CASE.map.start], pick: {}, fresh: {}, lastHint: '', feedback: [], feedbackText: [], hintTier: {} });
+    Object.assign(S, { room: CASE.map.start, moment: 'scene', compare: false, world: { lamp: false, box: false }, facts: {}, order: [], diffFound: [], docsSeen: {}, clockPushed: false, tries: 0, hints: 0, solved: false, stars: 0, playMs: 0, introSeen: true, visited: [CASE.map.start], pick: {}, fresh: {}, lastHint: '', feedback: [], feedbackText: [], hintTier: {} });
     try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
     setCompare(false); setLens(false); rebuild(); snapLamp(); buildRoomTabs(); updateMoments(); renderNotebook(); renderAccuse(); setTab('notebook');
     say(t('ui.msg.reset'));
@@ -645,7 +734,7 @@
 
   /* ---------- marks for the differences already found ---------- */
   function drawMarks(tm) {
-    if (S.room !== 'bedroom' || !(S.moment === D.a || S.moment === D.b)) return;
+    if (S.room !== SCENE || !(S.moment === D.a || S.moment === D.b)) return;
     const blink = Math.sin(tm * 5) > -0.3;
     for (const h of HOTLIST) {
       if (!S.diffFound.includes(h.name) || !blink) continue;
@@ -682,5 +771,5 @@
   if (!S.introSeen) openIntro();
   else say(t(S.order.length ? 'ui.msg.back' : 'ui.msg.start'));
   requestAnimationFrame(frame);
-  window.NUT = { S, t, act, go, setMoment, setCompare, setLens, gain, reset, openClock, openDocs, openLock, showEnd, closeModal, rebuild, submitAccuse, setTab };
+  window.NUT = { S, t, act, go, openBoard, setMoment, setCompare, setLens, gain, reset, openClock, openDocs, openLock, showEnd, closeModal, rebuild, submitAccuse, setTab };
 })();
