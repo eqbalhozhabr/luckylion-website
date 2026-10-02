@@ -143,7 +143,7 @@
       body.append(box);
     });
   }
-  $('listbtn').addEventListener('click', openList);
+  window.addEventListener('nut-list', openList);   // the menu's "things in this room" entry
   function fit() {
     // phone: the room takes the height the other bars leave it, so nothing needs scrolling. Desktop: as wide as the column, but not taller than the window.
     const wrap = $('stagewrap'), availW = wrap.clientWidth, desk = window.matchMedia && matchMedia('(min-width: 960px)').matches;

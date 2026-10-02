@@ -471,3 +471,5 @@ html[data-motion="reduce"] * { animation: none !important; transition: none !imp
 .modal-body > .wires, .modal-body > .fuses { display: flex; }
 .modal-body > .keypad { display: grid; }
 .fuses { flex-wrap: nowrap; gap: 8px; padding: 12px 8px; } .fuse { flex: 1; min-width: 0; padding: 8px 4px; }
+.menu .listbtn { width: 100%; text-align: start; background: var(--panel); border: 2px solid var(--line); padding: 8px 12px; min-height: 44px; font-family: var(--f-head); }
+.menu .listbtn:hover { border-color: var(--amber); }

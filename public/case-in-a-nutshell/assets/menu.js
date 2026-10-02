@@ -59,6 +59,11 @@
     m.appendChild(seg(T.motion, 'motion', [['auto', T.motionAuto], ['reduce', T.motionReduce]], function (v) { html.dataset.motion = v; }));
     m.appendChild(el('p', 'sample', T.sample));
     if (data.about) {
+      var lb = el('button', 'item listbtn', data.about.list); lb.type = 'button';
+      lb.addEventListener('click', function () { close(); window.dispatchEvent(new CustomEvent('nut-list')); });
+      var lg = el('div', 'group-b'); lg.appendChild(lb); m.insertBefore(lg, m.children[1]);
+    }
+    if (data.about) {
       var ab = el('div', 'group-b about-b'); ab.appendChild(el('h3', null, data.about.h));
       data.about.paras.forEach(function (p) { ab.appendChild(el('p', null, p)); });
       ab.appendChild(el('h3', null, data.about.h2));
