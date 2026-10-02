@@ -21,6 +21,9 @@ function ensureTables(DB) {
     ready = (async () => {
       await DB.prepare('CREATE TABLE IF NOT EXISTS dubiko_reports (id INTEGER PRIMARY KEY AUTOINCREMENT, rcv INTEGER NOT NULL, aid TEXT NOT NULL, lvl INTEGER NOT NULL, kind TEXT NOT NULL, note TEXT, build TEXT, lang TEXT, test INTEGER NOT NULL DEFAULT 0)').run();
       await DB.prepare('CREATE INDEX IF NOT EXISTS idx_dubiko_rep ON dubiko_reports(lvl, kind)').run();
+      // the ranking table too, so a missing hand-made migration cannot break the leaderboard
+      await DB.prepare('CREATE TABLE IF NOT EXISTS dubiko_solved (user_id TEXT NOT NULL REFERENCES users(id), lvl INTEGER NOT NULL, solved_at INTEGER NOT NULL, PRIMARY KEY (user_id, lvl))').run();
+      await DB.prepare('CREATE INDEX IF NOT EXISTS idx_dubiko_solved_user ON dubiko_solved(user_id, solved_at)').run();
     })().catch((err) => { ready = null; throw err; });
   }
   return ready;
@@ -209,6 +212,7 @@ async function rankOf(env, userId) {
 
 // POST /api/dubiko/solve  { n, placed: [{ type, cells }] }  (needs a signed-in player with a username)
 export async function dubikoSolve(request, env) {
+  await ensureTables(env.DB);
   const user = await db.findSessionUser(env.DB, readSessionToken(request));
   if (!user) return json({ error: 'not_logged_in' }, { status: 401 });
   if (!user.username) return json({ error: 'no_username' }, { status: 409 });
@@ -225,6 +229,7 @@ export async function dubikoSolve(request, env) {
 
 // GET /api/dubiko/leaderboard?limit=50 - public; the caller's own place is added when signed in
 export async function dubikoLeaderboard(request, env) {
+  await ensureTables(env.DB);
   const limit = Math.min(100, Math.max(1, parseInt(new URL(request.url).searchParams.get('limit') || '50', 10) || 50));
   const rows = (await env.DB.prepare(
     `SELECT u.username AS username, COUNT(*) AS solved, MAX(s.lvl) AS best, MAX(s.solved_at) AS last
