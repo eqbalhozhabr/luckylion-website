@@ -1353,21 +1353,37 @@ TYPES.pillar = (o, g) => {
   faceX(o.x + o.w, o.y, o.y + o.d, 8, 16, (ix, iz) => ((ix + iz) % 6 < 3 ? col('yellow', -0.3) : col('ink', 0)), newG(o.hot, true));
 };
 
-/* an open wooden staircase rising toward the back-left corner along the right wall:
-   lit treads with a nosing, darker risers, a solid side, balusters and a handrail */
+/* A staircase rising toward the back-left corner along the right wall.
+   o.open = false: solid, one flat side face with a stepped top edge.
+   o.open = true : thin treads on one slanted side beam, nothing under them.
+   Steps are drawn from the far (high) one to the near (low) one so every step overlaps the one behind it. */
 TYPES.stairs = (o, g) => {
-  const n = o.steps || 7, dx = o.w / n, rise = 5;
-  for (let i = 0; i < n; i++) {
-    const sx = o.x + o.w - (i + 1) * dx, gs = i === 0 ? g : newG(o.hot, true), top = (i + 1) * rise;
-    box(sx, o.y, 0, dx, o.d, top, 'stairBody', gs, { tk: 0.25 });
-    topPixels(sx, o.y, dx, o.d, top, (lx, ly) => (lx < 0.12 ? col('stairTop', 0.55) : col('stairTop', 0.22)), gs);                  // tread with a bright nosing
-    faceY(o.y + o.d, sx, sx + dx, top - rise, top, (ix, iz) => (iz >= rise - 1 ? col('stairTop', 0.3) : col('stairBody', -0.45)), gs); // riser, darker than the tread
+  const n = o.steps || 8, dx = o.w / n, rise = 5, yD = o.y + o.d, xf = o.x + o.w, xb = o.x;
+  const tread = (lx) => (lx < 0.12 ? 'bright' : 'lit');
+  const treadPaint = (lx) => (tread(lx) === 'bright' ? col('stairTop', 0.55) : col('stairTop', 0.22));
+  if (!o.open) {
+    for (let i = n - 1; i >= 0; i--) {
+      const sx = xf - (i + 1) * dx, top = (i + 1) * rise;
+      box(sx, o.y, 0, dx, o.d, top, 'stairBody', g, { tk: 0.3, lk: -0.14, rk: -0.42 });   // one gid: no seams inside the flight
+      topPixels(sx, o.y, dx, o.d, top, treadPaint, g);
+    }
+  } else {
+    // the slanted side beam under the treads, on the open side
+    const zTop = (x) => rise + rise * (xf - dx / 2 - x) / dx - 2, drop = 6;
+    const x0 = xf - dx / 2 - (drop + 2 - rise) * dx / rise;
+    const pts = [[xf, yD, 0], [xf, yD, zTop(xf)], [xb, yD, zTop(xb)], [xb, yD, zTop(xb) - drop], [x0, yD, 0]];
+    poly(pts.map((p) => P(p[0], p[1], p[2])), col('stairBody', -0.14), g);
+    for (let i = n - 1; i >= 0; i--) {
+      const sx = xf - (i + 1) * dx, top = (i + 1) * rise, gs = newG(o.hot, true);
+      box(sx, o.y, top - 2, dx, o.d, 2, 'stairTop', gs, { tk: 0.3, lk: -0.1, rk: -0.3 });
+      topPixels(sx, o.y, dx, o.d, top, treadPaint, gs);
+    }
   }
-  const gr = newG(o.hot, true), y0 = o.y + o.d - 0.12;
-  for (let i = 0; i < n; i++) { const px = o.x + o.w - (i + 0.5) * dx; box(px - 0.03, y0, (i + 1) * rise, 0.06, 0.06, 14, 'stairRail', gr, { tk: 0.2 }); }
-  const rail = (dz, k) => line3([o.x + o.w - 0.5 * dx, y0 + 0.03, rise + 14 + dz], [o.x + 0.5 * dx, y0 + 0.03, n * rise + 14 + dz], col('stairRail', k), gr);
+  const gr = newG(o.hot, true), y0 = yD - 0.12;
+  for (let i = 0; i < n; i++) { const px = xf - (i + 0.5) * dx; box(px - 0.03, y0, (i + 1) * rise, 0.06, 0.06, 14, 'stairRail', gr, { tk: 0.2 }); }
+  const rail = (dz, k) => line3([xf - 0.5 * dx, y0 + 0.03, rise + 14 + dz], [xb + 0.5 * dx, y0 + 0.03, n * rise + 14 + dz], col('stairRail', k), gr);
   rail(0, 0.3); rail(1, 0.3); rail(-1, -0.2);
-  box(o.x + o.w - 0.1, y0, 0, 0.1, 0.1, rise + 16, 'stairRail', gr, { tk: 0.2 });                                                // newel post at the foot
+  box(xf - 0.1, y0, 0, 0.1, 0.1, rise + 16, 'stairRail', gr, { tk: 0.2 });
 };
 
 /* ============================================================
@@ -1756,6 +1772,7 @@ Object.assign(LAYOUTS, {
   ],
   stairs: [
     (r) => ({ R: [WP('stairs', 5.2, 1.5, { steps: 8 })], L: [WP('bench', 2.0, 0.8)], free: [OBJ('plant', 6.6, 4.4, 0.9, 0.9)], fixed: true }),
+    (r) => ({ R: [WP('stairs', 5.2, 1.5, { steps: 8, open: true })], L: [WP('plant', 0.9, 0.9)], free: [OBJ('plant', 6.6, 4.4, 0.9, 0.9)], fixed: true }),
   ],
   elevator: [(r) => ({ R: [], L: [], free: [] })],
   garden: [
