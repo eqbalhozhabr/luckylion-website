@@ -10,6 +10,24 @@ const EVENTS = new Set(['session_start', 'level_start', 'level_complete', 'level
   'help_open', 'tutorial_start', 'tutorial_step', 'tutorial_done', 'tutorial_skip', 'coach_seen']);
 const DAY = 86400000;
 const ID_RE = /^[0-9a-f]{8,32}$/;
+const REPORT_KINDS = new Set(['too_hard', 'too_easy', 'confusing', 'bug', 'other']);
+const MAX_REPORTS_PER_DAY = 20;
+
+// The report table is created on first use (like the Blind Eye tables), so nobody has to run a migration by hand;
+// migrations/0005 holds the same statements.
+let ready = null;
+function ensureTables(DB) {
+  if (!ready) {
+    ready = (async () => {
+      await DB.prepare('CREATE TABLE IF NOT EXISTS dubiko_reports (id INTEGER PRIMARY KEY AUTOINCREMENT, rcv INTEGER NOT NULL, aid TEXT NOT NULL, lvl INTEGER NOT NULL, kind TEXT NOT NULL, note TEXT, build TEXT, lang TEXT, test INTEGER NOT NULL DEFAULT 0)').run();
+      await DB.prepare('CREATE INDEX IF NOT EXISTS idx_dubiko_rep ON dubiko_reports(lvl, kind)').run();
+      // the ranking table too, so a missing hand-made migration cannot break the leaderboard
+      await DB.prepare('CREATE TABLE IF NOT EXISTS dubiko_solved (user_id TEXT NOT NULL REFERENCES users(id), lvl INTEGER NOT NULL, solved_at INTEGER NOT NULL, PRIMARY KEY (user_id, lvl))').run();
+      await DB.prepare('CREATE INDEX IF NOT EXISTS idx_dubiko_solved_user ON dubiko_solved(user_id, solved_at)').run();
+    })().catch((err) => { ready = null; throw err; });
+  }
+  return ready;
+}
 
 const int = (v, lo, hi) => (Number.isFinite(v) && v >= lo && v <= hi ? Math.floor(v) : null);
 
@@ -42,6 +60,32 @@ export async function dubikoEvent(request, env) {
   return new Response(null, { status: 204 });
 }
 
+// POST /api/dubiko/report   body (JSON): { a: aid, n: level, k: kind, note?: string (<= 200), v, l, x }
+// An explicit act of the player, so it is accepted even when anonymous statistics are switched off.
+export async function dubikoReport(request, env) {
+  const origin = request.headers.get('Origin');
+  if (origin && origin !== new URL(request.url).origin) return json({ error: 'bad_origin' }, { status: 403 });
+  const text = await request.text();
+  if (text.length > 2000) return json({ error: 'too_large' }, { status: 413 });
+  let b;
+  try { b = JSON.parse(text); } catch { return json({ error: 'bad_request' }, { status: 400 }); }
+  const lvl = int(b && b.n, 1, 1000000);
+  if (!b || typeof b.a !== 'string' || !ID_RE.test(b.a) || lvl === null || !REPORT_KINDS.has(b.k)) return json({ error: 'bad_request' }, { status: 400 });
+  await ensureTables(env.DB);
+  const now = Date.now();
+  const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM dubiko_reports WHERE aid = ? AND rcv > ?').bind(b.a, now - DAY).first();
+  if (recent.n >= MAX_REPORTS_PER_DAY) return json({ error: 'too_many' }, { status: 429 });
+  const note = typeof b.note === 'string' ? b.note.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 200) : '';
+  await env.DB.prepare('INSERT INTO dubiko_reports (rcv, aid, lvl, kind, note, build, lang, test) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(now, b.a, lvl, b.k, note || null, typeof b.v === 'string' ? b.v.slice(0, 24) : '', b.l === 'fa' || b.l === 'en' ? b.l : '', b.x ? 1 : 0).run();
+  return json({ ok: true });
+}
+
+// Old events are only useful for a while; the daily cron (worker/index.js) calls this.
+export async function pruneDubikoEvents(env, days = 90) {
+  await env.DB.prepare('DELETE FROM dubiko_events WHERE rcv < ?').bind(Date.now() - days * DAY).run();
+}
+
 const constantTimeEqual = (a, b) => {
   if (a.length !== b.length) return false;
   let d = 0;
@@ -54,6 +98,7 @@ export async function dubikoStats(request, env) {
   if (!env.DUBIKO_STATS_KEY) return json({ error: 'not_found' }, { status: 404 });
   const auth = request.headers.get('Authorization') || '';
   if (!constantTimeEqual(auth, 'Bearer ' + env.DUBIKO_STATS_KEY)) return json({ error: 'unauthorized' }, { status: 401 });
+  await ensureTables(env.DB);
   const url = new URL(request.url);
   const days = Math.min(365, Math.max(1, parseInt(url.searchParams.get('days') || '30', 10) || 30));
   const test = url.searchParams.get('test') === '1' ? 1 : 0;
@@ -81,7 +126,8 @@ export async function dubikoStats(request, env) {
             AVG(CASE WHEN ev = 'level_complete' THEN ms END) AS avg_ms,
             AVG(CASE WHEN ev = 'level_complete' THEN json_extract(props, '$.hints') END) AS avg_hints,
             AVG(CASE WHEN ev = 'level_complete' THEN json_extract(props, '$.errs') END) AS avg_errs,
-            SUM(ev = 'hint') AS hint_taps
+            SUM(ev = 'hint') AS hint_taps,
+            SUM(CASE WHEN ev IN ('level_complete', 'level_leave') THEN COALESCE(json_extract(props, '$.errs'), 0) ELSE 0 END) AS err_sum
        FROM dubiko_events WHERE rcv >= ? AND test = ? AND lvl IS NOT NULL GROUP BY lvl ORDER BY lvl LIMIT 300`, since, test);
   const retention = await q(
     `WITH f AS (SELECT aid, MIN(rcv / ${DAY}) AS d0 FROM dubiko_events WHERE test = ? GROUP BY aid),
@@ -91,7 +137,9 @@ export async function dubikoStats(request, env) {
             SUM(EXISTS (SELECT 1 FROM a WHERE a.aid = f.aid AND a.d = f.d0 + 7)) AS d7,
             SUM(EXISTS (SELECT 1 FROM a WHERE a.aid = f.aid AND a.d = f.d0 + 30)) AS d30
        FROM f WHERE f.d0 >= ? GROUP BY f.d0 ORDER BY f.d0 DESC LIMIT 60`, test, test, Math.floor(since / DAY));
-  return json({ days, test, now: Date.now(), overview, tutorial, levels, retention });
+  const reports = await q(`SELECT lvl, kind, COUNT(*) AS n FROM dubiko_reports WHERE rcv >= ? AND test = ? GROUP BY lvl, kind ORDER BY lvl`, since, test);
+  const notes = await q(`SELECT rcv, lvl, kind, note, lang, build FROM dubiko_reports WHERE rcv >= ? AND test = ? AND note IS NOT NULL ORDER BY rcv DESC LIMIT 100`, since, test);
+  return json({ days, test, now: Date.now(), overview, tutorial, levels, retention, reports, notes });
 }
 
 // ------------------------------------------------------------------ ranking
@@ -164,6 +212,7 @@ async function rankOf(env, userId) {
 
 // POST /api/dubiko/solve  { n, placed: [{ type, cells }] }  (needs a signed-in player with a username)
 export async function dubikoSolve(request, env) {
+  await ensureTables(env.DB);
   const user = await db.findSessionUser(env.DB, readSessionToken(request));
   if (!user) return json({ error: 'not_logged_in' }, { status: 401 });
   if (!user.username) return json({ error: 'no_username' }, { status: 409 });
@@ -180,6 +229,7 @@ export async function dubikoSolve(request, env) {
 
 // GET /api/dubiko/leaderboard?limit=50 - public; the caller's own place is added when signed in
 export async function dubikoLeaderboard(request, env) {
+  await ensureTables(env.DB);
   const limit = Math.min(100, Math.max(1, parseInt(new URL(request.url).searchParams.get('limit') || '50', 10) || 50));
   const rows = (await env.DB.prepare(
     `SELECT u.username AS username, COUNT(*) AS solved, MAX(s.lvl) AS best, MAX(s.solved_at) AS last
