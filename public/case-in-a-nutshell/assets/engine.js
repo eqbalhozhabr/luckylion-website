@@ -614,6 +614,58 @@ function drawCam(c, idx) {
   R('#ff3b30', 5, 5, 3, 3);
 }
 
+/* ---------- camera frames for case 2 documents ----------
+   drawFrame(canvas, spec) paints one small CCTV picture from data. spec = { scene, figs: [{ who, x, h, hood, hold, flip }], ruler }.
+   scene: lobby | basement | reception | bar | ward | dining. People are coloured from their portrait, so the same person looks the same everywhere. */
+function drawFrame(c, spec, people) {
+  c.width = 96; c.height = 56;
+  const x = c.getContext('2d'), R = (col, px, py, w, h) => { x.fillStyle = col; x.fillRect(Math.round(px), Math.round(py), Math.round(w), Math.round(h)); };
+  const S = spec.scene;
+  if (S === 'lobby') {
+    R('#1a2236', 0, 0, 96, 56); R('#2c3550', 0, 8, 96, 30); R('#3a3f55', 0, 38, 96, 18);
+    R('#201a28', 32, 8, 34, 40);                                   // the front door, open to the wet night
+    R('#5a6b8a', 33, 9, 32, 5); for (let i = 0; i < 12; i++) R('#7aa0d0', 34 + i * 2.6, 10 + (i * 7) % 20, 1, 3);   // rain
+    R('#e0b04a', 30, 8, 2, 40); R('#e0b04a', 66, 8, 2, 40); R('#e0b04a', 30, 8, 38, 2);
+    R('#8a97a3', 70, 20, 6, 8); R('#e0b04a', 72, 22, 2, 2);          // the intercom panel
+  } else if (S === 'basement') {
+    R('#2a2b30', 0, 0, 96, 56); R('#3a3c44', 0, 6, 96, 28); R('#25262c', 0, 34, 96, 22);
+    R('#7a5a52', 52, 10, 26, 34); R('#5a4038', 54, 12, 22, 30); R('#9aa3ae', 60, 14, 6, 26); R('#e0584a', 70, 18, 3, 3); // the boiler
+    R('#6f757d', 8, 28, 26, 3); R('#6f757d', 8, 20, 3, 14);          // pipes and a shelf
+  } else if (S === 'reception') {
+    R('#2c2530', 0, 0, 96, 56); R('#4a3a52', 0, 10, 96, 24); R('#34303c', 0, 34, 96, 22);
+    R('#8a6a3a', 6, 30, 50, 8); R('#b9804d', 6, 28, 50, 3); R('#e0b04a', 62, 10, 12, 8); R('#7a5a3a', 63, 11, 10, 6);   // desk and a sign
+  } else if (S === 'bar') {
+    R('#2a1f22', 0, 0, 96, 56); R('#4a2f2c', 0, 8, 96, 24); R('#201a1c', 0, 32, 96, 24);
+    for (let i = 0; i < 8; i++) R(['#8ec5ea', '#e0b04a', '#d6453d', '#7cc07a'][i % 4], 8 + i * 10, 14, 4, 9);   // bottles
+    R('#7a4a2a', 0, 32, 96, 6); R('#b9804d', 0, 31, 96, 2); R('#cfe8f0', 74, 27, 3, 4); R('#cfe8f0', 80, 27, 3, 4);
+  } else if (S === 'ward') {
+    R('#2a3a3c', 0, 0, 96, 56); R('#6f8f8a', 0, 6, 96, 28); R('#8aa6a0', 0, 34, 96, 22); for (let i = 0; i < 96; i += 16) R('#a8c0bc', i, 6, 1, 28);
+  } else {
+    R('#2b2230', 0, 0, 96, 56); R('#5a4838', 0, 12, 96, 22); R('#3a3040', 0, 34, 96, 22);
+    R('#b9804d', 14, 30, 50, 4); R('#e8e0cf', 20, 26, 6, 4); R('#e8e0cf', 40, 26, 6, 4);
+  }
+  if (spec.ruler) {                                                  // height marks beside the door: 150 .. 200 cm, every 10 (1 pixel = 5 cm)
+    for (let cm = 150; cm <= 200; cm += 10) R('#f3e9d3', 24, 46 - cm / 5, cm % 20 === 0 ? 6 : 3, 1);
+  }
+  for (const f of spec.figs || []) {
+    const P0 = (people && people[f.who]) || { skin: '#c8936c', hair: '#2a2024', shirt: '#6a6a7a' };
+    const gx = f.x, base = 46, hpx = f.h;                            // hpx: body height in frame pixels
+    const top = base - hpx, bw = f.wide || 7;
+    R('rgba(0,0,0,0.35)', gx - 1, base, bw + 4, 2);
+    R(P0.shirt, gx, top + 6, bw, hpx - 14);                          // coat or shirt
+    R('#2a2132', gx + 1, base - 8, 2, 8); R('#2a2132', gx + bw - 3, base - 8, 2, 8);   // legs
+    if (f.hood) { R(f.hoodColor || '#3a4660', gx - 1, top, bw + 2, 7); R('#15182a', gx + 1, top + 2, bw - 2, 4); }
+    else { R(P0.skin, gx + 1, top + 1, bw - 2, 5); R(P0.hair, gx, top, bw, 2); if (f.flip) R(P0.hair, gx + bw - 2, top, 2, 4); else R(P0.hair, gx, top, 2, 4); }
+    if (f.hold === 'tube') R('#f4ead0', gx + bw, top + 12, 2, 12);                  // a rolled bundle of papers
+    if (f.hold === 'umbrella') R('#15182a', gx + bw + 1, top + 4, 1, hpx - 6);
+    if (f.hold === 'card') { R('#e8e4d0', gx + bw, top + 14, 5, 3); R('#3b7fb8', gx + bw, top + 14, 5, 1); }
+    if (f.hold === 'wrench') { R('#9aa3ae', gx + bw, top + 10, 1, 9); R('#9aa3ae', gx + bw - 1, top + 9, 3, 2); }
+    if (f.hold === 'trolley') { R('#cfd6dc', gx + bw + 2, top + 14, 10, 2); R('#9aa3ae', gx + bw + 3, top + 16, 1, 8); R('#9aa3ae', gx + bw + 10, top + 16, 1, 8); }
+  }
+  x.fillStyle = 'rgba(0,0,0,.22)'; for (let y = 0; y < 56; y += 2) x.fillRect(0, y, 96, 1);
+  R('#ff3b30', 5, 5, 3, 3);
+}
+
 const DETAILS = {};
 
 DETAILS.clock = (c, room) => {
@@ -1200,6 +1252,7 @@ TYPES.table = (o, g) => {
   for (const [lx, ly] of [[0.1, 0.1], [w - 0.28, 0.1], [0.1, d - 0.28], [w - 0.28, d - 0.28]]) box(x + lx, y + ly, 0, 0.18, 0.18, 13, 'woodDk', g);
   box(x, y, 13, w, d, 2, 'woodLt', newG(o.hot, true), { tk: 0.3 });
   const gi = newG(o.hot, true);
+  drawOn(o.id, 15);
   if (o.set) { cyl(x + w * 0.3, y + d * 0.5, 15, 0.26, 1.5, 'plate', gi); cyl(x + w * 0.7, y + d * 0.5, 15, 0.26, 1.5, 'plate', gi); cyl(x + w * 0.5, y + d * 0.5, 15, 0.14, 4, 'glass', gi); }
 };
 TYPES.chair = (o, g) => {
@@ -1283,6 +1336,7 @@ TYPES.workbench = (o, g) => {
   for (const [lx, ly] of [[0.1, 0.1], [w - 0.28, 0.1], [0.1, d - 0.28], [w - 0.28, d - 0.28]]) box(x + lx, y + ly, 0, 0.2, 0.2, 14, 'woodDk', g);
   box(x, y, 14, w, d, 3, 'woodLt', newG(o.hot, true), { tk: 0.3 });
   const gi = newG(o.hot, true);
+  if (o.bare) { drawOn(o.id, 17); return; }
   box(x + 0.3, y + 0.3, 17, 0.5, 0.18, 1.5, 'metalDk', gi); cyl(x + w - 0.4, y + d * 0.5, 17, 0.2, 5, 'red', gi);
 };
 TYPES.boiler = (o, g) => {
@@ -1485,6 +1539,28 @@ TYPES.nook = (o, g) => {
   cyl(x + 0.4, y + 0.4, 8, 0.28, 3, 'accent', newG(o.hot, true), { tk: 0.3 });
 };
 
+/* ---------- small items for case 2 ---------- */
+/* a folder of papers. it.cover: 'folder' (cream) | 'blue' (a police file) */
+ITEM_TYPES.papers = (it, z, g) => {
+  const blue = it.cover === 'blue';
+  box(it.x - 0.45, it.y - 0.34, z, 0.9, 0.68, 0.9, blue ? 'folderBlue' : 'folder', g, { tk: 0.15 });
+  topPixels(it.x - 0.4, it.y - 0.3, 0.8, 0.6, z + 0.9, (lx, ly) => {
+    if (blue) return ly < 0.14 ? col('paper', -0.1) : (lx > 0.12 && lx < 0.88 && Math.floor(ly * 10) % 2 === 1 ? col('ink', 0.55) : col('folderBlue', 0.15));
+    if (ly < 0.16) return col('folder', -0.2);
+    return (lx > 0.12 && lx < 0.88 && Math.floor(ly * 10) % 2 === 0 ? col('ink', 0.5) : col('paper', 0.1));
+  }, g);
+};
+/* the building's electricity meter box with a round dial */
+ITEM_TYPES.meter = (it, z, g) => {
+  box(it.x - 0.45, it.y - 0.22, z, 0.9, 0.44, 7, 'meterBody', g, { tk: 0.2 });
+  faceY(it.y + 0.22, it.x - 0.4, it.x + 0.4, z + 1, z + 6, (ix, iz, w2, h2) => {
+    const dx = ix - (w2 - 1) / 2, dz = iz - (h2 - 1) / 2;
+    if (ix === 0 || ix === w2 - 1 || iz === 0 || iz === h2 - 1) return col('metalDk', 0);
+    if (dx * dx + dz * dz <= 3.2) return Math.abs(dx - dz) < 0.8 ? col('red', 0) : col('meterDial', 0);
+    return col('metal', 0.1);
+  }, g);
+};
+
 /* ============================================================
    library/spaces.js : the space kit. makeSpace(type, opts) builds a
    complete room definition (floor, walls, doors, furniture, light)
@@ -1534,7 +1610,9 @@ const BASE_PAL = {
   // bedroom pieces
   bedwood: '#4a3433', navy: '#2b4a5e', cab: '#2f4b5d', cabLt: '#3d6279', blue: '#2f6f8f', blueLt: '#d3e8ec', sheet: '#d9d3c4', pillow: '#ece7d8', brassBox: '#c8963e', pouf: '#3b84a6', ghost: '#f1f8f2',
   sky: '#8ec5ea', skyDk: '#17203a', cloud: '#f4f8fb', star: '#f5f0c8', curtain: '#d6b36a', curtainDk: '#a98a48', skin: '#e9b99a', chalk: '#f6f3e8',
-  crt: '#cdbf9c', cat: '#e89a4a', catBib: '#f4ead8', rose: '#e07a7a', ledgerCover: '#7a2f3a', slipper: '#b8483f', slipperIn: '#5a2a2e', sole: '#6b5a4a'
+  crt: '#cdbf9c', camSky: '#1c2a44', camGround: '#33503a', camTap: '#6fb7e8', camMan: '#e08a2a',
+  tea: '#7a3e22', teaLow: '#a8764a', residue: '#efe9dc', herb: '#5f9a4c', cupBlue: '#3b7fb8', saucer: '#f1e8d3', folder: '#d8c28a', folderBlue: '#3b5f8a', meterBody: '#8d98a4', meterDial: '#e8e4d0',
+  cat: '#e89a4a', catBib: '#f4ead8', rose: '#e07a7a', ledgerCover: '#7a2f3a', slipper: '#b8483f', slipperIn: '#5a2a2e', sole: '#6b5a4a'
 };
 
 /* three colour themes per type; each overrides only what it needs */
@@ -1689,7 +1767,7 @@ const ITEM_PAINT = {
     if (curtains === 'blinds' && iz < h - 3 && iz > 2) return iz % 3 === 0 ? col('white', -0.15) : (iz % 3 === 1 ? col('white', 0) : col('sky', 0.1));
     if (curtains === true && (ix < 5 || ix >= w - 5) && iz < h - 3) return (ix + iz) % 4 === 0 ? col('curtainDk', 0) : col('curtain', 0);
     if (ix === Math.floor(w / 2) || iz === Math.floor(h / 2)) return col('trim', -0.1);
-    if (day) { const c = (iz > h * 0.55 && hash2(ix >> 2, iz >> 1) > 0.78); return c ? col('cloud', 0) : col('sky', iz / h * 0.3 - 0.1); }
+    if (day === 'auto' ? ((CURROOM.env.time || 'day') === 'day') : day) { const c = (iz > h * 0.55 && hash2(ix >> 2, iz >> 1) > 0.78); return c ? col('cloud', 0) : col('sky', iz / h * 0.3 - 0.1); }
     return hash2(ix, iz) > 0.965 ? col('star', 0.1) : col('skyDk', iz / h > 0.55 ? 0.3 : 0);
   },
   picture: (seed) => (ix, iz, w, h) => {
@@ -1819,7 +1897,7 @@ function makeSpace(type, opts) {
   r.pick = (a) => a[Math.floor(r() * a.length)];
   const themes = THEMES[type] || [{}], theme = opts.theme != null ? opts.theme % themes.length : Math.floor(r() * themes.length);
   const layouts = LAYOUTS[type], layout = opts.layout != null ? opts.layout % layouts.length : Math.floor(r() * layouts.length);
-  const lay = layouts[layout](r);
+  const lay = opts.lay ? opts.lay(r) : layouts[layout](r);
   const mirror = !lay.fixed && (opts.mirror != null ? opts.mirror : r() < 0.5);
   let [nx, ny] = opts.size || SIZE_OF[type] || [8, 8];
   if (mirror) [nx, ny] = [ny, nx];
@@ -1877,7 +1955,7 @@ function makeSpace(type, opts) {
   const free = (wall, a, b) => !taken[wall].some((t) => a < t[1] && b > t[0]);
   const outdoor = OUTDOOR[type] != null, openAir = ['yard', 'garden', 'parking'].includes(type);
   const wantWindows = openAir ? 0 : (['basement', 'elevator'].includes(type) ? 0 : (type === 'stairs' || type === 'library' ? 0.5 : 1));
-  const day = (opts.time || 'day') === 'day';
+  const auto = opts.time === 'auto', day = auto ? 'auto' : (opts.time || 'day') === 'day';
   const styleOf = STYLE_OF[type], onGlass = (wall) => type === 'balcony' && wall === 'L';
   for (const wall of ['L', 'R']) {
     const len = wall === 'R' ? nx : ny;
@@ -1912,7 +1990,7 @@ function makeSpace(type, opts) {
   const name = opts.name || ('room.' + (opts.id || type));
   const room = {
     id: opts.id || type, name, type, seed, slab: 'slab', rim: 'rim', hasRug: !!rug, wallH, nx, ny,
-    spec: { type, seed, theme, layout, mirror, time: opts.time || 'day', size: [nx, ny] },
+    spec: { type, seed, theme, layout, mirror, time: auto ? 'day' : (opts.time || 'day'), size: [nx, ny] },
     env: { slots: slotsLines, pool },
     pal, floor: floorFn(FLOOR_OF[type], rug),
     walls: (st, rm) => ({
@@ -1921,9 +1999,10 @@ function makeSpace(type, opts) {
     }),
     objects: objs, items: (opts.items || []).slice(),
     light: (st, t, rm) => {
-      const amb = outdoor ? (day ? [1.0, 0.98, 0.94] : [0.45, 0.5, 0.8]) : (day ? [0.96, 0.93, 0.88] : [0.5, 0.52, 0.72]);
+      const dayNow = day === 'auto' ? ((rm.env.time || 'day') === 'day') : day;
+      const amb = outdoor ? (dayNow ? [1.0, 0.98, 0.94] : [0.45, 0.5, 0.8]) : (dayNow ? [0.96, 0.93, 0.88] : [0.5, 0.52, 0.72]);
       const cp = P(nx / 2, ny / 2, wallH);
-      const lights = outdoor ? [] : [{ sx: cp[0], sy: cp[1], r: 90, k: day ? 0.18 : 0.5, col: [0.8, 0.55, 0.25] }];
+      const lights = outdoor ? [] : [{ sx: cp[0], sy: cp[1], r: 90, k: dayNow ? 0.18 : 0.5, col: [0.8, 0.55, 0.25] }];
       return { amb, lights };
     }
   };
