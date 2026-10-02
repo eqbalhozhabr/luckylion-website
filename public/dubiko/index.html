@@ -71,6 +71,12 @@
   .lv .tagi { position: absolute; top: 2px; left: 4px; font-size: 13px; }
   .lv .boss { position: absolute; top: 2px; right: 4px; font-size: 13px; }
 
+  /* ------------------------------------------------ report */
+  #report .seg { margin: 8px 0; } #report .seg button { min-width: 0; flex: 1 1 40%; }
+  #report textarea { width: 100%; padding: 8px 10px; font: inherit; border: 1px solid var(--line); border-radius: 8px; background: var(--btn); color: var(--ink); resize: vertical; }
+  #report .st { min-height: 22px; margin: 6px 0; font-size: 14px; } #report .st.bad { color: var(--bad); } #report .st.good { color: var(--good); }
+  #sheet #sheetReport { margin-top: 10px; }
+
   /* ------------------------------------------------ ranking */
   .rank { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
   .rank th, .rank td { padding: 6px 8px; text-align: start; border-bottom: 1px solid var(--line); }
@@ -182,6 +188,7 @@
     #scr-game > header input[type=number] { width: 52px; }
     #lvTitle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .ib .tx { display: none; }
+    .deskonly { display: none !important; }
     .ib { width: 40px; height: 40px; padding: 0; display: inline-grid; place-items: center; font-size: 20px; line-height: 1; flex: none; }
     .ib .ic { margin: 0; }
     #scr-game main { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding: 6px; width: 100%; max-width: none; margin: 0; }
@@ -291,6 +298,7 @@
           <button class="ib" id="rulesBtn" data-i18n-title="game.tabRules"><span class="ic">📜</span><span class="tx" data-i18n="game.tabRules"></span></button>
           <button class="ib" id="rot" data-i18n-title="game.rotateTitle"><span class="ic">↻</span><span class="tx" data-i18n="game.rotate"></span></button>
           <button class="ib" id="hint" data-i18n-title="game.hint"><span class="ic">💡</span><span class="tx" data-i18n="game.hint"></span></button>
+          <button class="ib deskonly" id="reportBtn" data-i18n-title="report.title" hidden><span class="ic">🚩</span><span class="tx" data-i18n="report.title"></span></button>
           <button class="ib" id="clear" data-i18n-title="game.clear"><span class="ic">🗑</span><span class="tx" data-i18n="game.clear"></span></button>
         </div>
       </div>
@@ -320,11 +328,27 @@
     <div class="sheethead"><h2 data-i18n="game.tabRules"></h2><button id="sheetClose" class="ib" data-i18n-title="help.close"><span class="ic">✕</span></button></div>
     <p id="sheetIntro" class="mut small"></p>
     <ul class="rules" id="sheetRules"></ul>
+    <button id="sheetReport" data-i18n="report.title" hidden></button>
   </div>
 </div>
 
-<div id="win"><div class="box"><b data-i18n="win.title"></b><span id="winText"></span><small class="mut" id="winSub"></small>
+<div id="win"><div class="box"><b data-i18n="win.title"></b><span id="winText"></span><small class="mut" id="winSub"></small><button id="winReport" data-i18n="report.title" hidden></button>
   <button class="primary" id="winNext" data-i18n="win.next"></button><button id="winLevels" data-i18n="win.levels"></button></div></div>
+
+<div id="report" class="overlay" hidden role="dialog" aria-modal="true">
+  <div class="dlg">
+    <h2 data-i18n="report.title"></h2>
+    <p class="mut small" data-i18n="report.hint"></p>
+    <div class="seg" id="rpKinds">
+      <button data-k="too_hard" data-i18n="report.too_hard"></button><button data-k="too_easy" data-i18n="report.too_easy"></button>
+      <button data-k="confusing" data-i18n="report.confusing"></button><button data-k="bug" data-i18n="report.bug"></button>
+      <button data-k="other" data-i18n="report.other"></button>
+    </div>
+    <textarea id="rpNote" maxlength="200" rows="3" data-i18n-ph="report.notePh"></textarea>
+    <div class="st" id="rpSt"></div>
+    <div class="row2"><button class="primary" id="rpSend" data-i18n="report.send"></button><button id="rpCancel" data-i18n="report.cancel"></button></div>
+  </div>
+</div>
 
 <div id="help" class="overlay" hidden role="dialog" aria-modal="true">
   <div class="dlg">
@@ -335,7 +359,7 @@
   </div>
 </div>
 
-<script>window.DUBIKO_BUILD="0.1.0+2026-10-02";window.DUBIKO_WORKER="worker.5c977571.js";window.DUBIKO_TRACK_URL='/api/dubiko/event';window.DUBIKO_ACCOUNTS=true;</script>
-<script src="dubiko.898f6f45.js"></script>
+<script>window.DUBIKO_BUILD="0.1.0+2026-10-02";window.DUBIKO_WORKER="worker.5c977571.js";window.DUBIKO_TRACK_URL='/api/dubiko/event';window.DUBIKO_ACCOUNTS=true;window.DUBIKO_REPORT_URL='/api/dubiko/report';</script>
+<script src="dubiko.367da730.js"></script>
 </body>
 </html>
