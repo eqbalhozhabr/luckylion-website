@@ -638,8 +638,17 @@ function drawFrame(c, spec, people) {
     R('#2a1f22', 0, 0, 96, 56); R('#4a2f2c', 0, 8, 96, 24); R('#201a1c', 0, 32, 96, 24);
     for (let i = 0; i < 8; i++) R(['#8ec5ea', '#e0b04a', '#d6453d', '#7cc07a'][i % 4], 8 + i * 10, 14, 4, 9);   // bottles
     R('#7a4a2a', 0, 32, 96, 6); R('#b9804d', 0, 31, 96, 2); R('#cfe8f0', 74, 27, 3, 4); R('#cfe8f0', 80, 27, 3, 4);
-  } else if (S === 'ward') {
-    R('#2a3a3c', 0, 0, 96, 56); R('#6f8f8a', 0, 6, 96, 28); R('#8aa6a0', 0, 34, 96, 22); for (let i = 0; i < 96; i += 16) R('#a8c0bc', i, 6, 1, 28);
+  } else if (S === 'hall') {                                       // the great hall: stage, lectern, rows of heads
+    R('#2a1c26', 0, 0, 96, 56); R('#5a2a3a', 0, 4, 96, 22); for (let i = 0; i < 96; i += 7) R('#6a3446', i, 4, 2, 22);       // curtain
+    R('#7a5a3a', 8, 28, 80, 4); R('#4a3626', 8, 32, 80, 3);                                                                   // stage
+    R('#b9804d', 52, 20, 8, 9); R('#e0b04a', 54, 18, 4, 2);                                                                    // lectern and microphone
+    R('#1c1620', 0, 36, 96, 20);
+    for (let r = 0; r < 3; r++) for (let i = 0; i < 9; i++) { const hx = 6 + i * 10 + (r % 2) * 5; R('#3a2f44', hx, 42 + r * 5, 6, 5); R('#4a3c56', hx + 1, 40 + r * 5, 4, 3); }
+  } else if (S === 'yard') {                                       // the library yard at night: fence, bins, a lamp
+    R('#14182a', 0, 0, 96, 56); R('#2a3040', 0, 10, 96, 20); for (let i = 0; i < 96; i += 5) R('#3a4258', i, 10, 3, 20);
+    R('#26402c', 0, 30, 96, 26); R('#6a6a52', 20, 36, 60, 5);
+    R('#e8d8a0', 12, 4, 3, 3); R('#cfc07c', 10, 2, 7, 1);                                                                     // yard lamp
+    R('#3f7f5a', 62, 24, 10, 13); R('#2a5a3c', 62, 24, 10, 2); R('#3b6fa0', 76, 26, 10, 11); R('#264a70', 76, 26, 10, 2);   // two bins
   } else {
     R('#2b2230', 0, 0, 96, 56); R('#5a4838', 0, 12, 96, 22); R('#3a3040', 0, 34, 96, 22);
     R('#b9804d', 14, 30, 50, 4); R('#e8e0cf', 20, 26, 6, 4); R('#e8e0cf', 40, 26, 6, 4);
@@ -649,17 +658,19 @@ function drawFrame(c, spec, people) {
   }
   for (const f of spec.figs || []) {
     const P0 = (people && people[f.who]) || { skin: '#c8936c', hair: '#2a2024', shirt: '#6a6a7a' };
-    const gx = f.x, base = 46, hpx = f.h;                            // hpx: body height in frame pixels
+    const gx = f.x, base = f.base || 46, hpx = f.h;                            // hpx: body height in frame pixels
     const top = base - hpx, bw = f.wide || 7;
     R('rgba(0,0,0,0.35)', gx - 1, base, bw + 4, 2);
-    R(P0.shirt, gx, top + 6, bw, hpx - 14);                          // coat or shirt
-    R('#2a2132', gx + 1, base - 8, 2, 8); R('#2a2132', gx + bw - 3, base - 8, 2, 8);   // legs
+    const small = hpx < 26;                                           // far away or seated: head and shoulders only
+    R(P0.shirt, gx, top + 6, bw, small ? hpx - 6 : hpx - 14);          // coat or shirt
+    if (!small) { R('#2a2132', gx + 1, base - 8, 2, 8); R('#2a2132', gx + bw - 3, base - 8, 2, 8); }   // legs
     if (f.hood) { R(f.hoodColor || '#3a4660', gx - 1, top, bw + 2, 7); R('#15182a', gx + 1, top + 2, bw - 2, 4); }
     else { R(P0.skin, gx + 1, top + 1, bw - 2, 5); R(P0.hair, gx, top, bw, 2); if (f.flip) R(P0.hair, gx + bw - 2, top, 2, 4); else R(P0.hair, gx, top, 2, 4); }
     if (f.hold === 'tube') R('#f4ead0', gx + bw, top + 12, 2, 12);                  // a rolled bundle of papers
     if (f.hold === 'umbrella') R('#15182a', gx + bw + 1, top + 4, 1, hpx - 6);
     if (f.hold === 'card') { R('#e8e4d0', gx + bw, top + 14, 5, 3); R('#3b7fb8', gx + bw, top + 14, 5, 1); }
     if (f.hold === 'wrench') { R('#9aa3ae', gx + bw, top + 10, 1, 9); R('#9aa3ae', gx + bw - 1, top + 9, 3, 2); }
+    if (f.hold === 'bin') { R('#3f7f5a', gx + bw, top + 14, 6, 8); R('#2a5a3c', gx + bw, top + 14, 6, 1); }
     if (f.hold === 'trolley') { R('#cfd6dc', gx + bw + 2, top + 14, 10, 2); R('#9aa3ae', gx + bw + 3, top + 16, 1, 8); R('#9aa3ae', gx + bw + 10, top + 16, 1, 8); }
   }
   x.fillStyle = 'rgba(0,0,0,.22)'; for (let y = 0; y < 56; y += 2) x.fillRect(0, y, 96, 1);
@@ -930,6 +941,16 @@ function chalkFn(ox, oy, inner) {
     return inner(bx, by);
   };
 }
+
+/* the chalk outline on the floor, where the victim was found (o.dir: 'x' or 'y' = the long way, o.s = scale) */
+TYPES.chalk = (o, g) => {
+  const e = 0.075, sc = o.s || 0.75, sw = o.dir === 'x';
+  topPixels(o.x, o.y, o.w, o.d, 0.3, (lx, ly) => {
+    const bx = (sw ? ly : lx) / sc + 0.15, by = (sw ? lx : ly) / sc + 0.5;
+    if (!inBody(bx, by)) return null;
+    return (!inBody(bx + e, by) || !inBody(bx - e, by) || !inBody(bx, by + e) || !inBody(bx, by - e)) ? col('chalk', 0) : null;
+  }, g);
+};
 
 TYPES.bed = (o, g, st) => {
   const { x, y, w, d } = o;
@@ -1438,6 +1459,14 @@ TYPES.stairs = (o, g) => {
   const rail = (dz, k) => line3([xf - 0.5 * dx, y0 + 0.03, rise + 14 + dz], [xb + 0.5 * dx, y0 + 0.03, n * rise + 14 + dz], col('stairRail', k), gr);
   rail(0, 0.3); rail(1, 0.3); rail(-1, -0.2);
   box(xf - 0.1, y0, 0, 0.1, 0.1, rise + 16, 'stairRail', gr, { tk: 0.2 });
+};
+
+/* a post with a small camera box on top */
+TYPES.camerapost = (o, g) => {
+  const cx = o.x + o.w / 2, cy = o.y + o.d / 2;
+  cyl(cx, cy, 0, 0.1, 26, 'metalDk', g);
+  box(cx - 0.28, cy - 0.2, 26, 0.56, 0.4, 4, 'metal', newG(o.hot, true), { tk: 0.2 });
+  box(cx - 0.1, cy + 0.2, 27, 0.2, 0.1, 2, 'ink', newG(o.hot, true));
 };
 
 /* ============================================================

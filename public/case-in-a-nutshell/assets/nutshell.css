@@ -273,3 +273,109 @@ html[data-motion="reduce"] * { animation: none !important; transition: none !imp
 .node.here { border-color: var(--amber); }
 .node.here small { color: var(--amber); }
 .node.unknown { opacity: .55; border-style: dashed; }
+
+/* =====================================================================
+   The case page as an app: one screen, nothing to scroll to play.
+   Phone: top bar (menu + icons), the room, one message line, the moments row, a bottom nav.
+   The notebook, suspects and accusation open as a sheet over the room.
+   Desktop: the same, with the side panel always open on the right.
+   ===================================================================== */
+.pxi { display: inline-block; width: 24px; height: 24px; background: currentColor; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; image-rendering: pixelated; flex: none; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto auto; gap: 8px; height: 100vh; height: 100dvh; max-width: 1120px; margin-inline: auto; padding: 8px 10px 0; }
+.app > * { min-width: 0; }
+.appbar { display: flex; align-items: center; gap: 8px; }
+.appbar .ttl { flex: 1; min-width: 0; display: grid; line-height: 1.2; }
+.appbar h1 { margin: 0; font-size: 1rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.roomname { font-size: .8rem; color: var(--amber); font-family: var(--f-head); }
+.tools { display: flex; gap: 6px; }
+.ibtn { background: var(--panel); border: 2px solid var(--line); min-width: 44px; height: 44px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--fg); }
+.ibtn:hover:not(:disabled) { border-color: var(--muted); }
+.ibtn[aria-pressed="true"], .ibtn.on { border-color: var(--amber); color: var(--amber); }
+.ibtn.red[aria-pressed="true"] { border-color: var(--red); color: var(--red); }
+.ibtn.cat canvas { width: 24px; height: 24px; image-rendering: pixelated; }
+.ibtn.wide { height: 40px; padding-inline: 10px; font-family: var(--f-head); font-size: .85rem; }
+.ibtn .count { color: var(--muted); font-size: .8rem; }
+.app .stage { padding-block: 0; display: grid; place-items: center; min-height: 0; overflow: hidden; }
+.app #stagewrap { width: 100%; height: 100%; display: grid; place-items: center; min-height: 0; }
+.app .msg { min-height: 3.4em; max-height: 4.8em; overflow-y: auto; padding: 6px 12px; line-height: 1.55; font-size: .95rem; display: flex; align-items: center; }
+.app .moments { display: flex; gap: 8px; align-items: stretch; padding: 6px 8px; }
+.app .moments .mrow { flex: 1; min-width: 0; display: flex; gap: 6px; }
+.app .mbtn { flex: 1; min-width: 0; min-height: 48px; padding: 2px 4px; grid-template-columns: auto; }
+.app .mbtn canvas { width: 18px; height: 21px; }
+.app .mbtn .t { font-size: .85rem; }
+.app .mbtn .l { font-size: .72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.app .moments .ibtn.wide { flex-direction: column; height: auto; min-height: 48px; gap: 0; line-height: 1.2; }
+.app .moments .ibtn.wide .lbl { font-size: .72rem; }
+
+.right { display: contents; }
+.stabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); }
+.stab { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; font-size: .9rem; }
+.stab .pxi { width: 20px; height: 20px; }
+.stab .dot { inset-block-start: 6px; }
+/* the sheet: over the room on phones */
+.side { position: fixed; inset: 0; z-index: 30; display: none; background: rgba(14, 12, 22, .66); align-items: flex-end; }
+.side.open { display: flex; }
+.sheet { width: 100%; max-width: 1120px; margin-inline: auto; max-height: 76dvh; max-height: 76vh; overflow-y: auto; background: var(--panel); border: 2px solid var(--amber); border-bottom: 0; padding: 10px 12px 76px; position: relative; display: grid; gap: 10px; align-content: start; }
+.sheet-x { position: sticky; inset-block-start: 0; justify-self: end; width: 36px; height: 36px; margin-bottom: -26px; background: var(--panel-2); border: 2px solid var(--line); font-size: 1.3rem; line-height: 1; z-index: 2; }
+.sheet .spanel { border: 0; padding: 0; background: none; }
+.sheet .spanel h2 { padding-inline-end: 44px; }
+.app .stabs { position: relative; z-index: 31; background: var(--bg); }
+
+/* things list modal (keyboard users and anyone who wants it) */
+.chips.in-modal { padding: 0; }
+
+/* about section below the app */
+.about.wrap { padding-block: 28px 40px; }
+
+@media (min-width: 960px) {
+  .app { grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: auto auto auto auto minmax(0, 1fr); height: auto; min-height: 100dvh; padding-top: 12px; align-content: start; }
+  .appbar { grid-column: 1 / -1; }
+  .app .stage { grid-column: 1; grid-row: 2; }
+  .app .msg { grid-column: 1; grid-row: 3; }
+  .app .moments { grid-column: 1; grid-row: 4; }
+  .right { display: grid; grid-column: 2; grid-row: 2 / 5; align-content: start; gap: 8px; }
+  .app .stabs { position: static; padding-bottom: 0; background: none; }
+  .side { position: static; display: block; background: none; z-index: 0; }
+  .side.open { display: block; }
+  .sheet { max-height: none; overflow: visible; border: 0; padding: 0; width: auto; }
+  .sheet-x { display: none; }
+  .sheet .spanel { border: 2px solid var(--line); padding: 12px 14px; background: var(--panel); }
+  .sheet .spanel h2 { padding-inline-end: 0; }
+}
+@media (max-width: 959px) and (max-height: 520px) { .app .msg { min-height: 2.6em; } .app .mbtn { min-height: 40px; } }
+
+/* compact menu on the case page: it already holds the languages and the case board */
+
+/* the floor-plan map */
+.modal.small { width: min(100%, 420px); }
+.plan { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-auto-rows: 84px; gap: 0; max-width: 380px; margin-inline: auto; width: 100%; aspect-ratio: auto; max-height: none; min-height: 0; border: 0; background: none; }
+.plan .node { position: relative; transform: none; min-width: 0; border: 4px solid #6a5a8a; margin: -2px; padding: 4px; background: var(--code-bg); justify-content: center; align-content: center; }
+.plan .node.here { border-color: var(--amber); background: #2f2a1c; z-index: 1; }
+.plan .node.unknown { border-style: dashed; opacity: .6; }
+.plan .gap { position: absolute; background: var(--code-bg); z-index: 2; }
+.plan .node.here .gap { background: #2f2a1c; }
+.plan .gap.r, .plan .gap.l { inline-size: 8px; block-size: 28px; inset-block-start: calc(50% - 14px); }
+.plan .gap.r { inset-inline-end: -6px; } .plan .gap.l { inset-inline-start: -6px; }
+.plan .gap.t, .plan .gap.b { block-size: 8px; inline-size: 28px; inset-inline-start: calc(50% - 14px); }
+.plan .gap.t { inset-block-start: -6px; } .plan .gap.b { inset-block-end: -6px; }
+.plan .gap.shut { background: var(--red); }
+.bag { background: var(--code-bg); border: 1px solid var(--line); padding: 8px 10px; display: grid; gap: 6px; }
+.bag b { font-size: .85rem; color: var(--amber); font-family: var(--f-head); }
+.bagitem { display: flex; gap: 8px; align-items: center; font-size: .88rem; }
+.bagitem .pxi { width: 20px; height: 20px; color: var(--amber); }
+
+/* phone fine-tuning: the picture takes what it needs, the message line gets the rest */
+@media (max-width: 959px) {
+  .app { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
+  .app #stagewrap { height: auto; }
+  .app .msg { align-items: flex-start; min-height: 3.6em; max-height: none; }
+}
+@media (max-width: 560px) {
+  .appbar { gap: 6px; }
+  .ibtn { min-width: 40px; height: 40px; padding: 0 6px; }
+  .tools { gap: 4px; }
+  .appbar h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .roomname { font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lensbox, .lensbox canvas { width: 140px; }
+  .lensbox canvas { height: 140px; }
+}

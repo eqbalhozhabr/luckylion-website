@@ -16,7 +16,8 @@ const LIVING = makeSpace('living', {
       OBJ('table', 3.0, 3.2, 2.0, 1.1, { id: 'table' }),
       OBJ('chair', 3.4, 4.45, 0.55, 0.55, { back: 'Y', id: 'chair1' }), OBJ('chair', 4.6, 4.45, 0.55, 0.55, { back: 'Y', id: 'chair2' }),
       OBJ('slippers', 0.5, 4.3, 1.35, 1.1, { id: 'slippers', pose: 'scattered' }),
-      OBJ('plant', 6.7, 6.7, 0.9, 0.9)
+      OBJ('plant', 6.7, 6.7, 0.9, 0.9),
+      OBJ('chalk', 2.7, 1.25, 2.52, 1.82, { id: 'chalk', dir: 'x', s: 0.7 })
     ]
   }),
   items: [
@@ -120,7 +121,7 @@ const CASE = {
     {
       id: 'sofia', time: '19:10', who: 'sofia',
       patches: [
-        { env: { time: 'night' } }, { id: 'floorlamp', set: { lit: true } }, { id: 'slippers', set: { pose: 'tidy' } },
+        { env: { time: 'night' } }, { id: 'chalk', remove: true }, { id: 'floorlamp', set: { lit: true } }, { id: 'slippers', set: { pose: 'tidy' } },
         { id: 'cup2', remove: true }, { id: 'cup', set: { fill: 'tea' } },
         { add: { id: 'papers', k: 'papers', hot: 'papers', on: 'table', x: 4.0, y: 3.65 }, item: true }
       ]
@@ -128,7 +129,7 @@ const CASE = {
     {
       id: 'noor', time: '19:35', who: 'noor',
       patches: [
-        { env: { time: 'night' } }, { id: 'floorlamp', set: { lit: true } }, { id: 'slippers', set: { pose: 'tidy' } },
+        { env: { time: 'night' } }, { id: 'chalk', remove: true }, { id: 'floorlamp', set: { lit: true } }, { id: 'slippers', set: { pose: 'tidy' } },
         { id: 'cup2', remove: true },
         { add: { id: 'papers', k: 'papers', hot: 'papers', on: 'table', x: 4.0, y: 3.65 }, item: true }
       ]
@@ -137,7 +138,9 @@ const CASE = {
   ],
 
   /* ----- puzzle 1: what changed between Noor's visit and the morning ----- */
-  diff: { a: 'noor', b: 'scene', need: 3, ignore: [], items: ['floorlamp', 'slippers', 'cup2', 'papers'], notes: [] },
+  diff: { a: 'noor', b: 'scene', need: 3, ignore: ['chalk'], items: ['floorlamp', 'slippers', 'cup2', 'papers'], notes: ['chalk'] },
+
+  herring: { suspect: 'sofia', motive: 'jealousy' },
 
   /* ----- the boards ----- */
   boards: {
@@ -155,7 +158,7 @@ const CASE = {
       }
     },
     buzz: {
-      fact: 'buzz', question: { kind: 'many', answer: ['sofia', 'daniel'] },
+      fact: 'buzz', question: { kind: 'many', answer: ['sofia', 'daniel'] }, truth: (s) => !s.fob, elim: 'unselected',
       docs: {
         visitors: { cols: 3, rows: [[{ k: 'who.courier' }, { t: '17:40' }, { t: '17:46' }], [{ s: 'sofia' }, { t: '18:55' }, { t: '19:25' }]] },
         doors: { cols: 3, rows: [
@@ -169,7 +172,7 @@ const CASE = {
       }
     },
     figure: {
-      fact: 'figure', question: { kind: 'many', answer: ['mateo', 'daniel'] },
+      fact: 'figure', question: { kind: 'many', answer: ['mateo', 'daniel'] }, truth: (s, V) => s.height >= V.visitorHeight[0] && s.height <= V.visitorHeight[1], elim: 'unselected',
       docs: {
         camera: { frames: [
           { t: '21:51', spec: { scene: 'lobby', ruler: true, figs: [{ who: 'x', x: 8, h: 37, hood: true, hold: 'umbrella' }] } },
@@ -181,7 +184,7 @@ const CASE = {
       }
     },
     boiler: {
-      fact: 'boiler', question: { kind: 'one', answer: 'mateo' },
+      fact: 'boiler', question: { kind: 'one', answer: 'mateo' }, truth: (s, V) => s.proofs.some((p) => p.kind === 'person' && p.at === V.trip && /basement/.test(p.src)), elim: 'selected',
       docs: {
         camera: { frames: [
           { t: '21:40', spec: { scene: 'basement', figs: [{ who: 'mateo', x: 30, h: 36, hold: 'wrench' }] } },
@@ -192,7 +195,7 @@ const CASE = {
       }
     },
     bar: {
-      fact: 'bar', question: { kind: 'one', answer: 'sofia' },
+      fact: 'bar', question: { kind: 'one', answer: 'sofia' }, truth: (s) => s.proofs.some((p) => p.kind === 'person' && /bar/.test(p.src)), elim: 'selected',
       docs: {
         camera: { frames: [
           { t: '20:35', spec: { scene: 'reception', figs: [{ who: 'daniel', x: 18, h: 38 }, { who: 'sofia', x: 36, h: 32, flip: true }] } },
@@ -209,6 +212,11 @@ const CASE = {
       }
     }
   },
+  /* the puzzle layer: the basement is locked until its key is found, and a code drawer holds an optional extra fact */
+  items: { basementkey: {} },
+  finds: { 'lobby:rug': { give: 'basementkey' } },
+  gates: { 'lobby:basement': { need: 'basementkey' } },
+  containers: { 'living:tvunit': { code: '734', fact: 'pledge', clue: 'basement:shelfunit' } },
   /* which thing opens which board */
   bind: { 'basement:meter': 'window', 'lobby:ledger': 'buzz', 'lobby:monitor': 'figure', 'basement:monitor': 'boiler', 'lobby:file': 'bar' },
 
@@ -220,7 +228,8 @@ const CASE = {
     figure: { required: true, eliminates: ['sofia', 'noor'] },
     boiler: { required: true, eliminates: ['mateo'] },
     bar: { required: true, eliminates: ['sofia'] },
-    guest: { required: false, eliminates: [] }
+    guest: { required: false, eliminates: [] },
+    pledge: { required: false, eliminates: [] }
   },
   observe: { cup2: { fact: 'guest' } },
 
@@ -235,7 +244,7 @@ const CASE = {
   rooms: ['living', 'lobby', 'basement'],
   map: { start: 'living', nodes: [{ id: 'living', x: 0, y: 0 }, { id: 'lobby', x: 1, y: 0 }, { id: 'basement', x: 2, y: 0 }], edges: [['living', 'lobby'], ['lobby', 'basement']] },
   hots: {
-    living: ['rug', 'window', 'door:lobby', 'bookshelf', 'tvunit', 'tv', 'plant', 'sofa', 'floorlamp', 'slippers', 'table', 'cup', 'cup2', 'papers', 'chair'],
+    living: ['chalk', 'rug', 'window', 'door:lobby', 'bookshelf', 'tvunit', 'tv', 'plant', 'sofa', 'floorlamp', 'slippers', 'table', 'cup', 'cup2', 'papers', 'chair'],
     lobby: ['rug', 'window', 'door:living', 'door:basement', 'sofa', 'desk', 'ledger', 'monitor', 'file', 'plant', 'cat'],
     basement: ['picture', 'door:lobby', 'vent', 'shelfunit', 'workbench', 'meter', 'monitor', 'boiler', 'boxes', 'crates', 'barrel']
   },
