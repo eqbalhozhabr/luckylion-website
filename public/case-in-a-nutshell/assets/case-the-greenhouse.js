@@ -203,6 +203,8 @@ const CASE = {
   items: { shedkey: {} },
   finds: { 'yard:flowerbed': { give: 'shedkey' } },
   gates: { 'greenhouse:shed': { need: 'shedkey' } },
+  /* behind the fridge is the fuse box for the mist, lights and heating; its spring setting is on a card in the shed */
+  containers: { 'kitchen:fridge': { kind: 'fuses', pattern: '101', fact: 'fused', clue: 'shed:crates' } },
 
   facts: {
     changed: { required: true, eliminates: [] },
@@ -211,7 +213,8 @@ const CASE = {
     gate: { required: true, eliminates: ['mabel'] },
     table: { required: true, eliminates: ['rowan', 'cordelia'] },
     door: { required: true, eliminates: ['cordelia'] },
-    ladder: { required: false, eliminates: [] }
+    ladder: { required: false, eliminates: [] },
+    fused: { required: false, eliminates: [] }
   },
   observe: { ladder: { fact: 'ladder' } },
 
