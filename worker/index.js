@@ -1,6 +1,6 @@
 import { requestLink, verify, confirmVerify, me, setUsername, logout } from './routes/auth.js';
 import { getLevel, submit } from './routes/game.js';
-import { dubikoEvent, dubikoStats, dubikoSolve, dubikoLeaderboard } from './routes/dubiko.js';
+import { dubikoEvent, dubikoStats, dubikoSolve, dubikoLeaderboard, dubikoReport, pruneDubikoEvents } from './routes/dubiko.js';
 import { getProgress, saveProgress, getLeaderboard, setVisibility } from './routes/blindeye.js';
 import { blindEyeEvent, blindEyeReport, blindEyeStats } from './routes/blindeye-stats.js';
 import { json } from './lib/http.js';
@@ -20,6 +20,7 @@ const ROUTES = [
   ['POST', '/api/submit', submit],
   ['POST', '/api/dubiko/event', dubikoEvent],
   ['GET', '/api/dubiko/stats', dubikoStats],
+  ['POST', '/api/dubiko/report', dubikoReport],
   ['POST', '/api/dubiko/solve', dubikoSolve],
   ['GET', '/api/dubiko/leaderboard', dubikoLeaderboard],
   ['GET', '/api/blind-eye/progress', getProgress],
@@ -55,5 +56,6 @@ export default {
   // they've unlocked.
   async scheduled(event, env, ctx) {
     ctx.waitUntil(runDailyBackup(env));
+    ctx.waitUntil(pruneDubikoEvents(env).catch((err) => console.error(err)));
   },
 };

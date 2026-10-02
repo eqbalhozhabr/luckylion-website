@@ -21,6 +21,8 @@
   .bad { color: var(--bad); font-weight: 700; } .good { color: var(--good); }
   input, button, select { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); }
   button { cursor: pointer; background: var(--acc); color: #fff; border-color: var(--acc); }
+  .tag { display: inline-block; padding: 0 6px; margin-right: 4px; border-radius: 4px; font-size: 12px; background: #f3d6cf; color: var(--bad); } .tag.w { background: #f5e6bd; color: #8a6200; } .tag.g { background: #d3ecdc; color: var(--good); }
+  th[data-k] { cursor: pointer; user-select: none; } td.note { white-space: normal; text-align: left; min-width: 220px; } td.l, th.l { text-align: left; } .warn { color: #8a6200; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; } .mut { color: var(--mut); font-size: 13px; }
 </style>
 </head>
@@ -31,7 +33,7 @@
     <input id="key" type="password" placeholder="stats key" autocomplete="off">
     <select id="days"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option></select>
     <label class="row"><input id="test" type="checkbox"> include test-mode traffic</label>
-    <button id="go">Load</button>
+    <button id="go">Load</button><button id="copy" style="display:none">Copy JSON</button>
     <span class="mut" id="status"></span>
   </div>
   <div id="out"></div>
@@ -42,16 +44,36 @@ const pct = (a, b) => (b ? Math.round(100 * a / b) + '%' : '-');
 const sec = (ms) => (ms == null ? '-' : Math.round(ms / 1000) + 's');
 const num = (v, d) => (v == null ? '-' : Number(v).toFixed(d == null ? 0 : d));
 try { $('#key').value = sessionStorage.getItem('dubiko.stats.key') || ''; } catch (e) {}
-async function load() {
-  const key = $('#key').value.trim(); if (!key) return;
-  $('#status').textContent = 'loading...';
-  const r = await fetch('/api/dubiko/stats?days=' + $('#days').value + '&test=' + ($('#test').checked ? 1 : 0), { headers: { Authorization: 'Bearer ' + key } });
-  if (!r.ok) { $('#status').textContent = r.status === 401 ? 'wrong key' : r.status === 404 ? 'stats are not switched on (no key set on the server)' : 'error ' + r.status; return; }
-  try { sessionStorage.setItem('dubiko.stats.key', key); } catch (e) {}
-  $('#status').textContent = 'updated ' + new Date().toLocaleTimeString();
-  const d = await r.json(), o = d.overview, t = d.tutorial;
-  const byLvl = Object.fromEntries(d.levels.map(l => [l.lvl, l]));
-  const funnelAt = [1, 2, 3, 5, 10, 20, 30, 50];
+const esc = (x) => String(x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const KIND = { too_hard: 'too hard', too_easy: 'too easy', confusing: 'confusing', bug: 'bug', other: 'other' };
+let data = null, sortKey = 'lvl', sortDir = 1;
+// What each level looks like in plain words. Needs a few players before it says anything.
+function flags(l, reps) {
+  const out = [], starts = l.starts || 0;
+  if ((l.players || 0) < 4) out.push(['w', 'few players']);
+  else {
+    const solved = l.solvers / l.players * 100, leave = starts ? l.leaves / starts : 0, hints = starts ? l.hint_taps / starts : 0, errs = starts ? l.err_sum / starts : 0;
+    if (solved < 60) out.push(['', 'few solve it']);
+    if (leave > 0.5) out.push(['w', 'players leave']);
+    if (hints > 0.8) out.push(['w', 'hint-heavy']);
+    if (errs > 2.5) out.push(['w', 'many mistakes']);
+    if (l.avg_ms != null && l.avg_ms > 300000) out.push(['w', 'slow']);
+    if (solved >= 95 && errs < 0.2 && hints < 0.1 && l.avg_ms != null && l.avg_ms < 30000) out.push(['g', 'maybe too easy']);
+  }
+  for (const r of reps) out.push([r.n >= 2 ? '' : 'w', r.n + ' x ' + KIND[r.kind]]);
+  return out;
+}
+function render() {
+  const d = data, o = d.overview, t = d.tutorial;
+  const repBy = {}; for (const r of d.reports) (repBy[r.lvl] = repBy[r.lvl] || []).push(r);
+  const known = new Set(d.levels.map((l) => l.lvl));
+  const extra = [...new Set(d.reports.filter((r) => !known.has(r.lvl)).map((r) => r.lvl))].map((lvl) => ({ lvl, players: 0, starts: 0, solvers: 0, completes: 0, leaves: 0, hint_taps: 0, err_sum: 0 }));
+  const rows = d.levels.concat(extra).map((l) => Object.assign({}, l, {
+    solveRate: l.players ? l.solvers / l.players : null, leavePer: l.starts ? l.leaves / l.starts : null,
+    hintsPer: l.starts ? l.hint_taps / l.starts : null, errsPer: l.starts ? l.err_sum / l.starts : null, fl: flags(l, repBy[l.lvl] || []) }));
+  rows.sort((a, b) => ((a[sortKey] == null ? -1e9 : a[sortKey]) - (b[sortKey] == null ? -1e9 : b[sortKey])) * sortDir);
+  const funnelAt = [1, 2, 3, 5, 10, 20, 30, 50], byLvl = Object.fromEntries(d.levels.map((l) => [l.lvl, l]));
+  const th = (k, t) => `<th data-k="${k}">${t}${sortKey === k ? (sortDir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
   let h = `<div class="card"><div class="kpis">
     <div class="kpi"><b>${o.visitors}</b><span>visitors</span></div><div class="kpi"><b>${o.sessions}</b><span>sessions</span></div>
     <div class="kpi"><b>${o.new_visitors}</b><span>new visitors</span></div><div class="kpi"><b>${pct(o.phone_visitors, o.visitors)}</b><span>on a phone</span></div></div></div>`;
@@ -59,18 +81,28 @@ async function load() {
     <div class="kpi"><b>${t.started}</b><span>started</span></div><div class="kpi"><b>${pct(t.done, t.started)}</b><span>completed (${t.done})</span></div>
     <div class="kpi"><b>${pct(t.skipped, t.started)}</b><span>skipped (${t.skipped})</span></div><div class="kpi"><b>${sec(t.avg_ms)}</b><span>average time</span></div></div></div>`;
   h += `<div class="card"><h2>Funnel: who solved level N (of visitors)</h2><table><tr><th>Level</th><th>started</th><th>solved</th><th>% of visitors</th></tr>` +
-    funnelAt.map(n => { const l = byLvl[n]; return l ? `<tr><td>${n}</td><td>${l.players}</td><td>${l.solvers}</td><td>${pct(l.solvers, o.visitors)}</td></tr>` : ''; }).join('') + `</table></div>`;
+    funnelAt.map((n) => { const l = byLvl[n]; return l ? `<tr><td>${n}</td><td>${l.players}</td><td>${l.solvers}</td><td>${pct(l.solvers, o.visitors)}</td></tr>` : ''; }).join('') + `</table></div>`;
   h += `<div class="card"><h2>Retention by first day</h2><table><tr><th>Day</th><th>new</th><th>D1</th><th>D7</th><th>D30</th></tr>` +
-    d.retention.map(r => { const day = new Date(r.day * 86400000).toISOString().slice(0, 10); const age = (d.now / 86400000) - r.day;
+    d.retention.map((r) => { const day = new Date(r.day * 86400000).toISOString().slice(0, 10); const age = (d.now / 86400000) - r.day;
       return `<tr><td>${day}</td><td>${r.n}</td><td>${age >= 1 ? pct(r.d1, r.n) : '...'}</td><td>${age >= 7 ? pct(r.d7, r.n) : '...'}</td><td>${age >= 30 ? pct(r.d30, r.n) : '...'}</td></tr>`; }).join('') +
     `</table><p class="mut">D1 / D7 / D30 = share of that day's new visitors who came back exactly 1 / 7 / 30 days later. Small numbers are noise.</p></div>`;
-  h += `<div class="card"><h2>Per level</h2><table><tr><th>Level</th><th>players</th><th>solved</th><th>left unsolved</th><th>avg time</th><th>avg hints</th><th>avg mistakes</th></tr>` +
-    d.levels.map(l => { const quit = l.starts ? l.leaves / l.starts : 0;
-      return `<tr><td>${l.lvl}</td><td>${l.players}</td><td>${pct(l.solvers, l.players)}</td><td class="${quit > 0.4 && l.starts >= 5 ? 'bad' : ''}">${pct(l.leaves, l.starts)}</td><td>${sec(l.avg_ms)}</td><td>${num(l.avg_hints, 1)}</td><td>${num(l.avg_errs, 1)}</td></tr>`; }).join('') +
-    `</table><p class="mut">Red = more than 40% of starts were left unsolved (needs at least 5 starts).</p></div>`;
+  h += `<div class="card"><h2>Levels</h2><div class="mut">Click a heading to sort. Flags need at least 4 players on the level.</div><table><tr>${th('lvl', 'Level')}${th('players', 'Players')}${th('starts', 'Starts')}${th('solveRate', 'Solved %')}${th('leavePer', 'Left / start')}${th('errsPer', 'Mistakes / start')}${th('hintsPer', 'Hints / start')}${th('avg_ms', 'Time')}<th class="l">Flags</th></tr>
+    ${rows.map((l) => `<tr><td>${l.lvl}</td><td>${l.players}</td><td>${l.starts}</td><td class="${l.solveRate != null && l.players >= 4 && l.solveRate < 0.6 ? 'bad' : ''}">${l.solveRate == null ? '-' : Math.round(l.solveRate * 100) + '%'}</td><td>${num(l.leavePer, 2)}</td><td>${num(l.errsPer, 1)}</td><td>${num(l.hintsPer, 2)}</td><td>${sec(l.avg_ms)}</td><td class="l">${l.fl.map(([c, tx]) => `<span class="tag ${c}">${esc(tx)}</span>`).join('')}</td></tr>`).join('') || '<tr><td colspan="9" class="l mut">No events yet.</td></tr>'}</table></div>`;
+  h += `<div class="card"><h2>Player notes</h2><table><tr><th>When</th><th>Level</th><th class="l">Kind</th><th class="l">Note</th><th>Lang</th></tr>
+    ${d.notes.map((n) => `<tr><td>${new Date(n.rcv).toLocaleString()}</td><td>${n.lvl}</td><td class="l">${esc(KIND[n.kind] || n.kind)}</td><td class="note">${esc(n.note)}</td><td>${esc(n.lang || '')}</td></tr>`).join('') || '<tr><td colspan="5" class="l mut">No notes.</td></tr>'}</table></div>`;
   $('#out').innerHTML = h;
+  document.querySelectorAll('th[data-k]').forEach((th) => { th.onclick = () => { const k = th.dataset.k; if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = k === 'lvl' ? 1 : -1; } render(); }; });
+}
+async function load() {
+  const key = $('#key').value.trim(); if (!key) return;
+  $('#status').textContent = 'loading...';
+  const r = await fetch('/api/dubiko/stats?days=' + $('#days').value + '&test=' + ($('#test').checked ? 1 : 0), { headers: { Authorization: 'Bearer ' + key } });
+  if (!r.ok) { $('#status').textContent = r.status === 401 ? 'wrong key' : r.status === 404 ? 'stats are not switched on (no key set on the server)' : 'error ' + r.status; return; }
+  try { sessionStorage.setItem('dubiko.stats.key', key); } catch (e) {}
+  data = await r.json(); $('#status').textContent = 'updated ' + new Date().toLocaleTimeString(); $('#copy').style.display = ''; render();
 }
 $('#go').onclick = load;
+$('#copy').onclick = async () => { try { await navigator.clipboard.writeText(JSON.stringify(data)); $('#status').textContent = 'JSON copied'; } catch (e) { $('#status').textContent = 'could not copy'; } };
 $('#key').addEventListener('keydown', (e) => { if (e.key === 'Enter') load(); });
 if ($('#key').value) load();
 </script>
