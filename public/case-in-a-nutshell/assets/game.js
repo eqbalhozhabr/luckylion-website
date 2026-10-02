@@ -29,7 +29,7 @@
   const KEY = 'nutshell:' + CASE.id;
   const SCENE = CASE.sceneRoom || 'bedroom';          // the room whose moments the player can compare
   const S = {
-    room: CASE.map.start, moment: 'scene', compare: false, lens: false, lensHot: 0,
+    room: CASE.map.start, moment: 'scene', compare: false,
     world: { lamp: false, box: false }, items: [], facts: {}, order: [], diffFound: [], docsSeen: {}, clockPushed: false,
     tries: 0, hints: 0, solved: false, stars: 0, playMs: 0, introSeen: false, visited: [],
     hover: 0, lampT: 0, sparkle: false, cur: null, tab: 'notebook', catN: 0, pick: {}, fresh: {}, lastHint: '', feedback: [], feedbackText: [], hintTier: {}
@@ -184,7 +184,6 @@
   function setCompare(on) {
     S.compare = on; stage.classList.toggle('compare', on);
     const b = $('compare'); b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.classList.toggle('on', on);
-    if (on) setLens(false);
   }
   function updateMoments() {
     $('moments').hidden = S.room !== SCENE;
@@ -207,27 +206,6 @@
       return;
     }
     say(D.notes.includes(name) ? t('diff.note.' + name) : t('ui.diff.none'));
-  }
-
-  /* ---------- magnifier: a close-up of the thing under the pointer, drawn finer than the room ---------- */
-  const lensbox = el('div', 'lensbox'), lensCv = document.createElement('canvas'), lensLab = el('span');
-  lensbox.hidden = true; lensbox.append(lensCv, lensLab); stage.append(lensbox);
-  function setLens(on) {
-    S.lens = on; S.lensHot = 0; lensbox.hidden = true;
-    $('lens').setAttribute('aria-pressed', on ? 'true' : 'false'); $('lens').classList.toggle('on', on); stage.classList.toggle('lens', on);
-    if (on) { setCompare(false); say(t('ui.lens.on')); }
-  }
-  $('lens').addEventListener('click', () => setLens(!S.lens));
-  function showLens(e) {
-    const h = pick(e), name = HOTS[h];
-    if (!name) { lensbox.hidden = true; return false; }
-    const has = drawDetail(name, lensCv, S.cur);
-    lensCv.hidden = !has; lensLab.textContent = label(name);
-    lensbox.hidden = false;
-    const r = stage.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, bw = lensbox.offsetWidth, bh = lensbox.offsetHeight;
-    lensbox.style.left = Math.max(4, Math.min(r.width - bw - 4, x - bw / 2)) + 'px';
-    lensbox.style.top = (y - bh - 34 > 4 ? y - bh - 34 : Math.min(r.height - bh - 4, y + 30)) + 'px';
-    return has;
   }
 
   /* ---------- modal plumbing ---------- */
@@ -745,7 +723,7 @@
   function reset() {
     Object.assign(S, { room: CASE.map.start, moment: 'scene', compare: false, world: { lamp: false, box: false }, items: [], facts: {}, order: [], diffFound: [], docsSeen: {}, clockPushed: false, tries: 0, hints: 0, solved: false, stars: 0, playMs: 0, introSeen: true, visited: [CASE.map.start], pick: {}, fresh: {}, lastHint: '', feedback: [], feedbackText: [], hintTier: {} });
     try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
-    setCompare(false); setLens(false); rebuild(); snapLamp(); updateRoomName(); updateMoments(); renderNotebook(); renderAccuse(); setTab('notebook'); setSheet(false);
+    setCompare(false); rebuild(); snapLamp(); updateRoomName(); updateMoments(); renderNotebook(); renderAccuse(); setTab('notebook'); setSheet(false);
     say(t('ui.msg.reset'));
   }
 
@@ -762,21 +740,15 @@
   cv.addEventListener('pointermove', (e) => {
     if (e.pointerType !== 'mouse') return;
     S.hover = pick(e);
-    if (S.lens) showLens(e);
     cv.style.cursor = S.hover ? 'pointer' : (S.compare ? 'crosshair' : 'default');
     const n = HOTS[S.hover];
     $('hl').textContent = n ? label(n) : ''; $('hl').classList.toggle('on', !!n);
   });
-  cv.addEventListener('pointerleave', () => { S.hover = 0; $('hl').classList.remove('on'); lensbox.hidden = true; });
+  cv.addEventListener('pointerleave', () => { S.hover = 0; $('hl').classList.remove('on'); });
   let tapT = 0, lastType = 'mouse';
   cv.addEventListener('pointerdown', (e) => { lastType = e.pointerType || 'mouse'; });
   cv.addEventListener('click', (e) => {
     const touch = lastType !== 'mouse';
-    if (S.lens && touch) {
-      // touch: the first tap on a thing shows its close-up, a second tap on the same thing acts
-      const hh = pick(e);
-      if (hh !== S.lensHot) { S.lensHot = hh; showLens(e); return; }
-    }
     const h = pick(e); if (!h) return;
     if (touch) { S.hover = h; clearTimeout(tapT); tapT = setTimeout(() => { S.hover = 0; }, 600); }
     act(HOTS[h]);
@@ -822,5 +794,5 @@
   if (!S.introSeen) openIntro();
   else say(t(S.order.length ? 'ui.msg.back' : 'ui.msg.start'));
   requestAnimationFrame(frame);
-  window.NUT = { S, t, act, go, openBoard, setMoment, setCompare, setLens, gain, reset, openClock, openDocs, openLock, showEnd, closeModal, rebuild, submitAccuse, setTab };
+  window.NUT = { S, t, act, go, openBoard, setMoment, setCompare, gain, reset, openClock, openDocs, openLock, showEnd, closeModal, rebuild, submitAccuse, setTab };
 })();
