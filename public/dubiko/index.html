@@ -71,6 +71,15 @@
   .lv .tagi { position: absolute; top: 2px; left: 4px; font-size: 13px; }
   .lv .boss { position: absolute; top: 2px; right: 4px; font-size: 13px; }
 
+  /* ------------------------------------------------ ranking */
+  .rank { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .rank th, .rank td { padding: 6px 8px; text-align: start; border-bottom: 1px solid var(--line); }
+  .rank th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  .rank td:last-child, .rank th:last-child { text-align: end; }
+  .rank tr.me td { background: var(--note-bg); font-weight: 700; }
+  #rkAccount input[type=email], #rkAccount input[type=text] { width: 100%; max-width: 360px; padding: 8px 10px; font: inherit; border: 1px solid var(--line); border-radius: 8px; background: var(--btn); color: var(--ink); }
+  #rkAccount .st { min-height: 20px; font-size: 14px; } #rkAccount .st.bad { color: var(--bad); } #rkAccount .st.good { color: var(--good); }
+
   /* ------------------------------------------------ settings */
   .setrow { display: grid; gap: 8px; }
   .setrow > label, .setrow > .lbl { font-weight: 600; }
@@ -209,6 +218,7 @@
     <p class="tag" data-i18n="menu.tagline"></p>
     <button class="primary big" id="mPlay"></button>
     <button class="big" id="mLevels" data-i18n="menu.levels"></button>
+    <button class="big" id="mRank" data-i18n="menu.rank" hidden></button>
     <button class="big" id="mHelp" data-i18n="menu.help"></button>
     <button class="big" id="mSettings" data-i18n="menu.settings"></button>
     <p class="mut" id="mProgress"></p>
@@ -220,6 +230,15 @@
 <div id="scr-levels" class="screen" hidden>
   <div class="bar"><button id="lBack" data-i18n="nav.back"></button><h2 data-i18n="levels.title"></h2></div>
   <div class="page" id="lvList"></div>
+</div>
+
+<!-- ===== ranking + account ===== -->
+<div id="scr-rank" class="screen" hidden>
+  <div class="bar"><button id="rkBack" data-i18n="nav.back"></button><h2 data-i18n="rank.title"></h2></div>
+  <div class="page">
+    <div class="card setrow" id="rkAccount"></div>
+    <div class="card"><table class="rank" id="rkTable"></table><p class="mut small" id="rkNote"></p></div>
+  </div>
 </div>
 
 <!-- ===== settings ===== -->
@@ -304,7 +323,7 @@
   </div>
 </div>
 
-<div id="win"><div class="box"><b data-i18n="win.title"></b><span id="winText"></span>
+<div id="win"><div class="box"><b data-i18n="win.title"></b><span id="winText"></span><small class="mut" id="winSub"></small>
   <button class="primary" id="winNext" data-i18n="win.next"></button><button id="winLevels" data-i18n="win.levels"></button></div></div>
 
 <div id="help" class="overlay" hidden role="dialog" aria-modal="true">
@@ -316,7 +335,7 @@
   </div>
 </div>
 
-<script>window.DUBIKO_BUILD="0.1.0+2026-10-01";window.DUBIKO_WORKER="worker.5c977571.js";window.DUBIKO_TRACK_URL='/api/dubiko/event';</script>
-<script src="dubiko.36e0d749.js"></script>
+<script>window.DUBIKO_BUILD="0.1.0+2026-10-02";window.DUBIKO_WORKER="worker.5c977571.js";window.DUBIKO_TRACK_URL='/api/dubiko/event';window.DUBIKO_ACCOUNTS=true;</script>
+<script src="dubiko.781f245b.js"></script>
 </body>
 </html>
