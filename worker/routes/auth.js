@@ -25,6 +25,8 @@ export async function requestLink(request, env) {
   return json({ ok: true, ...result });
 }
 
+const RETURN_TO = { dubiko: '/dubiko/?loggedin=1' };   // whitelist: never redirect to a caller-chosen URL
+
 export async function verify(request, env) {
   const url = new URL(request.url);
   const token = url.searchParams.get('token') || '';
