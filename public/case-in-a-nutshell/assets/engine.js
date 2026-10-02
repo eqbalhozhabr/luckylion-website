@@ -644,6 +644,19 @@ function drawFrame(c, spec, people) {
     R('#b9804d', 52, 20, 8, 9); R('#e0b04a', 54, 18, 4, 2);                                                                    // lectern and microphone
     R('#1c1620', 0, 36, 96, 20);
     for (let r = 0; r < 3; r++) for (let i = 0; i < 9; i++) { const hx = 6 + i * 10 + (r % 2) * 5; R('#3a2f44', hx, 42 + r * 5, 6, 5); R('#4a3c56', hx + 1, 40 + r * 5, 4, 3); }
+  } else if (S === 'ballroom') {                                     // the staff party: chandeliers, round tables, a little stage
+    R('#2a1c26', 0, 0, 96, 56); R('#4a2a3a', 0, 4, 96, 24); for (let i = 0; i < 96; i += 9) R('#5a3446', i, 4, 2, 24);
+    R('#e8d8a0', 20, 5, 4, 3); R('#e8d8a0', 70, 5, 4, 3); R('#cfc07c', 16, 3, 12, 1); R('#cfc07c', 66, 3, 12, 1);                  // chandeliers
+    R('#7a5a3a', 30, 28, 36, 3); R('#4a3626', 30, 31, 36, 2);                                                                   // stage
+    R('#1c1620', 0, 34, 96, 22); for (const hx of [8, 78, 54, 18]) { R('#6a6a7a', hx, 42, 12, 2); R('#e8e4d0', hx + 2, 40, 3, 2); R('#e8e4d0', hx + 7, 40, 3, 2); }
+  } else if (S === 'corridor') {                                     // a hotel corridor with numbered doors and a lamp on the ceiling
+    R('#1e1a24', 0, 0, 96, 56); R('#4a3a44', 0, 8, 96, 28); R('#2a2630', 0, 36, 96, 20); R('#6a2a3a', 10, 40, 76, 6);
+    for (const dx of [8, 30, 62]) { R('#6a4a34', dx, 12, 14, 24); R('#8a6a4a', dx + 2, 14, 10, 8); R('#e0b04a', dx + 10, 24, 2, 2); }
+    R('#e8d8a0', 44, 6, 8, 2);
+  } else if (S === 'desk') {                                         // the reception desk at night
+    R('#241c2c', 0, 0, 96, 56); R('#4a3a52', 0, 6, 96, 26); R('#2c2634', 0, 32, 96, 24);
+    R('#8a6a3a', 6, 30, 84, 6); R('#b9804d', 6, 28, 84, 3); R('#9fd4ee', 60, 18, 12, 9); R('#3a4a5a', 62, 20, 8, 5);
+    R('#e0b04a', 14, 22, 5, 6); R('#6a4a3a', 78, 14, 8, 14);
   } else if (S === 'glassfloor') {                                  // the greenhouse floor seen from above: soaked, except where someone lay
     R('#2a4560', 0, 0, 96, 56);
     for (let i = 0; i < 160; i++) { const hx = (i * 37) % 96, hy = (i * 53) % 56; R('#7aa0c0', hx, hy, 1, 1); }
