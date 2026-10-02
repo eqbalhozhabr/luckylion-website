@@ -56,6 +56,13 @@ export async function createMagicLink(db, email) {
   return token;
 }
 
+// Looks at a link without using it up (the confirmation page needs to know it is still good, and e-mail link scanners that open the
+// link must not be able to burn it).
+export async function peekMagicLink(db, token) {
+  const row = await db.prepare('SELECT * FROM magic_links WHERE token = ?').bind(token).first();
+  return row && !row.used_at && row.expires_at >= Date.now() ? row.email : null;
+}
+
 // Consumes the token atomically-enough for this scale: read, check, mark
 // used in one round trip's worth of application logic. Returns the email it
 // was issued for, or null if the token is missing, expired, or already used.

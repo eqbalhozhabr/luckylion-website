@@ -1,4 +1,4 @@
-import { requestLink, verify, me, setUsername, logout } from './routes/auth.js';
+import { requestLink, verify, confirmVerify, me, setUsername, logout } from './routes/auth.js';
 import { getLevel, submit } from './routes/game.js';
 import { dubikoEvent, dubikoStats, dubikoSolve, dubikoLeaderboard } from './routes/dubiko.js';
 import { getProgress, saveProgress, getLeaderboard, setVisibility } from './routes/blindeye.js';
@@ -11,6 +11,7 @@ import { runDailyBackup } from './lib/backup.js';
 const ROUTES = [
   ['POST', '/api/auth/request-link', requestLink],
   ['GET', '/api/auth/verify', verify],
+  ['POST', '/api/auth/verify', confirmVerify],
   ['GET', '/api/auth/me', me],
   ['POST', '/api/auth/username', setUsername],
   ['POST', '/api/auth/logout', logout],
