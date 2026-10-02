@@ -1,67 +1,73 @@
 'use strict';
 /* ============================================================
-   Case 6 rooms (Night Express 417), from the space kit. Cabin 4 is the base
-   scene as the conductor found it at 06:40; moments are patches over it.
+   Case 6 rooms (Night Express 417): every space is part of the train, cut away like a model railway car.
+   Cabin 4 is the base scene as the conductor found it at 06:40; moments are patches over it.
    ============================================================ */
 
-const CABIN = makeSpace('bedroom', {
-  id: 'cabin', seed: 41, theme: 2, time: 'auto', fill: 0,
+const CABIN = makeSpace('traincar', {
+  id: 'cabin', seed: 41, theme: 2, time: 'auto', fill: 0, size: [8, 6],
   doors: [{ slot: 'LC', to: 'corridor', kind: 'door' }],
   lay: () => ({
     fixed: true, R: [], L: [],
     free: [
       OBJ('bed', 5.0, 0, 2.6, 4.3, { body: 'chalk', id: 'bed' }),
       OBJ('nightstand', 3.2, 0, 1.7, 1.4, { h: 15, id: 'nightstand' }),
-      OBJ('dresser', 0, 0.9, 1.5, 4.7, { h: 17, face: 'x', id: 'dresser', decor: false }),
-      OBJ('slippers', 2.0, 5.0, 1.35, 1.1, { id: 'slippers', pose: 'scattered' }),
-      OBJ('pouf', 4.6, 5.4, 1.2, 1.2)
+      OBJ('dresser', 0, 0.9, 1.5, 2.8, { h: 17, face: 'x', id: 'dresser', decor: false }),
+      OBJ('slippers', 2.0, 4.1, 1.35, 1.1, { id: 'slippers', pose: 'scattered' }),
+      OBJ('pouf', 4.0, 4.2, 1.2, 1.2)
     ]
   }),
   items: [
     { id: 'lamp', k: 'lamp', hot: 'lamp', on: 'nightstand', x: 3.7, y: 0.6, lit: false },
-    { id: 'cup', k: 'cup', hot: 'cup', on: 'dresser', x: 0.8, y: 4.4, fill: 'residue' },
-    { id: 'lockpanel', k: 'meter', hot: 'lockpanel', on: 'dresser', x: 0.8, y: 3.2 }
+    { id: 'cup', k: 'cup', hot: 'cup', on: 'dresser', x: 0.8, y: 3.3, fill: 'residue' },
+    { id: 'lockpanel', k: 'meter', hot: 'lockpanel', on: 'dresser', x: 0.8, y: 2.45 }
   ]
 });
 
-const CORRIDOR = makeSpace('hallway', {
+const CORRIDOR = makeSpace('traincar', {
   id: 'corridor', seed: 43, theme: 1, time: 'night', fill: 0,
-  doors: [{ slot: 'LA', to: 'cabin', kind: 'door' }, { slot: 'LC', to: 'van', kind: 'door' }, { slot: 'RC', to: 'diner', kind: 'door' }],
+  doors: [{ slot: 'RA', to: 'cabin', kind: 'door' }, { slot: 'RC', to: 'van', kind: 'door' }, { slot: 'LA', to: 'diner', kind: 'door' }],
   lay: () => ({
-    fixed: true,
-    R: [WP('desk', 3.2, 1.3, { h: 17, id: 'desk' }), WP('plant', 0.9, 0.9)],
-    L: [],
-    free: []
+    fixed: true, R: [], L: [],
+    free: [
+      OBJ('desk', 3.4, 0, 3.2, 1.3, { h: 17, face: 'y', id: 'desk' }),
+      OBJ('plant', 7.2, 0.1, 0.9, 0.9),
+      OBJ('boxes', 8.6, 2.4, 1.2, 1.2)
+    ]
   }),
   items: [
-    { id: 'monitor', k: 'monitor', hot: 'monitor', on: 'desk', x: 1.9, y: 0.62 }
+    { id: 'monitor', k: 'monitor', hot: 'monitor', on: 'desk', x: 4.4, y: 0.62 }
   ]
 });
 
-const DINER = makeSpace('kitchen', {
+const DINER = makeSpace('traincar', {
   id: 'diner', seed: 45, theme: 0, time: 'night', fill: 0,
-  doors: [{ slot: 'LC', to: 'corridor', kind: 'door' }],
+  doors: [{ slot: 'LA', to: 'corridor', kind: 'door' }],
   lay: () => ({
     fixed: true,
     R: [WP('fridge', 0.9, 0.9, { gap: 0 }), WP('kcounter', 1.0, 0.95, { kind: 'stove', gap: 0 }), WP('kcounter', 2.0, 0.95, { kind: 'sink', gap: 0 }), WP('kcounter', 1.2, 0.95)],
-    L: [WP('kcounter', 2.4, 0.95, { gap: 0 }), WP('bin', 0.7, 0.7)],
-    free: [OBJ('table', 3.2, 3.6, 2.0, 1.1, { id: 'table' }), OBJ('chair', 3.5, 4.8, 0.55, 0.55, { back: 'Y', id: 'chair1' }), OBJ('chair', 4.6, 4.8, 0.55, 0.55, { back: 'Y', id: 'chair2' })]
+    L: [],
+    free: [
+      OBJ('table', 7.0, 1.1, 2.0, 1.1, { id: 'table' }), OBJ('chair', 7.3, 2.35, 0.55, 0.55, { back: 'Y', id: 'chair1' }), OBJ('chair', 8.4, 2.35, 0.55, 0.55, { back: 'Y', id: 'chair2' }),
+      OBJ('table', 3.6, 2.0, 2.0, 1.1, { id: 'table2' }), OBJ('chair', 3.9, 3.25, 0.55, 0.55, { back: 'Y', id: 'chair3' }), OBJ('chair', 5.0, 3.25, 0.55, 0.55, { back: 'Y', id: 'chair4' }),
+      OBJ('bin', 0.5, 3.1, 0.7, 0.7)
+    ]
   }),
   items: [
-    { id: 'receipts', k: 'papers', hot: 'receipts', on: 'table', x: 3.5, y: 4.1 },
-    { id: 'galleycam', k: 'monitor', hot: 'galleycam', on: 'table', x: 4.25, y: 4.1 },
-    { id: 'menu', k: 'papers', hot: 'menu', on: 'table', x: 4.85, y: 4.1, cover: 'blue' }
+    { id: 'receipts', k: 'papers', hot: 'receipts', on: 'table', x: 7.35, y: 1.6 },
+    { id: 'galleycam', k: 'monitor', hot: 'galleycam', on: 'table', x: 8.05, y: 1.6 },
+    { id: 'menu', k: 'papers', hot: 'menu', on: 'table', x: 8.65, y: 1.6, cover: 'blue' }
   ]
 });
 
-const VAN = makeSpace('storage', {
-  id: 'van', seed: 47, theme: 0, time: 'night', fill: 0,
-  doors: [{ slot: 'RC', to: 'corridor', kind: 'door' }],
+const VAN = makeSpace('traincar', {
+  id: 'van', seed: 47, theme: 1, time: 'night', fill: 0,
+  doors: [{ slot: 'LA', to: 'corridor', kind: 'door' }],
   lay: () => ({
     fixed: true,
     R: [WP('workbench', 2.6, 1.1, { id: 'bench', bare: true }), WP('shelfunit', 2.2, 0.8, { h: 46 })],
-    L: [WP('shelfunit', 2.4, 0.8, { h: 46 }), WP('boxes', 1.2, 1.2)],
-    free: [OBJ('barrel', 5.0, 4.2, 1.2, 1.2, { h: 20, id: 'drum' }), OBJ('crates', 2.8, 4.8, 1.5, 1.5)]
+    L: [],
+    free: [OBJ('crates', 5.6, 1.2, 1.5, 1.5), OBJ('barrel', 8.2, 1.2, 1.2, 1.2, { h: 20, id: 'drum' }), OBJ('boxes', 9.4, 2.5, 1.2, 1.2), OBJ('crates', 3.4, 2.4, 1.5, 1.5)]
   }),
   items: [
     { id: 'punchclock', k: 'meter', hot: 'punchclock', on: 'bench', x: 1.0, y: 0.55 }
@@ -129,7 +135,7 @@ const CASE = {
       patches: [
         { env: { time: 'night' } }, { id: 'bed', set: { body: 'none' } }, { id: 'lamp', set: { lit: true } }, { id: 'slippers', set: { pose: 'tidy' } },
         { id: 'cup', set: { on: 'nightstand', x: 4.6, y: 0.95, fill: 'empty' } },
-        { add: { id: 'catalog', k: 'papers', hot: 'catalog', on: 'dresser', x: 0.8, y: 2.0 }, item: true }
+        { add: { id: 'catalog', k: 'papers', hot: 'catalog', on: 'dresser', x: 0.8, y: 1.6 }, item: true }
       ]
     },
     {
@@ -137,7 +143,7 @@ const CASE = {
       patches: [
         { env: { time: 'night' } }, { id: 'bed', set: { body: 'none' } }, { id: 'lamp', set: { lit: true } }, { id: 'slippers', set: { pose: 'tidy' } },
         { id: 'cup', set: { on: 'nightstand', x: 4.6, y: 0.95, fill: 'tea' } },
-        { add: { id: 'catalog', k: 'papers', hot: 'catalog', on: 'dresser', x: 0.8, y: 2.0 }, item: true }
+        { add: { id: 'catalog', k: 'papers', hot: 'catalog', on: 'dresser', x: 0.8, y: 1.6 }, item: true }
       ]
     },
     { id: 'scene', time: '06:40', who: null, patches: [{ env: { time: 'day' } }] }
@@ -226,10 +232,10 @@ const CASE = {
   rooms: ['cabin', 'corridor', 'diner', 'van'],
   map: { start: 'cabin', nodes: [{ id: 'diner', x: 0, y: 0 }, { id: 'corridor', x: 1, y: 0 }, { id: 'cabin', x: 2, y: 0 }, { id: 'van', x: 1, y: 1 }], edges: [['diner', 'corridor'], ['corridor', 'cabin'], ['corridor', 'van']] },
   hots: {
-    cabin: ['rug', 'window', 'door:corridor', 'dresser', 'catalog', 'lockpanel', 'nightstand', 'lamp', 'cup', 'slippers', 'bed', 'pillow', 'pouf', 'body'],
-    corridor: ['door:cabin', 'door:van', 'window', 'door:diner', 'desk', 'monitor', 'plant'],
-    diner: ['window', 'picture', 'door:corridor', 'fridge', 'kcounter', 'bin', 'table', 'receipts', 'galleycam', 'menu', 'chair'],
-    van: ['window', 'door:corridor', 'workbench', 'punchclock', 'shelfunit', 'boxes', 'crates', 'barrel']
+    cabin: ['door:corridor', 'dresser', 'catalog', 'lockpanel', 'nightstand', 'lamp', 'cup', 'slippers', 'bed', 'pillow', 'pouf', 'body'],
+    corridor: ['door:cabin', 'door:van', 'door:diner', 'desk', 'monitor', 'plant', 'boxes'],
+    diner: ['door:corridor', 'fridge', 'kcounter', 'bin', 'table', 'receipts', 'galleycam', 'menu', 'chair'],
+    van: ['door:corridor', 'workbench', 'punchclock', 'shelfunit', 'crates', 'barrel', 'boxes']
   },
 
   hints: [

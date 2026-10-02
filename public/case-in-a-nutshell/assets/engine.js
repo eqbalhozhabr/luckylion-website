@@ -1542,6 +1542,25 @@ TYPES.camerapost = (o, g) => {
   box(cx - 0.1, cy + 0.2, 27, 0.2, 0.1, 2, 'ink', newG(o.hot, true));
 };
 
+/* the low brass railing along the open sides of a railway car */
+TYPES.trainrail = (o, g) => {
+  const along = o.w >= o.d, len = along ? o.w : o.d, n = Math.max(2, Math.round(len / 1.6));
+  const at = (t, z, h, th, key) => along ? box(o.x + t, o.y, z, th, o.d, h, key, newG(null, true), { tk: 0.1 }) : box(o.x, o.y + t, z, o.w, th, h, key, newG(null, true), { tk: 0.1 });
+  for (let i = 0; i <= n; i++) at(Math.min(len - 0.1, i * (len - 0.1) / n), 0, 8, 0.1, 'woodDk');
+  if (along) { box(o.x, o.y, 8, o.w, o.d, 1.4, 'brass', newG(null, true), { tk: 0.1 }); box(o.x, o.y, 4, o.w, o.d, 1, 'brass', newG(null, true), { tk: 0.1 }); }
+  else { box(o.x, o.y, 8, o.w, o.d, 1.4, 'brass', newG(null, true), { tk: 0.1 }); box(o.x, o.y, 4, o.w, o.d, 1, 'brass', newG(null, true), { tk: 0.1 }); }
+};
+/* wheels and a skirt under the floor of a railway car */
+TYPES.trainwheels = (o, g) => {
+  const gg = newG(null, true);
+  quad([0, o.y, -SLAB], [o.w, o.y, -SLAB], [o.w, o.y, -SLAB - 3], [0, o.y, -SLAB - 3], col('metalDk', -0.2), gg);
+  const n = Math.max(2, Math.round(o.w / 3.2));
+  for (let i = 0; i < n; i++) {
+    const cx = (i + 0.5) * o.w / n, p = P(cx, o.y, -SLAB - 4);
+    ellFill(p[0], p[1], 6, 5, col('ink', 0), gg); ellFill(p[0], p[1], 5, 4, col('metalDk', 0), gg); ellFill(p[0], p[1], 2, 1.6, col('brass', -0.1), gg);
+  }
+};
+
 /* ============================================================
    library/extras.js : office, bathroom, garden and library pieces
    added after the first space kit (shower, desks, loungers, pool
@@ -1693,9 +1712,9 @@ function slotOf(name, nx, ny) {
   const u0 = name[1] === 'A' ? 0.8 : name[1] === 'B' ? len - 3.4 : len - 2.1;
   return { wall, u0, u1: u0 + 2 };
 }
-const SPACE_TYPES = ['hallway', 'lobby', 'yard', 'garden', 'basement', 'parking', 'living', 'bedroom', 'kitchen', 'bathroom', 'storage', 'stairs', 'elevator', 'balcony', 'library', 'office', 'greenhouse'];   // new types go at the END: a type's index seeds its random choices
+const SPACE_TYPES = ['hallway', 'lobby', 'yard', 'garden', 'basement', 'parking', 'living', 'bedroom', 'kitchen', 'bathroom', 'storage', 'stairs', 'elevator', 'balcony', 'library', 'office', 'greenhouse', 'traincar'];   // new types go at the END: a type's index seeds its random choices
 /* rooms are not all 8 x 8: [tiles along the right wall, tiles along the left wall] */
-const SIZE_OF = { greenhouse: [8, 6], bathroom: [6, 6], elevator: [5, 5], balcony: [8, 4], stairs: [8, 6], storage: [7, 7], hallway: [8, 6] };
+const SIZE_OF = { traincar: [11, 4], greenhouse: [8, 6], bathroom: [6, 6], elevator: [5, 5], balcony: [8, 4], stairs: [8, 6], storage: [7, 7], hallway: [8, 6] };
 
 function rngFor(seed) {            // mulberry32: small, fast, repeatable
   let a = (seed | 0) + 0x6D2B79F5;
@@ -1727,6 +1746,7 @@ const BASE_PAL = {
 /* three colour themes per type; each overrides only what it needs */
 const THEMES = {
   greenhouse: [{ brick: '#8a5a44', brickDk: '#5a3a2c', floorA: '#c9b38a', floorB: '#b59f78' }, { brick: '#7a6a58', brickDk: '#4a3e32', floorA: '#bfae90', floorB: '#a8997c' }, { brick: '#6a7a5a', brickDk: '#3e4a34', floorA: '#cdbf98', floorB: '#b8aa82' }],
+  traincar: [{ floorA: '#6b4a32', floorB: '#5a3c28', wood: '#7a4a2c', woodDk: '#3a2218', rugA: '#a84a4a', rugB: '#e0b04a', slab: '#2a2a33', rim: '#3a2d36', wallTop: '#e8d6ab' }, { floorA: '#5a4a3a', floorB: '#4a3c2e', wood: '#2f5a4a', woodDk: '#1b3328', rugA: '#3f6a8a', rugB: '#e0b04a', slab: '#22262e', rim: '#2e3a34', wallTop: '#e6dcc0' }, { floorA: '#6a4a3a', floorB: '#58392c', wood: '#6a2f3a', woodDk: '#34161e', rugA: '#2f6a6a', rugB: '#e0b04a', slab: '#2a2630', rim: '#3a2a34', wallTop: '#eadcc8' }],
   hallway: [{}, { wallTop: '#dfe6d4', wallLow: '#5f8f6f', runnerA: '#8f3d3d', floorA: '#d6d0c0', floorB: '#bdb6a2' }, { wallTop: '#e6dcec', wallLow: '#7a5f9a', floorA: '#d8d0e0', floorB: '#bfb6ca' }],
   lobby: [{ wallTop: '#efe6d2', wallLow: '#7a3b3b', floorA: '#e8e2d4', floorB: '#b8b0a0', fabric: '#7a3b3b', fabricDk: '#5a2a2a' }, { wallTop: '#dbe6ec', wallLow: '#3d6a8a', floorA: '#e4e8ec', floorB: '#a8b4c0', fabric: '#3d6a8a', fabricDk: '#2d526c' }, { wallTop: '#e8e0c8', wallLow: '#2f5a46', floorA: '#e0dcc8', floorB: '#a8a48c', fabric: '#2f5a46', fabricDk: '#22443a' }],
   yard: [{}, { grass: '#8aa84f', grassDk: '#6a8a3c', brick: '#8a6a5a' }, { grass: '#5f9a6a', grassDk: '#427a52', brick: '#9a5a4a' }],
@@ -1795,6 +1815,15 @@ function floorFn(kind, rug) {
         }
         return c;
       }
+      case 'trainfloor': {
+        // dark planks along the car, a runner down the middle
+        const mid = (room && room.ny ? room.ny : 4) / 2, k = Math.floor(y * 3);
+        if (Math.abs(y - mid) < 0.72 && (!room || room.nx > 6)) { if (Math.abs(y - mid) > 0.58) return col('rugB', -0.1); return ((Math.floor(x * 4) + Math.floor(y * 4)) % 2) ? col('rugA', 0.05) : col('rugA', -0.04); }
+        if (y * 3 - k < 0.14) return col('floorB', -0.38);
+        const seg = Math.floor((x + k * 1.7) / 2.2);
+        if ((x + k * 1.7) - seg * 2.2 < 0.1) return col('floorB', -0.34);
+        return col(hash2(k, seg) < 0.35 ? 'floorA' : 'floorB', n < 0.06 ? 0.1 : n > 0.95 ? -0.1 : 0);
+      }
       case 'carpet': return col('floorA', ((Math.floor(x * 6) + Math.floor(y * 6)) % 2 ? 0.02 : -0.02) + (n > 0.93 ? 0.06 : 0));
       case 'checker': default:
         return (fx < 0.08 || fy < 0.08) ? col('grout', 0) : col((tx + ty) % 2 ? 'floorA' : 'floorB', n < 0.05 ? 0.1 : n > 0.95 ? -0.1 : 0);
@@ -1830,6 +1859,21 @@ function wallBase(style, side, o) {
         if (frame) return col('frameWhite', dk - 0.12);
         if (CURROOM && CURROOM.env.time && CURROOM.env.time !== 'day') return hash2(Math.floor(u * 10), Math.floor(z)) > 0.97 ? col('star', 0.1) : col('skyDk', z / WHc * 0.3 + dk);
         return col('sky', z / WHc * 0.25 - 0.12 + dk);
+      }
+      case 'traincoach': {
+        // a railway carriage: wood panelling, a brass rail, a band of windows with pillars, a cream roof curve
+        const night = CURROOM ? (CURROOM.env.time ? CURROOM.env.time !== 'day' : (CURROOM.spec && CURROOM.spec.time !== 'day')) : false;
+        if (z < 19) return (u * 2 - Math.floor(u * 2) < 0.07) ? col('woodDk', -0.2 + dk) : col('wood', dk + (n > 0.93 ? 0.07 : 0));
+        if (z < 21) return col('brass', -0.12 + dk);
+        if (z < 23) return col('woodDk', dk);
+        if (z < 47) {
+          const seg = (((u - 0.2) % 2.2) + 2.2) % 2.2;
+          if (seg > 1.8 || z < 24 || z > 45) return col('wood', -0.08 + dk + (seg > 1.8 && seg < 1.88 ? 0.12 : 0));
+          if (night) return hash2(Math.floor(u * 6), Math.floor(z)) > 0.96 ? col('star', 0.1) : (z < 30 ? col('skyDk', -0.25 + dk) : col('skyDk', (z - 24) / 40 + dk));
+          return z < 30 ? col(hash2(Math.floor(u * 3), 1) > 0.5 ? 'grassDk' : 'grass', -0.1 + dk) : col('sky', (z - 24) / 70 - 0.1 + dk);
+        }
+        if (z < 49) return col('brass', -0.2 + dk);
+        return n < 0.05 ? col('wallTop', 0.1 + dk) : col('wallTop', -0.08 + dk);
       }
       case 'slat': return (z % 4 === 0 || Math.floor(u * 3) !== Math.floor((u - 0.06) * 3)) ? col('wallTop', -0.1 + dk) : col('wallTop', dk + (z % 4 === 1 ? 0.06 : 0));
       case 'shelves': {
@@ -1922,6 +1966,7 @@ const ITEM_PAINT = {
 const OBJ = (t, x, y, w, d, extra) => Object.assign({ t, hot: t, x, y, w, d }, extra || {});
 const WP = (t, len, depth, extra) => Object.assign({ t, len, depth }, extra || {});
 const LAYOUTS = {
+  traincar: [() => ({ fixed: true, R: [], L: [], free: [] })],
   living: [
     (r) => ({ R: [WP('bookshelf', 1.8, 0.6, { h: 42 }), WP('sofa', 3.2, 1.2), WP('floorlamp', 0.6, 0.6)], L: [WP('tvunit', 2.2, 1.0), WP('plant', 0.9, 0.9)], free: [OBJ('coffeetable', 3.0, 2.6, 1.6, 0.9), OBJ('armchair', 5.8, 3.8, 1.2, 1.2, { face: 'y' })] }),
     (r) => ({ R: [WP('tvunit', 2.2, 1.0), WP('bookshelf', 1.8, 0.6, { h: 42 }), WP('plant', 0.9, 0.9)], L: [WP('bookshelf', 1.6, 0.6, { h: 42 }), WP('sofa', 3.0, 1.2), WP('floorlamp', 0.6, 0.6)], free: [OBJ('coffeetable', 2.2, 3.2, 0.9, 1.6), OBJ('armchair', 4.4, 4.8, 1.2, 1.2, { face: 'y' })] })
@@ -2009,8 +2054,8 @@ Object.assign(LAYOUTS, {
   ]
 });
 
-const FLOOR_OF = { greenhouse: 'gh', hallway: 'runner', lobby: 'checker', yard: 'grass', garden: 'grass', basement: 'concrete', parking: 'asphalt', living: 'planks', bedroom: 'checker', kitchen: 'checker', bathroom: 'tiles', storage: 'planks', stairs: 'planks', elevator: 'tiles', balcony: 'planks', library: 'planks', office: 'carpet' };
-const STYLE_OF = { greenhouse: 'glasshouse', hallway: 'plaster', lobby: 'plaster', yard: 'fence', garden: 'fence', basement: 'brick', parking: 'concrete', living: 'plaster', bedroom: 'plaster', kitchen: 'plaster', bathroom: 'tiles', storage: 'plaster', stairs: 'plaster', elevator: 'metal', balcony: { L: 'glassrail', R: 'slat' }, library: 'shelves', office: 'plaster' };
+const FLOOR_OF = { traincar: 'trainfloor', greenhouse: 'gh', hallway: 'runner', lobby: 'checker', yard: 'grass', garden: 'grass', basement: 'concrete', parking: 'asphalt', living: 'planks', bedroom: 'checker', kitchen: 'checker', bathroom: 'tiles', storage: 'planks', stairs: 'planks', elevator: 'tiles', balcony: 'planks', library: 'planks', office: 'carpet' };
+const STYLE_OF = { traincar: 'traincoach', greenhouse: 'glasshouse', hallway: 'plaster', lobby: 'plaster', yard: 'fence', garden: 'fence', basement: 'brick', parking: 'concrete', living: 'plaster', bedroom: 'plaster', kitchen: 'plaster', bathroom: 'tiles', storage: 'plaster', stairs: 'plaster', elevator: 'metal', balcony: { L: 'glassrail', R: 'slat' }, library: 'shelves', office: 'plaster' };
 const OUTDOOR = { yard: 14, garden: 14, parking: 24, balcony: 40 };
 const FILLERS = { living: ['plant', 'bookpile', 'bin'], hallway: ['plant', 'bin'], storage: ['boxes', 'bin', 'barrel'], library: ['bookpile', 'plant'], office: ['plant', 'bin', 'bookpile'], lobby: ['plant'], bedroom: ['plant', 'bookpile'], kitchen: ['bin', 'plant'], bathroom: ['plant'] };
 const FILLER_SIZE = { plant: [0.9, 0.9], bin: [0.6, 0.6], bookpile: [0.8, 0.6], boxes: [1.2, 1.2], barrel: [1.2, 1.2] };
@@ -2084,6 +2129,9 @@ function makeSpace(type, opts) {
     const t = r.pick(fills), [w, d] = FILLER_SIZE[t], o = OBJ(t, 0.4 + r() * (nx - w - 0.8), 0.4 + r() * (ny - d - 0.8), w, d, { h: t === 'barrel' ? 20 : undefined });
     if (!doors.some((dd) => zone(o, dd)) && !objs.some((q) => overlaps(o, q, 0.3)) && inside(o) && !(pool && overlaps(o, { x: pool.x0, y: pool.y0, w: pool.x1 - pool.x0, d: pool.y1 - pool.y0 }, 0.2))) { objs.push(o); i++; }
   }
+  if (type === 'traincar') {   // the open side of the cut-away car: a brass railing, and the wheels under the floor
+    objs.push({ t: 'trainrail', hot: null, x: 0, y: ny - 0.14, w: nx, d: 0.14 }, { t: 'trainrail', hot: null, x: nx - 0.14, y: 0, w: 0.14, d: ny }, { t: 'trainwheels', hot: null, x: 0, y: ny - 0.05, w: nx, d: 0.05 });
+  }
   objs.forEach((o, i) => { o.id = o.id || (o.t + (i + 1)); });
 
   // windows and pictures in the wall spans doors leave free
@@ -2099,7 +2147,7 @@ function makeSpace(type, opts) {
     const len = wall === 'R' ? nx : ny;
     for (let a = 0.8; a + 2 <= len - 0.4; a += 2.4) {
       const b = a + 2;
-      if (!free(wall, a, b) || openAir || onGlass(wall) || type === 'greenhouse') continue;
+      if (!free(wall, a, b) || openAir || onGlass(wall) || type === 'greenhouse' || type === 'traincar') continue;
       const roll = r();
       if (type === 'bathroom') { if (roll < 0.5) kinds[wall].push({ name: 'mirror', u0: a + 0.3, u1: b - 0.5, z0: 24, z1: 46, paint: ITEM_PAINT.mirror() }); continue; }
       if (type === 'elevator') { if (wall === 'L' && roll < 2) kinds[wall].push({ name: 'mirror', u0: 1.0, u1: ny - 1.0, z0: 18, z1: 46, paint: ITEM_PAINT.mirror() }); if (wall === 'R') kinds[wall].push({ name: 'panel', u0: nx - 1.6, u1: nx - 0.8, z0: 20, z1: 38, paint: ITEM_PAINT.panel() }); break; }
