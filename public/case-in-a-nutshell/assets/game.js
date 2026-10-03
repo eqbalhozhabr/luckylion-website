@@ -32,11 +32,17 @@
     room: CASE.map.start, moment: 'scene', compare: false,
     world: { lamp: false, box: false }, items: [], facts: {}, order: [], diffFound: [], docsSeen: {}, clockPushed: false,
     tries: 0, hints: 0, solved: false, stars: 0, playMs: 0, introSeen: false, visited: [],
+    flags: [], opened: {}, talk: {}, conf: {}, badges: [], spot: {},
     hover: 0, lampT: 0, sparkle: false, cur: null, tab: 'notebook', catN: 0, pick: {}, fresh: {}, lastHint: '', feedback: [], feedbackText: [], hintTier: {}
   };
-  const SAVED = ['world', 'items', 'facts', 'order', 'diffFound', 'docsSeen', 'clockPushed', 'tries', 'hints', 'solved', 'stars', 'playMs', 'introSeen', 'visited'];
+  const SAVED = ['world', 'items', 'facts', 'order', 'diffFound', 'docsSeen', 'clockPushed', 'tries', 'hints', 'solved', 'stars', 'playMs', 'introSeen', 'visited', 'flags', 'opened', 'talk', 'conf', 'badges', 'spot'];
   function load() {
     try { const j = JSON.parse(localStorage.getItem(KEY) || 'null'); if (j) for (const k of SAVED) if (k in j) S[k] = j[k]; } catch (e) { /* no storage: play without saving */ }
+    // a case may change between visits (facts renamed, keys removed): keep only what still exists
+    for (const k of Object.keys(S.facts)) if (!CASE.facts[k]) delete S.facts[k];
+    S.order = S.order.filter((k) => CASE.facts[k]);
+    if (CASE.items) S.items = S.items.filter((i) => CASE.items[i]);
+    S.diffFound = S.diffFound.filter((n) => D.items.includes(n));
   }
   function save() {
     try { const o = {}; for (const k of SAVED) o[k] = S[k]; localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) { /* ignore */ }
@@ -362,7 +368,7 @@
   }
 
   /* ---------- puzzle boards: a few documents and one question that earns a fact ---------- */
-  function docPaper(prefix, d) {
+  function docPaper(prefix, d, ctx2) {
     const paper = el('div', 'paper');
     paper.append(el('h3', null, t(prefix + '.title')), el('p', null, t(prefix + '.note')));
     if (d.rows) {
@@ -377,11 +383,85 @@
       const cam = el('div', 'cam'), wrap = el('div', 'camwrap'), c = document.createElement('canvas'), ts = el('span', 'ts'), cap = el('p'), fr = el('div', 'frames');
       wrap.append(c, ts); cam.append(wrap, cap, fr);
       const set = (i) => { drawFrame(c, d.frames[i].spec, people); ts.textContent = dig(d.frames[i].t); cap.textContent = t(prefix + '.frame.' + i); fr.querySelectorAll('button').forEach((b, j) => b.classList.toggle('on', j === i)); };
-      d.frames.forEach((f, i) => { const b = el('button', null, dig(f.t)); b.type = 'button'; b.addEventListener('click', () => set(i)); fr.append(b); });
+      if (d.frames.length > 1) d.frames.forEach((f, i) => { const b = el('button', null, dig(f.t)); b.type = 'button'; b.addEventListener('click', () => set(i)); fr.append(b); });
       paper.append(cam); set(0);
     }
+    if (d.jigsaw) paper.append(jigsawUI(d.jigsaw));
+    if (d.spot) paper.append(spotUI(d.spot, ctx2));
+    if (d.timeline) paper.append(timelineUI(d.timeline));
     paper.append(el('p', 'foot', t(prefix + '.foot')));
     return paper;
+  }
+  /* jigsaw: a loose page with a torn edge (profile of 5 notch depths) and a stub with the complementary profile.
+     Drag or use the arrows to move the page, R turns it a quarter, Enter tries the fit. It fits when the profiles complement, the page is upright and it sits on the stub. */
+  function jigsawFits(J) { const K = J.piece[0] + J.stub[0]; return J.piece.length === J.stub.length && J.piece.every((v, i) => v + J.stub[i] === K); }
+  function jigsawUI(J) {
+    const wrap = el('div', 'jig'), c = document.createElement('canvas'), res = el('p', 'jigres'), row = el('div', 'btns');
+    c.width = 96; c.height = 72; c.className = 'jigc'; c.tabIndex = 0; c.setAttribute('role', 'img'); c.setAttribute('aria-label', t('ui.jigsaw.move'));
+    const P = { x: J.start ? J.start[0] : 16, y: J.start ? J.start[1] : -14, rot: J.rotation || 0 };
+    const base = 38, x0 = 12, w = 72, n = J.stub.length, seg = w / n, ink = '#6a5a4a';
+    const page = (ctx, ox, oy, prof, fromTop) => {           // a strip of newspaper with a torn edge
+      for (let i = 0; i < n; i++) {
+        const sx = ox + Math.round(i * seg), sw = Math.round((i + 1) * seg) - Math.round(i * seg);
+        if (fromTop) { ctx.fillStyle = '#e8e0cc'; ctx.fillRect(sx, oy + prof[i], sw, 26 - prof[i]); ctx.fillStyle = '#cfc6ad'; ctx.fillRect(sx, oy + prof[i], sw, 1); }
+        else { ctx.fillStyle = '#e8e0cc'; ctx.fillRect(sx, oy, sw, 22 - prof[i]); ctx.fillStyle = '#cfc6ad'; ctx.fillRect(sx, oy + 21 - prof[i], sw, 1); }
+      }
+    };
+    const draw = () => {
+      const ctx = c.getContext('2d'); ctx.fillStyle = '#3a3552'; ctx.fillRect(0, 0, 96, 72);
+      page(ctx, x0, base, J.stub, true);
+      ctx.fillStyle = ink; for (let k = 0; k < 3; k++) ctx.fillRect(x0 + 6, base + 12 + k * 4, 40 - k * 6, 1);
+      ctx.save(); ctx.translate(x0 + w / 2 + P.x, base - 11 + P.y); ctx.rotate(P.rot * Math.PI / 180);
+      page(ctx, -w / 2, -11, J.piece, false); ctx.fillStyle = ink; ctx.fillRect(-w / 2 + 6, -7, 30, 2); ctx.fillRect(-w / 2 + 6, -3, 44, 1);
+      ctx.restore();
+    };
+    const test = () => {
+      const ok = jigsawFits(J) && ((P.rot % 360) + 360) % 360 === 0 && Math.abs(P.x) <= 1 && Math.abs(P.y) <= 1;
+      res.textContent = t(ok ? 'ui.jigsaw.fits' : 'ui.jigsaw.no'); res.className = 'jigres ' + (ok ? 'ok' : 'bad');
+    };
+    const move = (dx, dy) => { P.x = Math.max(-40, Math.min(40, P.x + dx)); P.y = Math.max(-40, Math.min(24, P.y + dy)); draw(); };
+    const turn = () => { P.rot = (P.rot + 90) % 360; draw(); };
+    c.addEventListener('keydown', (e) => {
+      const st = e.shiftKey ? 3 : 1;
+      if (e.key === 'ArrowLeft') { e.preventDefault(); move(-st, 0); } else if (e.key === 'ArrowRight') { e.preventDefault(); move(st, 0); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); move(0, -st); } else if (e.key === 'ArrowDown') { e.preventDefault(); move(0, st); }
+      else if (e.key === 'r' || e.key === 'R') turn(); else if (e.key === 'Enter') test();
+    });
+    let drag = null;
+    c.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY }; try { c.setPointerCapture(e.pointerId); } catch (er) { /* ignore */ } c.focus(); });
+    c.addEventListener('pointermove', (e) => { if (!drag) return; const k = 96 / c.getBoundingClientRect().width; move(Math.round((e.clientX - drag.x) * k), Math.round((e.clientY - drag.y) * k)); drag = { x: e.clientX, y: e.clientY }; });
+    c.addEventListener('pointerup', () => { drag = null; });
+    row.append(btn(t('ui.jigsaw.rotate'), 'btn', turn), btn(t('ui.jigsaw.test'), 'btn main', test));
+    draw(); wrap.append(c, row, res);
+    return wrap;
+  }
+  /* spot the differences: two drawings side by side; tap where they differ. Enough finds earn the board's fact. */
+  function spotUI(P, ctx2) {
+    const wrap = el('div', 'spot'), pair = el('div', 'spotpair'), info = el('p', 'muted'), list = el('div', 'spotlist');
+    const found = () => (S.spot[ctx2.board] = S.spot[ctx2.board] || []);
+    const cs = [P.a, P.b].map((v) => { const c = document.createElement('canvas'); drawSignature(c, v); c.className = 'spotc'; return c; });
+    const redraw = () => {
+      cs.forEach((c, k) => { drawSignature(c, k ? P.b : P.a); const x = c.getContext('2d'); x.strokeStyle = '#d6453d'; x.lineWidth = 1; for (const d of P.diffs) if (found().includes(d.id)) x.strokeRect(d.x - 1, d.y - 1, d.w + 2, d.h + 2); });
+      info.textContent = t('ui.spot.found', { n: num(found().length), total: num(P.diffs.length) });
+      list.textContent = ''; for (const d of P.diffs) if (found().includes(d.id)) list.append(el('p', null, t('board.' + ctx2.board + '.spot.' + d.id)));
+    };
+    cs.forEach((c) => c.addEventListener('click', (e) => {
+      const r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * c.width, y = (e.clientY - r.top) / r.height * c.height;
+      const hit = P.diffs.find((d) => x >= d.x - 2 && x <= d.x + d.w + 2 && y >= d.y - 2 && y <= d.y + d.h + 2);
+      if (hit && !found().includes(hit.id)) { found().push(hit.id); save(); redraw(); if (found().length >= P.need) { gain(ctx2.fact); if (ctx2.again) ctx2.again(); } }
+    }));
+    pair.append(cs[0], cs[1]); wrap.append(el('p', 'muted', t('ui.spot.tip')), pair, info, list); redraw();
+    return wrap;
+  }
+  /* timeline: a horizontal strip with ticks, labelled events and labelled spans (a driving block, say) */
+  function timelineUI(T) {
+    const a = hm(T.from), b = hm(T.to), pos = (m) => ((m - a) / (b - a) * 100).toFixed(2) + '%';
+    const wrap = el('div', 'timeline'), strip = el('div', 'tlstrip');
+    wrap.setAttribute('role', 'img'); wrap.setAttribute('aria-label', t('ui.timeline.label'));
+    for (let m = a; m <= b; m += T.tick || 30) { const tk = el('i', 'tick'); tk.style.insetInlineStart = pos(m); tk.append(el('small', null, dig(String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0')))); strip.append(tk); }
+    (T.spans || []).forEach((sp, i) => { const bar = el('div', 'span s' + (i % 3)); bar.style.insetInlineStart = pos(hm(sp.from)); bar.style.width = ((hm(sp.to) - hm(sp.from)) / (b - a) * 100).toFixed(2) + '%'; bar.append(el('small', null, t('cell.' + sp.k))); strip.append(bar); });
+    (T.events || []).forEach((ev) => { const m = el('b', 'event'); m.style.insetInlineStart = pos(hm(ev.t)); m.title = dig(ev.t) + ' ' + t('cell.' + ev.k); m.append(el('small', null, t('cell.' + ev.k))); strip.append(m); });
+    wrap.append(strip); return wrap;
   }
   function openBoard(id) {
     const B = CASE.boards[id], keys = Object.keys(B.docs);
@@ -392,7 +472,9 @@
       const seen = (k) => S.docsSeen[id + '.' + k];
       const ask = () => {
         zone.textContent = '';
+        if (B.question.kind === 'none') return;                 // a document to read, nothing to answer
         if (S.facts[B.fact]) { zone.append(el('p', 'ok', t('fact.' + B.fact + '.text'))); return; }
+        if (B.question.kind === 'spot') { zone.append(el('p', null, t('board.' + id + '.ask'))); return; }   // the document itself earns the fact
         if (!keys.every(seen)) { zone.append(el('p', 'muted', t('ui.docs.seeAll'))); return; }
         const Q = B.question, fb = el('div'), grid = el('div', 'pickrow'), chosen = new Set();
         zone.append(el('p', null, t('board.' + id + '.ask')));
@@ -433,7 +515,7 @@
       };
       const show = () => {
         S.docsSeen[id + '.' + cur] = true; save(); drawTabs(); ask();
-        view.textContent = ''; view.append(docPaper('doc.' + id + '.' + cur, B.docs[cur]));
+        view.textContent = ''; view.append(docPaper('doc.' + id + '.' + cur, B.docs[cur], { board: id, fact: B.fact, again: () => { ask(); drawTabs(); } }));
       };
       show();
     }, 'wide');
@@ -469,8 +551,19 @@
 
   /* ---------- keys, hidden things and code locks (the puzzle layer around the rooms) ---------- */
   const hasItem = (id) => S.items.includes(id);
+  const hasFlag = (id) => S.flags.includes(id);
+  const setFlag = (id) => { if (!hasFlag(id)) { S.flags.push(id); save(); } };
+  /* `needs`: { facts, items, flags } that must all be held. unmet() returns what is missing, or null when everything is there. */
+  function unmet(n) {
+    if (!n) return null;
+    const f = (n.facts || []).filter((k) => !S.facts[k]), i = (n.items || []).filter((k) => !hasItem(k)), g = (n.flags || []).filter((k) => !hasFlag(k));
+    return f.length || i.length || g.length ? { facts: f, items: i, flags: g } : null;
+  }
+  const needsSay = (n) => (n && n.say ? t(n.say) : t('ui.needs.default'));
   const gateOf = (a, b) => (CASE.gates && (CASE.gates[a + ':' + b] || CASE.gates[b + ':' + a])) || null;
-  const isGateClosed = (a, b) => { const g = gateOf(a, b); return !!g && !hasItem(g.need); };
+  const isGateClosed = (a, b) => { const g = gateOf(a, b); return !!g && ((!!g.need && !hasItem(g.need)) || !!unmet(g.needs)); };
+  const placeOf = (room) => (CASE.places ? Object.keys(CASE.places).find((g) => CASE.places[g].rooms.includes(room)) : null);
+  const placeClosed = (g) => !!g && !!unmet(CASE.places[g].needs);
   const isLocked = (name) => name.startsWith('door:') && isGateClosed(S.room, name.slice(5));
   function giveItem(id) {
     if (hasItem(id)) return false;
@@ -534,19 +627,75 @@
       if (good) ok(); else { bad(); box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake'); }
     }));
   }
+  const pad2 = (n) => dig(String(n).padStart(2, '0'));
+  const hm = (v) => { const [h, m] = v.split(':').map(Number); return h * 60 + m; };
+  const shake = (node) => { node.classList.remove('shake'); void node.offsetWidth; node.classList.add('shake'); };
+  /* a lock that takes a time: two wheels (hour, minute); every time inside accept.timeRange opens it */
+  function lockTime(C, key, body, ok, bad) {
+    const ranges = C.wheels.map((w) => w.range.split('-').map(Number)), vals = ranges.map((r) => r[0]), names = ['ui.lock.hour', 'ui.lock.minute'];
+    const w = el('div', 'wheels time');
+    vals.forEach((v, i) => {
+      const [lo, hi] = ranges[i], col = el('div', 'wheel'), lab = el('small', null, t(names[i])), out2 = document.createElement('output');
+      const show = () => { out2.textContent = pad2(vals[i]); out2.setAttribute('aria-valuenow', String(vals[i])); };
+      const step = (d) => { const n = vals[i] + d; vals[i] = n > hi ? lo : (n < lo ? hi : n); show(); };
+      out2.tabIndex = 0; out2.setAttribute('role', 'spinbutton'); out2.setAttribute('aria-label', t(names[i])); out2.setAttribute('aria-valuemin', String(lo)); out2.setAttribute('aria-valuemax', String(hi));
+      out2.addEventListener('keydown', (e) => { if (e.key === 'ArrowUp') { e.preventDefault(); step(1); } else if (e.key === 'ArrowDown') { e.preventDefault(); step(-1); } });
+      const up = btn('▲', '', () => step(1)); up.setAttribute('aria-label', t(names[i]) + ' +');
+      const dn = btn('▼', '', () => step(-1)); dn.setAttribute('aria-label', t(names[i]) + ' −');
+      show(); col.append(lab, up, out2, dn); w.append(col);
+    });
+    const [a, b] = C.accept.timeRange.map(hm);
+    body.append(w, btn(t('ui.lock.print'), 'btn main', () => {
+      const m = vals[0] * 60 + vals[1];
+      if (m >= a && m <= b) ok(); else { bad(has('container.' + key + '.blank') ? t('container.' + key + '.blank') : null); shake(w); }
+    }));
+  }
+  /* a lock of ordered stamps: tap stamps in order, tap a filled slot to take it and the ones after it back */
+  function lockSymbols(C, body, ok, bad) {
+    const seq = [], n = C.slots, row = el('div', 'symslots'), pal = el('div', 'sympal'), slots = [];
+    const paint = () => slots.forEach((sl, i) => { sl.textContent = seq[i] ? SYMS[seq[i]] : '·'; sl.classList.toggle('on', !!seq[i]); });
+    for (let i = 0; i < n; i++) {
+      const sl = el('button', 'symslot', '·'); sl.type = 'button'; sl.setAttribute('aria-label', t('ui.lock.stamp', { n: num(i + 1) }));
+      sl.addEventListener('click', () => { seq.length = Math.min(seq.length, i); paint(); });
+      slots.push(sl); row.append(sl);
+    }
+    for (const sy of C.alphabet) {
+      const b = el('button', 'stamp', SYMS[sy]); b.type = 'button'; b.setAttribute('aria-label', t('ui.sym.' + sy));
+      b.addEventListener('click', () => { if (seq.length < n) { seq.push(sy); paint(); } });
+      pal.append(b);
+    }
+    body.append(row, pal, btn(t('ui.lock.clear'), 'btn', () => { seq.length = 0; paint(); }), btn(t('ui.lock.try'), 'btn main', () => {
+      if (seq.length === n && seq.every((sy, i) => sy === C.code[i])) ok(); else { bad(); shake(row); }
+    }));
+  }
+  const LOCKS = {};   // in memory only: wrong tries and the end of a cooldown, per lock
   function openLockUI(key, C, done) {
     openModal(t('container.' + key + '.title'), (body) => {
-      const msg2 = el('p', 'bad');
+      const msg2 = el('p', 'bad'), st = LOCKS[key] || (LOCKS[key] = { fails: 0, until: 0 }), lo = C.lockout;
       body.append(el('p', 'muted', t('container.' + key + '.hint')));
-      const okf = () => { closeModal(); done(); }, badf = () => { msg2.textContent = t('ui.lock.wrong'); };
-      const kind = C.kind || 'wheels';
-      if (kind === 'keypad') lockKeypad(C, body, okf, badf); else if (kind === 'fuses') lockFuses(C, key, body, okf, badf); else if (kind === 'wires') lockWires(C, body, okf, badf); else lockWheels(C, body, okf, badf);
+      const freeze = (ms) => {   // lockout: the lock ignores input for a while and says so
+        const btns = [...body.querySelectorAll('button')]; btns.forEach((b) => { b.disabled = true; });
+        msg2.textContent = t('ui.lock.cooldown');
+        setTimeout(() => { st.until = 0; btns.forEach((b) => { b.disabled = false; }); if (msg2.isConnected) msg2.textContent = ''; }, ms);
+      };
+      const okf = () => { st.fails = 0; closeModal(); done(); };
+      const badf = (text) => {
+        msg2.textContent = text || (has('container.' + key + '.wrong') ? t('container.' + key + '.wrong') : t('ui.lock.wrong'));
+        if (lo && ++st.fails >= lo.tries) { st.fails = 0; st.until = Date.now() + lo.seconds * 1000; freeze(lo.seconds * 1000); }
+      };
+      const kind = C.kind || C.type || 'wheels';
+      if (kind === 'keypad') lockKeypad(C, body, okf, badf); else if (kind === 'fuses') lockFuses(C, key, body, okf, badf); else if (kind === 'wires') lockWires(C, body, okf, badf);
+      else if (kind === 'symbols') lockSymbols(C, body, okf, badf); else if (kind === 'wheels' && C.accept) lockTime(C, key, body, okf, badf); else lockWheels(C, body, okf, badf);
       body.append(msg2);
+      if (st.until > Date.now()) freeze(st.until - Date.now());
     });
   }
   function openCode(key, C) {
     openLockUI(key, C, () => {
-      gain(C.fact);
+      S.opened[key] = true; save();
+      const prize = C.prize || { fact: C.fact };
+      if (prize.board) { openBoard(prize.board); return; }
+      gain(prize.fact);
       openModal(t('container.' + key + '.paperTitle'), (b2) => {
         const paper = el('div', 'paper'); paper.append(el('p', null, t('container.' + key + '.paper')));
         b2.append(paper, btn(t('ui.close'), 'btn main', closeModal));
@@ -571,10 +720,22 @@
   function actBoards(name) {
     if (S.compare && S.room === SCENE && (S.moment === D.a || S.moment === D.b)) return markDiff(name);
     const key = S.room + ':' + name;
+    const box = CASE.containers && CASE.containers[key];
+    const nd = (CASE.needs && CASE.needs[key]) || (box && box.needs);
+    if (nd && unmet(nd)) return say(needsSay(nd));
     const find = CASE.finds && CASE.finds[key];
     if (find && !hasItem(find.give)) { giveItem(find.give); return say(t('find.' + S.room + '.' + name)); }
-    const box = CASE.containers && CASE.containers[key];
-    if (box) { if (S.facts[box.fact]) return say(t('container.' + key + '.open')); return openCode(key, box); }
+    if (box) {
+      const prize = box.prize || { fact: box.fact };
+      if (prize.board) return S.opened[key] ? openBoard(prize.board) : openCode(key, box);
+      if (S.facts[prize.fact]) return say(t('container.' + key + '.open'));
+      return openCode(key, box);
+    }
+    if (CASE.cork === key) return openCork();
+    const talk = CASE.talk && CASE.talk[key];
+    if (talk) return startTalk(talk);
+    const calls = CASE.calls && CASE.calls[key];
+    if (calls) return useCall(key, calls);
     const board = CASE.bind && CASE.bind[key];
     if (board) return openBoard(board);
     const ob = CASE.observe && CASE.observe[name];
@@ -614,6 +775,170 @@
     }
   }
 
+
+  /* the case board in the detective's office: every fact of the notebook pinned up as a card */
+  function openCork() {
+    openModal(t('ui.cork.title'), (body) => {
+      const grid = el('div', 'cork');
+      if (!S.order.length) grid.append(el('p', 'muted', t('ui.cork.empty')));
+      S.order.forEach((id, i) => { const c = el('div', 'card ' + (CASE.facts[id].required ? 'req' : 'opt')); c.style.setProperty('--tilt', ((i % 5) - 2) * 0.8 + 'deg'); c.append(el('b', null, ft(id)), el('span', null, t('fact.' + id + '.text'))); grid.append(c); });
+      body.append(grid);
+    }, 'wide');
+  }
+
+  /* ---------- a call: steps that run in order, each needing something, each able to open a place or hand over an item ---------- */
+  function useCall(key, calls) {
+    const done = (i) => hasFlag('call:' + key + ':' + i);
+    const i = calls.findIndex((_, k) => !done(k));
+    if (i < 0) return say(t(calls[calls.length - 1].say));
+    const c = calls[i];
+    if (unmet(c.needs)) return say(t(c.locked || (i > 0 ? calls[i - 1].say : 'ui.needs.default')));
+    setFlag('call:' + key + ':' + i);
+    if (c.opens) setFlag(c.opens);
+    if (c.grants) giveItem(c.grants);
+    renderSuspects(); updateRoomName();
+    return say(t(c.say));
+  }
+
+  /* ---------- interviews and confrontations: a scene, a big portrait, a speech bubble ---------- */
+  const personOf = (id) => suspect(id) || (CASE.people && CASE.people[id]);
+  const pname = (id) => (has('int.' + id + '.name') ? t('int.' + id + '.name') : sname(id));
+  const plain = (str) => str.replace(/\[\[|\]\]/g, '');
+  const talkState = (id) => S.talk[id] || (S.talk[id] = { asked: [], phrases: {}, seen: false });
+  function noteToast(text) {
+    const box = el('div', 'toast');
+    box.append(el('b', null, t('ui.talk.noted', { text })));
+    $('toasts').append(box); setTimeout(() => box.remove(), 5200);
+  }
+  /* the speech bubble: typewriter (a tap finishes it; reduced motion shows it at once), then hot phrases become buttons */
+  function say2(node, text, onPhrase, got, dashed) {
+    clearInterval(node._tw);
+    node.parentNode.classList.toggle('dashed', !!dashed);
+    const full = plain(text);
+    const rich = () => {
+      node._finish = null; node.textContent = '';
+      let i = 0, last = 0, m; const re = /\[\[(.+?)\]\]/g;
+      while ((m = re.exec(text))) {
+        if (m.index > last) node.append(text.slice(last, m.index));
+        const idx = i++, b = el('button', 'hot' + (got && got(idx) ? ' got' : ''), m[1]); b.type = 'button';
+        b.addEventListener('click', (e) => { e.stopPropagation(); if (onPhrase) { onPhrase(idx); b.classList.add('got'); } });
+        node.append(b); last = re.lastIndex;
+      }
+      if (last < text.length) node.append(text.slice(last));
+    };
+    if (reduced()) { rich(); return; }
+    let n = 0; node.textContent = '';
+    node._finish = () => { clearInterval(node._tw); rich(); };
+    node._tw = setInterval(() => { n += 2; node.textContent = full.slice(0, n); if (n >= full.length) node._finish(); }, 18);
+  }
+  function talkShell(body, scene, spec) {
+    const wrap = el('div', 'talk'), stage2 = el('div', 'tstage'), bg = document.createElement('canvas'), fig = document.createElement('canvas');
+    const bubble = el('div', 'bubble'), txt = el('p'), qs = el('div', 'talkq'), stamp = el('span', 'tstamp', t('ui.talk.testimony'));
+    bg.className = 'tbg'; fig.className = 'tfig'; drawScene(bg, scene);
+    bubble.append(txt); bubble.addEventListener('click', () => { if (txt._finish) txt._finish(); });
+    const mood = (m) => drawBigPortrait(fig, spec, m || 'normal'); mood('normal');
+    stage2.append(bg, fig, stamp, bubble); wrap.append(stage2, qs); body.append(wrap);
+    return { wrap, txt, qs, mood };
+  }
+  function startTalk(ids) {
+    const open = ids.filter((id) => (CASE.interviews && CASE.interviews[id]) || (CASE.confrontations && CASE.confrontations[id]));
+    if (open.length === 1) return enter(open[0]);
+    openModal(t('ui.talk.title'), (body) => {
+      const grid = el('div', 'pickrow');
+      for (const id of open) {
+        const who = personOf(id), b = el('button', 'pick'); b.type = 'button';
+        const c = document.createElement('canvas'); drawPortrait(c, who.portrait); b.append(c, el('span', null, pname(id)));
+        b.addEventListener('click', () => { closeModal(); enter(id); });
+        grid.append(b);
+      }
+      body.append(grid);
+    }, 'small');
+    function enter(id) { if (CASE.interviews && CASE.interviews[id]) openTalk(id); else openConfront(id); }
+  }
+  function openTalk(id) {
+    const IV = CASE.interviews[id], nd = unmet(IV.needs);
+    if (nd) { say(needsSay(IV.needs)); return; }
+    const st = talkState(id), who = personOf(id);
+    openModal(t('ui.talk.title') + ' · ' + pname(id), (body) => {
+      const sh = talkShell(body, IV.scene, who.portrait);
+      const ask = (q) => {
+        if (unmet(q.needs)) { sh.mood('guarded'); say2(sh.txt, t('ui.talk.locked')); return; }
+        sh.mood(q.mood); st.seen = true;
+        if (!st.asked.includes(q.id)) st.asked.push(q.id);
+        save(); say2(sh.txt, t(q.answer), (idx) => tapPhrase(id, q, idx), (idx) => !!st.phrases[q.id + '.' + q.phrases[idx].id]); drawQs();
+      };
+      const drawQs = () => {
+        sh.qs.textContent = '';
+        for (const q of IV.questions) {
+          const b = el('button', 'tq' + (st.asked.includes(q.id) ? ' asked' : '') + (unmet(q.needs) ? ' lockedq' : ''), t(q.ask)); b.type = 'button';
+          b.addEventListener('click', () => ask(q)); sh.qs.append(b);
+        }
+        sh.qs.append(btn(t('ui.talk.leave'), 'btn', closeModal));
+      };
+      drawQs();
+      if (!st.seen && suspect(id)) { st.seen = true; save(); say2(sh.txt, t('suspect.' + id + '.statement')); }
+      else if (!st.seen && has('int.' + id + '.open')) { st.seen = true; save(); say2(sh.txt, t('int.' + id + '.open')); }
+    }, 'talkmodal', () => { renderSuspects(); });
+  }
+  function tapPhrase(iid, q, idx) {
+    const p = q.phrases[idx], k = q.id + '.' + p.id, st = talkState(iid);
+    if (!st.phrases[k]) { st.phrases[k] = true; save(); if (p.note) noteToast(t(p.note)); }
+    if (p.grants) giveItem(p.grants);
+    renderSuspects();
+  }
+  function openConfront(sid) {
+    const C = CASE.confrontations[sid], nd = unmet(C.needs);
+    if (nd) { say(needsSay(C.needs)); return; }
+    const st = S.conf[sid] || (S.conf[sid] = { broken: [], done: false }), who = personOf(sid);
+    openModal(t('ui.talk.title') + ' · ' + pname(sid), (body) => {
+      const sh = talkShell(body, C.scene, who.portrait), pills = el('div', 'dtabs');
+      let cur = (C.claims.find((c) => !st.broken.includes(c.id)) || C.claims[0]).id;
+      const moodNow = () => (st.done ? 'shaken' : (st.broken.length ? 'guarded' : 'normal'));
+      const drawBubble = () => {
+        const c = C.claims.find((x) => x.id === cur), broken = st.broken.includes(c.id);
+        sh.mood(moodNow());
+        say2(sh.txt, t(broken ? c.broken : c.say), null, null, !broken);
+      };
+      const finale = () => {
+        st.done = true; if (C.grants && !S.badges.includes(C.grants)) S.badges.push(C.grants); save();
+        let text = t(C.finale.say);
+        for (const x of (C.finale.extra || [])) if (S.facts[x.ifFact]) text += ' ' + t(x.say);
+        sh.mood('shaken'); say2(sh.txt, text, null, null, false); drawQs(); drawPills();
+      };
+      const drawPills = () => {
+        pills.textContent = '';
+        C.claims.forEach((c, i) => {
+          const b = el('button', 'pill' + (c.id === cur ? ' on' : '') + (st.broken.includes(c.id) ? ' done' : ''), t('ui.talk.claim', { n: num(i + 1) }) + (st.broken.includes(c.id) ? ' ✓' : '')); b.type = 'button';
+          b.addEventListener('click', () => { cur = c.id; drawPills(); drawBubble(); });
+          pills.append(b);
+        });
+      };
+      const present = () => {
+        sh.qs.textContent = '';
+        sh.qs.append(el('p', 'muted', t('ui.talk.pick')));
+        const list = el('div', 'factpick');
+        for (const f of S.order) { const b = el('button', 'tq', ft(f)); b.type = 'button'; b.addEventListener('click', () => tryFact(f)); list.append(b); }
+        sh.qs.append(list, btn(t('ui.close'), 'btn', drawQs));
+      };
+      const tryFact = (f) => {
+        const c = C.claims.find((x) => x.id === cur);
+        if (!st.broken.includes(c.id) && c.accept.includes(f)) {
+          st.broken.push(c.id); save(); drawPills();
+          if (C.claims.every((x) => st.broken.includes(x.id))) { finale(); return; }
+          drawBubble(); drawQs(); return;
+        }
+        sh.mood('normal'); say2(sh.txt, t('ui.talk.noContra'), null, null, false); drawQs();
+      };
+      const drawQs = () => {
+        sh.qs.textContent = '';
+        if (!st.done) sh.qs.append(btn(t('ui.talk.present'), 'btn main', present));
+        sh.qs.append(btn(t('ui.talk.leave'), 'btn', closeModal));
+      };
+      body.prepend(pills); drawPills(); drawQs();
+      if (st.done) finale(); else drawBubble();
+    }, 'talkmodal', () => { renderSuspects(); });
+  }
+
   /* ---------- side panels ---------- */
   function renderNotebook() {
     const box = $('tab-notebook'); box.textContent = '';
@@ -635,6 +960,12 @@
     if (S.lastHint) box.append(el('div', 'hintbox', S.lastHint));
     box.append(btn(t('ui.nb.reset'), 'btn', () => { if (confirm(t('ui.nb.confirm'))) reset(); }));
   }
+  function testimonyNotes(id) {
+    const IV = CASE.interviews && CASE.interviews[id], st = S.talk[id], out = [];
+    if (!IV || !st) return out;
+    for (const q of IV.questions) for (const p of q.phrases || []) if (p.note && st.phrases[q.id + '.' + p.id]) out.push(t(p.note));
+    return out;
+  }
   function renderSuspects() {
     const box = $('tab-suspects'); box.textContent = '';
     box.append(el('h2', null, t('ui.sus.title')));
@@ -646,7 +977,22 @@
       pc.info.append(el('b', null, sname(s.id)), el('span', 'role', t('suspect.' + s.id + '.role')), el('span', 'tag', t('ui.sus.motive', { x: t('suspect.' + s.id + '.hint') })), el('q', null, t('suspect.' + s.id + '.statement')));
       const m = CASE.moments.find(mm => mm.who === s.id);
       if (m) pc.info.append(btn(t('ui.sus.room'), 'pill', () => { if (S.room !== SCENE) go(SCENE, true); setTimeout(() => setMoment(m.id), reduced() ? 0 : 240); }));
+      const IV = CASE.interviews && CASE.interviews[s.id], CF = CASE.confrontations && CASE.confrontations[s.id];
+      for (const [def, key, fn] of [[IV, 'ui.talk.suspectBtn', () => openTalk(s.id)], [CF, 'ui.talk.confrontBtn', () => openConfront(s.id)]]) {
+        if (!def) continue;
+        const b = btn(t(key, { name: sname(s.id) }), 'pill' + (unmet(def.needs) ? ' lockedq' : ''), () => { if (unmet(def.needs)) { say(t('ui.talk.locked')); return; } setSheet(false); fn(); });
+        pc.info.append(b);
+      }
+      const notes = testimonyNotes(s.id);
+      if (notes.length) { const nb = el('div', 'tnotes'); nb.append(el('b', null, t('ui.talk.notes'))); for (const n of notes) nb.append(el('p', null, n)); pc.info.append(nb); }
       box.append(pc.p);
+    }
+    // people who are not suspects (the barman) keep their notes here too
+    for (const id of Object.keys(CASE.interviews || {})) {
+      if (suspect(id)) continue;
+      const notes = testimonyNotes(id); if (!notes.length) continue;
+      const nb = el('div', 'tnotes'); nb.append(el('b', null, t('ui.talk.notes') + ' · ' + pname(id))); for (const n of notes) nb.append(el('p', null, n));
+      box.append(nb);
     }
   }
   function renderAccuse() {
@@ -711,7 +1057,7 @@
   /* ---------- the cat gives hints. Tier a is free; tier b goes through an optional provider
        (window.NUT_HINT_PROVIDER({stage, tier}) -> Promise<boolean>), which is where a rewarded ad can plug in ---------- */
   $('hintbtn').addEventListener('click', async () => {
-    const stage = CASE.hints.findIndex(h => h.when(S.facts));
+    const stage = CASE.hints.findIndex(h => h.when(S.facts, S));
     const tier = (S.hintTier[stage] || 0) >= 1 ? 'b' : 'a';
     if (tier === 'b' && window.NUT_HINT_PROVIDER) {
       let ok = false;
@@ -727,25 +1073,42 @@
   /* ---------- the map: a small floor plan of the spaces you can enter, with the doors drawn in ---------- */
   function openMap() {
     openModal(t('ui.map.title'), (body) => {
-      const M = CASE.map, cols = Math.max(...M.nodes.map(n => n.x)) + 1, rows = Math.max(...M.nodes.map(n => n.y)) + 1;
-      const plan = el('div', 'plan'); plan.style.setProperty('--cols', cols); plan.style.setProperty('--rows', rows);
-      const near = (id) => M.edges.some(([a, b]) => (a === S.room && b === id) || (b === S.room && a === id));
-      for (const n of M.nodes) {
-        const here = n.id === S.room, known = S.visited.includes(n.id) || near(n.id);
-        const b = el('button', 'node' + (here ? ' here' : '') + (known ? '' : ' unknown')); b.type = 'button';
-        b.style.gridColumn = n.x + 1; b.style.gridRow = n.y + 1;
-        b.append(el('b', null, known ? t('room.' + n.id) : '?'), el('small', null, here ? t('ui.map.here') : (known ? t('ui.map.go') : t('ui.map.unknown'))));
-        // doors: a gap in the wall on the side that touches a neighbour; a locked one is drawn as a bar
-        for (const [a, c] of M.edges) {
-          const other = a === n.id ? c : (c === n.id ? a : null); if (!other) continue;
-          const o = M.nodes.find(q => q.id === other), side = o.x > n.x ? 'r' : o.x < n.x ? 'l' : o.y > n.y ? 'b' : 't';
-          b.append(el('i', 'gap ' + side + (isGateClosed(n.id, other) ? ' shut' : '')));
+      const M = CASE.map, PL = CASE.places, groups = PL ? Object.keys(PL) : [null];
+      let cur = PL ? (placeOf(S.room) || groups[0]) : null;
+      const tabs = el('div', 'dtabs'), host = el('div');
+      body.append(tabs, host);
+      const rname = (id) => (has('room.' + id) ? t('room.' + id) : t('ui.map.room.' + id));
+      const draw = () => {
+        tabs.textContent = ''; host.textContent = '';
+        if (PL) for (const g of groups) {
+          const b = el('button', 'pill' + (g === cur ? ' on' : '') + (placeClosed(g) ? ' lockedq' : ''), t('ui.map.group.' + g) + (placeClosed(g) ? ' ' + t('ui.door.lockedTag') : '')); b.type = 'button';
+          b.addEventListener('click', () => { cur = g; draw(); }); tabs.append(b);
         }
-        b.disabled = !known || here;
-        b.addEventListener('click', () => { closeModal(); go(n.id); });
-        plan.append(b);
-      }
-      body.append(plan, el('p', 'muted', t('ui.map.tip')));
+        const shut = !!cur && placeClosed(cur);
+        const nodes = PL ? M.nodes.filter((n) => PL[cur].rooms.includes(n.id)) : M.nodes;
+        const cols = Math.max(...nodes.map(n => n.x)) + 1, rows = Math.max(...nodes.map(n => n.y)) + 1;
+        const plan = el('div', 'plan' + (shut ? ' shut' : '')); plan.style.setProperty('--cols', cols); plan.style.setProperty('--rows', rows);
+        const near = (id) => M.edges.some(([a, b]) => (a === S.room && b === id) || (b === S.room && a === id));
+        for (const n of nodes) {
+          const here = n.id === S.room, entry = !!PL && PL[cur].rooms[0] === n.id, known = !shut && (S.visited.includes(n.id) || near(n.id) || entry);
+          const b = el('button', 'node' + (here ? ' here' : '') + (known ? '' : ' unknown')); b.type = 'button';
+          b.style.gridColumn = n.x - Math.min(...nodes.map(q => q.x)) + 1; b.style.gridRow = n.y - Math.min(...nodes.map(q => q.y)) + 1;
+          b.append(el('b', null, known || here ? rname(n.id) : '?'), el('small', null, here ? t('ui.map.here') : (known ? t('ui.map.go') : t('ui.map.unknown'))));
+          // doors: a gap in the wall on the side that touches a neighbour; a locked one is drawn as a bar
+          for (const [a, c] of M.edges) {
+            const other = a === n.id ? c : (c === n.id ? a : null); if (!other) continue;
+            const o = M.nodes.find(q => q.id === other), side = o.x > n.x ? 'r' : o.x < n.x ? 'l' : o.y > n.y ? 'b' : 't';
+            b.append(el('i', 'gap ' + side + (isGateClosed(n.id, other) ? ' shut' : '')));
+          }
+          b.disabled = !known || here;
+          b.addEventListener('click', () => { closeModal(); go(n.id); });
+          plan.append(b);
+        }
+        host.append(plan);
+        if (shut) host.append(el('p', 'bad', needsSay(PL[cur].needs)));
+        host.append(el('p', 'muted', t('ui.map.tip')));
+      };
+      draw();
     }, 'small');
   }
   $('mapbtn').addEventListener('click', openMap);
@@ -753,12 +1116,14 @@
   /* ---------- the ending ---------- */
   function showEnd() {
     openModal(t('ui.end.title'), (body) => {
-      body.append(el('div', 'stars', '★'.repeat(S.stars) + '☆'.repeat(3 - S.stars)), el('p', null, t('verdict.line')));
+      body.append(el('div', 'stars', '★'.repeat(S.stars) + '☆'.repeat(3 - S.stars)));
+      if (S.badges.includes('confession')) body.append(el('div', 'badge', '✦ ' + t('ui.end.confession')));
+      body.append(el('p', null, t('verdict.line')));
       const ol = el('ol', 'truth');
       for (let i = 0; i < CASE.verdict.truth; i++) { const li = el('li'); li.append(el('time', null, dig(t('verdict.truth.' + i + '.when'))), el('span', null, t('verdict.truth.' + i + '.text'))); ol.append(li); }
       body.append(el('h3', null, t('ui.end.truth')), ol, el('div', 'thread', t('verdict.thread')));
       const mins = Math.max(1, Math.round(S.playMs / 60000));
-      const share = t('ui.end.share', { title: t('case.title'), stars: '★'.repeat(S.stars) + '☆'.repeat(3 - S.stars), min: num(mins), tries: num(S.tries) }) + '\n' + location.href.split('#')[0];
+      const share = t('ui.end.share', { title: t('case.title'), stars: '★'.repeat(S.stars) + '☆'.repeat(3 - S.stars), min: num(mins), tries: num(S.tries) }) + (S.badges.includes('confession') ? '\n✦ ' + t('ui.end.confession') : '') + '\n' + location.href.split('#')[0];
       const ta = el('textarea', 'share'); ta.readOnly = true; ta.value = share; ta.rows = 3; ta.setAttribute('aria-label', t('ui.end.shareLabel'));
       const done = el('p', 'muted'), row = el('div', 'btns');
       row.append(
@@ -772,7 +1137,7 @@
     }, 'wide');
   }
   function reset() {
-    Object.assign(S, { room: CASE.map.start, moment: 'scene', compare: false, world: { lamp: false, box: false }, items: [], facts: {}, order: [], diffFound: [], docsSeen: {}, clockPushed: false, tries: 0, hints: 0, solved: false, stars: 0, playMs: 0, introSeen: true, visited: [CASE.map.start], pick: {}, fresh: {}, lastHint: '', feedback: [], feedbackText: [], hintTier: {} });
+    Object.assign(S, { room: CASE.map.start, moment: 'scene', compare: false, world: { lamp: false, box: false }, items: [], facts: {}, order: [], diffFound: [], docsSeen: {}, clockPushed: false, tries: 0, hints: 0, solved: false, stars: 0, playMs: 0, introSeen: true, visited: [CASE.map.start], flags: [], opened: {}, talk: {}, conf: {}, badges: [], spot: {}, pick: {}, fresh: {}, lastHint: '', feedback: [], feedbackText: [], hintTier: {} });
     try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
     setCompare(false); rebuild(); snapLamp(); updateRoomName(); updateMoments(); renderNotebook(); renderAccuse(); setTab('notebook'); setSheet(false);
     say(t('ui.msg.reset'));
@@ -845,5 +1210,5 @@
   if (!S.introSeen) openIntro();
   else say(t(S.order.length ? 'ui.msg.back' : 'ui.msg.start'));
   requestAnimationFrame(frame);
-  window.NUT = { S, t, act, go, openBoard, setMoment, setCompare, gain, reset, openClock, openDocs, openLock, showEnd, closeModal, rebuild, submitAccuse, setTab };
+  window.NUT = { S, t, unmet, openTalk, openConfront, openMap, act, go, openBoard, setMoment, setCompare, gain, reset, openClock, openDocs, openLock, showEnd, closeModal, rebuild, submitAccuse, setTab };
 })();

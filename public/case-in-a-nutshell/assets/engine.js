@@ -537,6 +537,66 @@ function drawCatIcon(cv) {
   R('#e89a4a', 4, 12, 8, 3);                                 // body
 }
 
+/* A large three-quarter figure for the interview and interrogation scenes: the same fields as drawPortrait (skin, hair, style, shirt, collar, cap,
+   glasses, mustache) plus an optional outfit (`extra`: scrubs, apron, hankie, coat, openCollar) and a mood (normal | guarded | shaken). 48 x 72 px. */
+function drawBigPortrait(cv, s, mood) {
+  const W = 48, H = 72;
+  cv.width = W; cv.height = H;
+  const x = cv.getContext('2d');
+  const R = (c, px, py, w, h) => { x.fillStyle = c; x.fillRect(px, py, w, h); };
+  const E = (c, cx, cy, rx, ry) => {
+    x.fillStyle = c;
+    for (let py = Math.floor(cy - ry); py <= Math.ceil(cy + ry); py++) for (let px = Math.floor(cx - rx); px <= Math.ceil(cx + rx); px++) {
+      const dx = (px + 0.5 - cx) / rx, dy = (py + 0.5 - cy) / ry;
+      if (dx * dx + dy * dy <= 1) x.fillRect(px, py, 1, 1);
+    }
+  };
+  const shade = (hex, k) => {
+    const n = parseInt(hex.slice(1), 16), f = (v) => Math.max(0, Math.min(255, Math.round(v + (k < 0 ? v * k : (255 - v) * k))));
+    return '#' + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(f).map(v => v.toString(16).padStart(2, '0')).join('');
+  };
+  const ink = '#2a2132', m = mood || 'normal', skinD = shade(s.skin, -0.14);
+  // hair behind the head
+  if (s.style === 'long') { E(s.hair, 24, 20, 14, 18); R(s.hair, 10, 20, 7, 28); R(s.hair, 31, 20, 7, 28); }
+  // body: shoulders, torso, arms
+  E(s.shirt, 24, 74, 23, 26);
+  R(s.shirt, 4, 46, 8, 26); R(s.shirt, 36, 46, 8, 26);                       // sleeves
+  R(shade(s.shirt, -0.18), 4, 46, 2, 26); R(shade(s.shirt, -0.18), 42, 46, 2, 26);
+  if (m === 'guarded') { R(s.shirt, 10, 56, 28, 7); R(shade(s.shirt, -0.2), 10, 62, 28, 1); R(skinD, 8, 57, 3, 5); R(skinD, 37, 57, 3, 5); }   // arms folded
+  if (s.extra === 'scrubs') { R(shade(s.shirt, 0.25), 16, 40, 16, 4); R('#e8e4d8', 30, 50, 6, 8); R('#2a6a8a', 31, 51, 4, 1); }          // v-neck and a badge
+  if (s.extra === 'apron') { R('#e8e4d8', 14, 46, 20, 26); R('#cfc8b8', 14, 46, 20, 2); R('#cfc8b8', 22, 50, 4, 20); }
+  if (s.extra === 'hankie') { R('#e8e4d8', 32, 50, 5, 5); R('#cf5a4a', 33, 50, 3, 1); }
+  if (s.extra === 'coat') { R(shade(s.shirt, -0.3), 14, 40, 5, 30); R(shade(s.shirt, -0.3), 29, 40, 5, 30); R('#e8e4d8', 20, 40, 8, 22); }
+  // neck, collar
+  R(skinD, 20, 34, 8, 8); R(s.collar || shade(s.shirt, 0.3), 16, 40, 16, 3);
+  if (s.extra === 'openCollar') { R(s.collar || '#e8e4d8', 15, 40, 6, 4); R(s.collar || '#e8e4d8', 27, 40, 6, 4); R(skinD, 21, 41, 6, 3); }
+  // head
+  E(s.skin, 24, 21, 12, 14);
+  R(skinD, 11, 21, 2, 6); R(skinD, 35, 21, 2, 6);                              // ears
+  // hair on top
+  if (s.style === 'short' || s.style === 'bun') { E(s.hair, 24, 12, 13, 8.5); R(s.hair, 11, 14, 4, 8); R(s.hair, 33, 14, 4, 8); }
+  if (s.style === 'bun') E(s.hair, 24, 3.5, 6, 4.5);
+  if (s.style === 'long') { E(s.hair, 24, 11.5, 13.5, 7.5); R(s.hair, 11, 14, 4, 16); R(s.hair, 33, 14, 4, 16); }
+  if (s.style === 'cap') { R(s.hair, 11, 16, 4, 6); R(s.hair, 33, 16, 4, 6); E(s.cap, 24, 12, 14, 8); R(shade(s.cap, -0.25), 9, 16, 30, 3); }
+  // face: eyes, brows, nose, mouth by mood
+  const ey = m === 'guarded' ? 22 : 21, eh = m === 'guarded' ? 2 : 3;
+  R('#f4f0e6', 15, ey, 6, eh + 1); R('#f4f0e6', 27, ey, 6, eh + 1);
+  R(ink, 17, ey, 3, eh + 1); R(ink, 29, ey, 3, eh + 1);
+  const brow = shade(s.hair || '#444444', -0.1);
+  if (m === 'normal') { R(brow, 14, 17, 7, 1); R(brow, 27, 17, 7, 1); }
+  if (m === 'guarded') { R(brow, 14, 18, 7, 2); R(brow, 27, 18, 7, 2); R(brow, 19, 19, 2, 1); R(brow, 27, 19, 2, 1); }
+  if (m === 'shaken') { R(brow, 14, 15, 7, 1); R(brow, 27, 15, 7, 1); R(brow, 14, 16, 2, 1); R(brow, 32, 16, 2, 1); }
+  R(shade(s.skin, -0.2), 23, 24, 2, 5);                                          // nose
+  if (s.mustache) R(s.mustache, 18, 30, 12, 3);
+  if (m === 'normal') R('#a5524f', 20, 33, 8, 1);
+  if (m === 'guarded') { R('#a5524f', 20, 33, 8, 1); R(skinD, 19, 34, 10, 1); }
+  if (m === 'shaken') { R('#7a2f3a', 21, 33, 6, 3); R('#a5524f', 20, 32, 8, 1); R('#9fd4ee', 38, 14, 2, 4); R('#cfe8f0', 38, 14, 1, 2); }   // open mouth, a drop of sweat
+  if (s.glasses) {
+    R(ink, 13, 20, 9, 1); R(ink, 13, 26, 9, 1); R(ink, 13, 20, 1, 7); R(ink, 21, 20, 1, 7);
+    R(ink, 26, 20, 9, 1); R(ink, 26, 26, 9, 1); R(ink, 26, 20, 1, 7); R(ink, 34, 20, 1, 7); R(ink, 22, 22, 4, 1);
+  }
+}
+
 /* ============================================================
    details.js : the magnifier's close-ups. The room is drawn at one
    pixel per detail; a close-up is a separate drawing of the same
@@ -630,7 +690,9 @@ function drawFrame(c, spec, people) {
     R('#201a28', 32, 8, 34, 40);                                   // the front door, open to the wet night
     R('#5a6b8a', 33, 9, 32, 5); for (let i = 0; i < 12; i++) R('#7aa0d0', 34 + i * 2.6, 10 + (i * 7) % 20, 1, 3);   // rain
     R('#e0b04a', 30, 8, 2, 40); R('#e0b04a', 66, 8, 2, 40); R('#e0b04a', 30, 8, 38, 2);
-    R('#8a97a3', 70, 20, 6, 8); R('#e0b04a', 72, 22, 2, 2);          // the intercom panel
+    R('#8a97a3', 70, 20, 6, 8); R(spec.blink ? '#fff2a8' : '#e0b04a', 72, 22, 2, 2); if (spec.blink) { R('rgba(255,242,168,.35)', 69, 19, 8, 10); }          // the intercom panel (blinking when somebody rings)
+    if (spec.bin) { R('#3f7f5a', 4, 34, 10, 14); R('#2a5a3c', 4, 34, 10, 2); R('#1c3a28', 5, 38, 8, 1); }                                                   // the bin by the stairs
+    if (spec.drop) { R('#e8e0cc', 9, 28, 2, 3); R('#cfc6ad', 9, 30, 2, 1); }                                                                                 // something small falling in
   } else if (S === 'basement') {
     R('#2a2b30', 0, 0, 96, 56); R('#3a3c44', 0, 6, 96, 28); R('#25262c', 0, 34, 96, 22);
     R('#7a5a52', 52, 10, 26, 34); R('#5a4038', 54, 12, 22, 30); R('#9aa3ae', 60, 14, 6, 26); R('#e0584a', 70, 18, 3, 3); // the boiler
@@ -661,6 +723,33 @@ function drawFrame(c, spec, people) {
     R('#241c2c', 0, 0, 96, 56); R('#4a3a52', 0, 6, 96, 26); R('#2c2634', 0, 32, 96, 24);
     R('#8a6a3a', 6, 30, 84, 6); R('#b9804d', 6, 28, 84, 3); R('#9fd4ee', 60, 18, 12, 9); R('#3a4a5a', 62, 20, 8, 5);
     R('#e0b04a', 14, 22, 5, 6); R('#6a4a3a', 78, 14, 8, 14);
+  } else if (S === 'tiles') {                                         // one glaze test tile, front and back (the back carries the potter's stamp)
+    const glaze = ['#d6453d', '#e3b23c', '#8fb89a', '#3b5f8a', '#2a2a33'][spec.tile || 0];
+    R('#2a2530', 0, 0, 96, 56); R('#3a3040', 0, 44, 96, 12); R('#5a4838', 0, 40, 96, 4);
+    R('#8a5a38', 8, 8, 34, 32); R(glaze, 10, 10, 30, 28);
+    for (let i = 0; i < 40; i++) R(spec.tile === 4 ? '#4a3a42' : '#ffffff', 12 + (i * 7) % 26, 12 + (i * 11) % 24, 1, 1);
+    R('#2a2132', 10, 10, 30, 1); R('#2a2132', 10, 37, 30, 1);
+    if (spec.tile === 4) for (let i = 0; i < 6; i++) R('#15101a', 14 + i * 4, 14 + (i % 3) * 7, 3, 3);                                        // blisters on the black tile
+    R('#b9804d', 54, 8, 34, 32); R('#8a5a38', 54, 8, 34, 2);
+    const cx = 71, cy = 24, st = '#2a1c14';
+    if ((spec.tile || 0) === 0) R(st, cx - 6, cy - 6, 12, 12);                                                                                // square
+    if (spec.tile === 1) for (let y = -6; y <= 6; y++) for (let x = -6; x <= 6; x++) if (x * x + y * y <= 36) R(st, cx + x, cy + y, 1, 1);     // circle
+    if (spec.tile === 2) for (let y = -6; y <= 6; y++) for (let x = -6; x <= 6; x++) if (Math.abs(x) <= (y + 6) / 2) R(st, cx + x, cy + y, 1, 1);   // triangle
+    if (spec.tile === 3) for (let k = -6; k <= 6; k++) { R(st, cx + k, cy, 1, 2); R(st, cx, cy + k, 2, 1); R(st, cx + k, cy + k, 1, 1); R(st, cx + k, cy - k, 1, 1); }   // a star
+    if (spec.tile === 4) { for (let k = -6; k <= 6; k++) { R(st, cx + k, cy + k, 2, 2); R(st, cx + k, cy - k, 2, 2); } }                          // cross
+  } else if (S === 'gazette') {                                       // the top of a newspaper page; spec.back = the small print on the other side
+    R('#2a2530', 0, 0, 96, 56); R('#e8e0cc', 12, 4, 72, 50);
+    if (!spec.back) {
+      R('#2a2132', 16, 7, 64, 10);                                                                                                        // the masthead, spelled in a 3 x 5 pixel font
+      const GL = { L: '100100100100111', Y: '101101010010010', R: '110101110101101', A: '010101111101101', G: '011100101101011', Z: '111001010100111', E: '111100110100111', T: '111010010010010', ' ': '000000000000000' };
+      'LYRA GAZETTE'.split('').forEach((ch, k) => { const g = GL[ch]; for (let i = 0; i < 15; i++) if (g[i] === '1') R('#f1e6c8', 21 + k * 4 + (i % 3), 9 + Math.floor(i / 3), 1, 1); });
+      for (let i = 0; i < 6; i++) R('#6a5a4a', 16, 20 + i * 4, 30, 1);
+      R('#9fb8c8', 52, 20, 28, 24); for (let i = 0; i < 5; i++) R('#7a98ac', 54, 22 + i * 4, 24, 1);
+      for (let i = 0; i < 30; i++) R('#7a98ac', 50 + (i * 5) % 30, 18 + (i * 9) % 30, 3, 2);                                                   // the water stain through the weather column
+    } else {
+      for (let i = 0; i < 5; i++) R('#6a5a4a', 16, 30 + i * 3, 44, 1);
+      R('#2a2132', 16, 22, 36, 2);
+    }
   } else if (S === 'platform') {                                    // a country station at night: the train's lit windows, a lamp, the yellow line
     R('#10131f', 0, 0, 96, 56); R('#1c2236', 0, 6, 96, 3);
     R('#3a4660', 0, 8, 96, 22); for (let i = 0; i < 6; i++) { R('#e8d8a0', 4 + i * 16, 12, 11, 8); R('#cfc07c', 4 + i * 16, 20, 11, 1); }   // carriage windows
@@ -709,6 +798,8 @@ function drawFrame(c, spec, people) {
     if (f.hold === 'umbrella') R('#15182a', gx + bw + 1, top + 4, 1, hpx - 6);
     if (f.hold === 'card') { R('#e8e4d0', gx + bw, top + 14, 5, 3); R('#3b7fb8', gx + bw, top + 14, 5, 1); }
     if (f.hold === 'wrench') { R('#9aa3ae', gx + bw, top + 10, 1, 9); R('#9aa3ae', gx + bw - 1, top + 9, 3, 2); }
+    if (f.hold === 'page') { R('#e8e0cc', gx - 2, top - 3, bw + 4, 3); R('#cfc6ad', gx - 2, top, bw + 4, 1); }                                          // a folded page held over the head against the rain
+    if (f.hold === 'crumple') { R('#e8e0cc', gx + bw, top + 13, 4, 3); R('#cfc6ad', gx + bw, top + 15, 4, 1); }
     if (f.hold === 'lantern') { R('#6a6a72', gx + bw, top + 12, 1, 4); R('#e0b04a', gx + bw - 1, top + 16, 3, 3); }
     if (f.hold === 'bin') { R('#3f7f5a', gx + bw, top + 14, 6, 8); R('#2a5a3c', gx + bw, top + 14, 6, 1); }
     if (f.hold === 'trolley') { R('#cfd6dc', gx + bw + 2, top + 14, 10, 2); R('#9aa3ae', gx + bw + 3, top + 16, 1, 8); R('#9aa3ae', gx + bw + 10, top + 16, 1, 8); }
@@ -877,6 +968,76 @@ DETAILS.cat = (c) => {
 function drawDetail(name, canvas, room) {
   const f = DETAILS[name];
   return f ? f(canvas, room) !== false : false;
+}
+
+/* two versions of one signature: the sample (finer pen, a pottery stamp in the corner) and the one on the guarantee (a stretched leg on the R,
+   a floating dot on the i, a heavier pen, no stamp). 96 x 40. */
+function drawSignature(cv, variant) {
+  cv.width = 96; cv.height = 40;
+  const x = cv.getContext('2d'), fake = variant === 'guarantee';
+  x.fillStyle = '#f1e6c8'; x.fillRect(0, 0, 96, 40);
+  x.fillStyle = '#cdbd8e'; x.fillRect(4, 34, 88, 1);
+  x.strokeStyle = '#2a2132'; x.lineWidth = fake ? 2 : 1; x.lineCap = 'round'; x.lineJoin = 'round';
+  const line = (pts) => { x.beginPath(); x.moveTo(pts[0][0] + 0.5, pts[0][1] + 0.5); for (const p of pts.slice(1)) x.lineTo(p[0] + 0.5, p[1] + 0.5); x.stroke(); };
+  line([[6, 30], [6, 8], [14, 8], [16, 13], [13, 17], [6, 17]]);                                   // P
+  x.fillStyle = '#2a2132'; x.fillRect(19, 28, fake ? 2 : 1, fake ? 2 : 1);                          // .
+  line([[26, 28], [26, 8], [34, 8], [36, 13], [33, 17], [26, 17]]);                                // R
+  line(fake ? [[31, 17], [48, 33]] : [[31, 17], [37, 28]]);                                         // the leg of the R
+  line([[48, 28], [48, 20], [52, 18], [55, 22], [55, 28]]);                                          // a
+  line([[58, 28], [58, 18], [62, 17], [64, 22], [64, 28], [66, 20], [70, 18], [72, 22], [72, 28]]); // m
+  line([[74, 28], [74, 20]]);                                                                        // i
+  x.fillStyle = '#2a2132'; fake ? x.fillRect(74, 11, 2, 2) : x.fillRect(74, 16, 1, 1);               // the dot of the i
+  line([[78, 28], [78, 19], [84, 18], [86, 24], [86, 28]]);                                          // n
+  if (!fake) {                                                                                       // the potter's stamp
+    x.strokeStyle = '#a8352a'; x.lineWidth = 1; x.beginPath(); x.arc(86, 8, 5, 0, Math.PI * 2); x.stroke();
+    x.fillStyle = '#a8352a'; x.fillRect(84, 6, 1, 5); x.fillRect(84, 6, 3, 1); x.fillRect(86, 7, 1, 2); x.fillRect(84, 9, 3, 1);
+  }
+}
+
+/* ============================================================
+   scenes.js : full-screen backgrounds for interviews and interrogations
+   (160 x 90 pixels, drawn by code in the palette of the dioramas).
+   drawScene(canvas, 'stairwell' | 'boilerroom' | 'hotelbar' | 'interrog')
+   ============================================================ */
+function drawScene(cv, id) {
+  const W = 160, H = 90;
+  cv.width = W; cv.height = H;
+  const x = cv.getContext('2d'), R = (c, px, py, w, h) => { x.fillStyle = c; x.fillRect(Math.round(px), Math.round(py), Math.round(w), Math.round(h)); };
+  const noise = (c, px, py, w, h, n) => { for (let i = 0; i < n; i++) { const a = (i * 7919 + px * 31) % w, b = (i * 104729 + py * 17) % h; R(c, px + a, py + b, 1, 1); } };
+  if (id === 'stairwell') {                                     // a cold concrete stairwell, a handrail, a door with a small window
+    R('#2a2f3a', 0, 0, W, H); R('#3a4150', 0, 0, W, 58); R('#2f3542', 0, 58, W, 32);
+    noise('#454d5e', 0, 0, W, 58, 160); noise('#232833', 0, 0, W, 58, 120);
+    for (let i = 0; i < 6; i++) { const sx = 20 + i * 22, sy = 62 - i * 6; R('#5a6272', sx, sy, 24, 3); R('#232833', sx, sy + 3, 24, 8); }   // steps climbing to the right
+    R('#8a929e', 18, 54, 3, 22); R('#9aa3ae', 18, 52, 120, 2); for (let i = 0; i < 6; i++) R('#7a828e', 30 + i * 22, 40 - i * 6, 2, 14);   // rail and balusters
+    R('#e8d8a0', 74, 6, 10, 3); R('#cfc07c', 72, 4, 14, 1); R('rgba(232,216,160,.12)', 56, 9, 46, 70);                                       // a ceiling light and its cone
+    R('#4a3a34', 126, 18, 24, 44); R('#6a4a3c', 128, 20, 20, 40); R('#9fd4ee', 132, 24, 12, 10); R('#e0b04a', 144, 44, 2, 3);                  // the flat's door
+    R('#1c2028', 0, 84, W, 6);
+  } else if (id === 'boilerroom') {                             // pipes, a big boiler with a gauge, a red glow
+    R('#241f26', 0, 0, W, H); R('#33292d', 0, 0, W, 60); R('#2a2226', 0, 60, W, 30);
+    for (let i = 0; i < 160; i += 8) R('#3c3036', i, 0, 1, 60);
+    R('#6f757d', 0, 12, W, 4); R('#8a97a3', 0, 12, W, 1); R('#6f757d', 0, 24, 90, 3); R('#8a97a3', 0, 24, 90, 1); R('#6f757d', 14, 12, 3, 40);
+    R('#7a5a52', 70, 26, 48, 58); R('#9a7a6f', 70, 26, 48, 4); R('#5a4038', 72, 32, 44, 50);                                                   // the boiler
+    R('#2a2226', 80, 40, 12, 12); R('#e8e4d0', 82, 42, 8, 8); R('#d6453d', 85, 43, 1, 6);                                                      // a gauge
+    R('#9aa3ae', 100, 38, 6, 30); R('#e0584a', 106, 44, 5, 5); R('#e0b04a', 106, 52, 5, 3);
+    R('rgba(224,88,74,.14)', 60, 36, 74, 52);
+    R('#3c3036', 8, 70, 40, 3); R('#1c1618', 0, 84, W, 6);
+  } else if (id === 'hotelbar') {                               // a long marble bar, bottles to the ceiling, warm lamps
+    R('#2a1f22', 0, 0, W, H); R('#3a2a2c', 0, 0, W, 54); R('#201a1c', 0, 54, W, 36);
+    for (let r = 0; r < 3; r++) for (let i = 0; i < 18; i++) R(['#8ec5ea', '#e0b04a', '#d6453d', '#7cc07a', '#e68aa8'][(i + r) % 5], 6 + i * 8, 8 + r * 14, 4, 9);
+    for (let r = 0; r < 3; r++) R('#6a4a34', 4, 18 + r * 14, 152, 2);
+    R('#7a5a3a', 0, 54, W, 8); R('#b9804d', 0, 52, W, 3); R('#e8e4d8', 0, 62, W, 4); R('#cfc8b8', 0, 66, W, 1);                                 // bar top and marble
+    for (const lx of [30, 80, 130]) { R('#e8d8a0', lx, 2, 6, 3); R('rgba(232,216,160,.16)', lx - 12, 5, 30, 40); }
+    R('#cfe8f0', 112, 48, 4, 6); R('#cfe8f0', 120, 48, 4, 6); R('#1c1618', 0, 84, W, 6);
+  } else {                                                      // the interview room: bare wall, one-way mirror, a hanging lamp, a table
+    R('#2b2d35', 0, 0, W, H); R('#3a3d48', 0, 0, W, 60); R('#26282f', 0, 60, W, 30);
+    noise('#454956', 0, 0, W, 60, 130);
+    R('#1a1c22', 14, 12, 52, 34); R('#2f4a5e', 16, 14, 48, 30); R('rgba(255,255,255,.08)', 16, 14, 18, 30); R('#8a929e', 14, 12, 52, 1);   // the one-way glass
+    R('#5a5f6b', 79, 0, 2, 20); R('#9aa3ae', 68, 20, 24, 4); R('#e8d8a0', 70, 24, 20, 3); R('rgba(232,216,160,.15)', 56, 27, 48, 50);       // lamp and its cone
+    R('#6a5a4a', 40, 68, 84, 5); R('#8a7a66', 40, 66, 84, 3); R('#4a3c30', 46, 73, 4, 12); R('#4a3c30', 114, 73, 4, 12);                      // table
+    R('#2a2a33', 100, 62, 10, 4); R('#9aa3ae', 102, 63, 3, 2);                                                                              // a recorder
+    R('#1c1e24', 0, 84, W, 6);
+  }
+  x.fillStyle = 'rgba(0,0,0,.18)'; for (let y = 0; y < H; y += 2) x.fillRect(0, y, W, 1);
 }
 
 /* ============================================================
@@ -1262,6 +1423,7 @@ TYPES.bookshelf = (o, g) => {
   const { x, y, w, d, h } = o;
   box(x, y, 0, w, d, h, 'wood', g, { tk: 0.2 });
   front(o, 1, h - 2, bookStrips(Math.floor(x * 7 + y * 13)), newG(o.hot, true));
+  if (o.surface) drawOn(o.id, h);   // small things may stand on top of the shelf
 };
 
 TYPES.floorlamp = (o, g) => {
@@ -1681,6 +1843,13 @@ TYPES.nook = (o, g) => {
 /* ---------- small items for case 2 ---------- */
 /* a folder of papers. it.cover: 'folder' (cream) | 'blue' (a police file) */
 ITEM_TYPES.papers = (it, z, g) => {
+  if (it.pair) {   // two sheets side by side (two signatures to compare)
+    for (const dx of [-0.42, 0.42]) {
+      box(it.x + dx - 0.36, it.y - 0.34, z, 0.72, 0.68, 0.3, 'paper', g, { tk: 0.15 });
+      topPixels(it.x + dx - 0.32, it.y - 0.3, 0.64, 0.6, z + 0.3, (lx, ly) => (ly > 0.62 && ly < 0.78 && lx > 0.18 && lx < 0.82 ? col('ink', 0.1) : (Math.floor(ly * 10) % 2 === 0 && ly < 0.5 ? col('ink', 0.55) : col('paper', 0.1))), g);
+    }
+    return;
+  }
   const blue = it.cover === 'blue';
   box(it.x - 0.45, it.y - 0.34, z, 0.9, 0.68, 0.9, blue ? 'folderBlue' : 'folder', g, { tk: 0.15 });
   topPixels(it.x - 0.4, it.y - 0.3, 0.8, 0.6, z + 0.9, (lx, ly) => {
@@ -1704,6 +1873,65 @@ ITEM_TYPES.meter = (it, z, g) => {
 ITEM_TYPES.phone = (it, z, g) => {
   box(it.x - 0.22, it.y - 0.36, z, 0.44, 0.72, 0.6, 'phoneBody', g, { tk: 0.15 });
   topPixels(it.x - 0.18, it.y - 0.32, 0.36, 0.64, z + 0.6, (lx, ly) => (it.on === false ? col('ink', 0.1) : col('screenOn', ly > 0.35 ? 0.1 : -0.05)), g);
+};
+
+/* ============================================================
+   library/hotel.js : pieces for the second version of case 2
+   (a hotel bar, a rack of papers, glaze tiles, a magnifier, a recorder, a scuffed table corner).
+   ============================================================ */
+
+/* a bar: a long counter with a marble top and a row of bottles; o.w long, o.d about 0.9, face 'y' (along the right wall) or 'x' */
+TYPES.barcounter = (o, g) => {
+  const { x, y, w, d } = o, fx = o.face === 'x', h = 16;
+  box(x, y, 0, w, d, h, 'woodDk', g, { tk: 0.15 });
+  box(x - 0.05, y - 0.05, h, w + 0.1, d + 0.1, 1.2, 'white', newG(o.hot, true), { tk: 0.2 });
+  const n = Math.max(3, Math.floor((fx ? d : w) / 0.55)), cols = ['carB', 'carC', 'carA', 'carD', 'pink'];
+  for (let i = 0; i < n; i++) {
+    const cx = fx ? x + d * 0.3 : x + 0.35 + i * 0.5, cy = fx ? y + 0.35 + i * 0.5 : y + d * 0.3;
+    if ((fx ? cy : cx) > (fx ? y + d : x + w) - 0.2) break;
+    cyl(cx, cy, h + 1.2, 0.1, 7, cols[i % 5], newG(o.hot, true), { tk: 0.2 });
+  }
+  for (let i = 0; i < 2; i++) { const cx = fx ? x + d * 0.7 : x + w * 0.62 + i * 0.4, cy = fx ? y + d * 0.62 + i * 0.4 : y + d * 0.7; cyl(cx, cy, h + 1.2, 0.09, 3, 'glass', newG(o.hot, true), { tk: 0.2 }); }
+};
+TYPES.stool = (o, g) => {
+  const cx = o.x + o.w / 2, cy = o.y + o.d / 2;
+  cyl(cx, cy, 0, 0.07, 9, 'metalDk', g); cyl(cx, cy, 9, 0.26, 2.2, 'ledgerCover', newG(o.hot, true), { tk: 0.2 });
+};
+/* a newspaper rack: a slanted wire shelf with papers */
+TYPES.rack = (o, g) => {
+  const { x, y, w, d } = o;
+  box(x, y, 0, w, d, 4, 'metalDk', g, { tk: 0.1 }); box(x + 0.05, y + 0.05, 4, w - 0.1, d - 0.1, 1, 'metal', newG(o.hot, true));
+  const gp = newG(o.hot, true);
+  for (let i = 0; i < 4; i++) box(x + 0.12 + i * ((w - 0.4) / 4), y + 0.12, 5, (w - 0.4) / 4 - 0.05, d - 0.24, 7 + (i % 2), i % 2 ? 'paper' : 'frameWhite', gp, { tk: 0.2 });
+  box(x, y, 12, w, 0.06, 3, 'brass', newG(o.hot, true));
+};
+/* a small folding magnifier lying on a table */
+ITEM_TYPES.magnifier = (it, z, g) => {
+  box(it.x - 0.05, it.y + 0.05, z, 0.5, 0.09, 0.5, 'brass', g, { tk: 0.2 });
+  cyl(it.x - 0.18, it.y - 0.08, z, 0.2, 0.7, 'brass', newG(it.hot, true), { tk: 0.1 });
+  cyl(it.x - 0.18, it.y - 0.08, z + 0.7, 0.14, 0.3, 'glass', newG(it.hot, true), { tk: 0.1 });
+};
+/* a recorder with two reels */
+ITEM_TYPES.recorder = (it, z, g) => {
+  box(it.x - 0.4, it.y - 0.28, z, 0.8, 0.56, 1.6, 'phoneBody', g, { tk: 0.15 });
+  cyl(it.x - 0.18, it.y, z + 1.6, 0.14, 0.4, 'metal', newG(it.hot, true)); cyl(it.x + 0.18, it.y, z + 1.6, 0.14, 0.4, 'metal', newG(it.hot, true));
+  box(it.x - 0.05, it.y + 0.16, z + 1.6, 0.1, 0.1, 0.3, 'red', newG(it.hot, true));
+};
+/* a scuffed, chipped corner of a table top (the table corner the victim struck) */
+ITEM_TYPES.scuff = (it, z, g) => {
+  topPixels(it.x - 0.3, it.y - 0.3, 0.6, 0.6, z, (lx, ly) => {
+    const n = hash2(Math.floor(lx * 14), Math.floor(ly * 14));
+    if (lx + ly < 0.55) return n > 0.55 ? col('woodDk', -0.3) : col('woodLt', 0.25);
+    return n > 0.85 ? col('paper', 0.1) : null;
+  }, g);
+};
+/* five glaze test tiles standing in a row */
+ITEM_TYPES.tiles = (it, z, g) => {
+  const glaze = ['glazeRed', 'glazeOchre', 'glazeCeladon', 'glazeCobalt', 'glazeBlack'];
+  glaze.forEach((c, i) => {
+    box(it.x - 1.05 + i * 0.44, it.y - 0.2, z, 0.36, 0.3, 0.7 + (i % 2) * 0.1, 'clay', newG(it.hot, true), { tk: 0.15 });
+    topPixels(it.x - 1.02 + i * 0.44, it.y - 0.18, 0.3, 0.26, z + 0.75 + (i % 2) * 0.1, (lx, ly) => (hash2(Math.floor(lx * 9) + i, Math.floor(ly * 9)) > 0.8 ? col(c, 0.25) : (i === 4 && hash2(Math.floor(lx * 12), Math.floor(ly * 12)) > 0.6 ? col('ink', 0.4) : col(c, 0))), g);
+  });
 };
 
 /* ============================================================
@@ -1758,7 +1986,8 @@ const BASE_PAL = {
   crt: '#cdbf9c', camSky: '#1c2a44', camGround: '#33503a', camTap: '#6fb7e8', camMan: '#e08a2a',
   tea: '#7a3e22', teaLow: '#a8764a', residue: '#efe9dc', herb: '#5f9a4c', cupBlue: '#3b7fb8', saucer: '#f1e8d3', folder: '#d8c28a', folderBlue: '#3b5f8a', meterBody: '#8d98a4', meterDial: '#e8e4d0',
   floorWet: '#4a6a8a', tinBlue: '#5a86a8', phoneBody: '#2a2a33', screenOn: '#9fd4ee', frameWhite: '#eef2f0',
-  cat: '#e89a4a', catBib: '#f4ead8', rose: '#e07a7a', ledgerCover: '#7a2f3a', slipper: '#b8483f', slipperIn: '#5a2a2e', sole: '#6b5a4a'
+  cat: '#e89a4a', catBib: '#f4ead8', rose: '#e07a7a', ledgerCover: '#7a2f3a', slipper: '#b8483f', slipperIn: '#5a2a2e', sole: '#6b5a4a',
+  glazeRed: '#d6453d', glazeOchre: '#e3b23c', glazeCeladon: '#8fb89a', glazeCobalt: '#3b5f8a', glazeBlack: '#2a2a33', corkBrown: '#b9804d', corkDk: '#8a5a38'
 };
 
 /* three colour themes per type; each overrides only what it needs */
@@ -1984,6 +2213,52 @@ const ITEM_PAINT = {
     return Math.abs(dx) + Math.abs(dz) < 7 ? col('red', 0) : col('paper', -0.05);                                  // a diamond
   },
   mirror: () => (ix, iz, w, h) => (ix < 2 || ix >= w - 2 || iz < 2 || iz >= h - 2) ? col('metal', 0.1) : ((ix + iz) % 9 === 0 || (ix + iz) % 9 === 1) && iz > 4 ? col('white', 0.2) : col('glass', 0.1 - iz / h * 0.2),
+  /* case 2 v2: things on walls */
+  doormarks: () => (ix, iz, w, h) => {      // pencil height marks beside a door: a strip of paper with ticks every 10 cm (1 pixel = 5 cm); the long ones are 160, 180 and 200
+    if (ix < 2 || ix > 14) return null;
+    const cm = 140 + iz * 5 * 1; if (iz >= h - 1) return null;
+    if (ix <= 3) return col('paper', -0.05);
+    if (ix === 4 && iz % 2 === 0) return col('ink', 0.2);
+    const tick = (cm % 10 === 0), long = cm % 20 === 0;
+    if (tick && ix >= 4 && ix <= (long ? 11 : 7)) return col('ink', 0.1);
+    return ix === 4 ? col('paper', -0.2) : col('paper', 0.05);
+  },
+  plan: () => (ix, iz, w, h) => {            // an evacuation plan: green exit arrows on a floor plan, a red "you are here"
+    if (ix < 1 || ix >= w - 1 || iz < 1 || iz >= h - 1) return col('frame', 0);
+    if (ix < 3 || ix >= w - 3 || iz < 3 || iz >= h - 3) return col('paper', 0.1);
+    const line = (ix === 6 || ix === w - 7 || iz === 5 || iz === h - 6) && ix > 5 && ix < w - 6 && iz > 4 && iz < h - 5;
+    if (line) return col('ink', 0.3);
+    if ((ix === Math.floor(w / 2) && iz > h * 0.55) || (iz === Math.floor(h * 0.4) && ix > w / 2)) return col('leaf', 0);
+    if (Math.abs(ix - 10) + Math.abs(iz - Math.floor(h * 0.6)) < 3) return col('red', 0);
+    return col('paper', 0);
+  },
+  firedoor: () => (ix, iz, w, h) => {        // a grey fire door with a push bar, a green exit sign and a small sensor box
+    if (ix < 2 || ix >= w - 2 || iz >= h - 2) return col('metalDk', -0.2);
+    if (iz >= h - 9 && iz < h - 4 && ix > w / 2 - 6 && ix < w / 2 + 6) return col('leaf', 0.2);
+    if (iz >= 14 && iz <= 16 && ix > 5 && ix < w - 6) return col('metal', 0.35);
+    if (ix >= w - 9 && ix <= w - 5 && iz >= h - 20 && iz <= h - 14) return (ix === w - 7 && iz === h - 16) ? col('red', 0.2) : col('ink', 0.1);
+    return col('metal', 0);
+  },
+  staffdoor: () => (ix, iz, w, h) => {       // a plain door with a STAFF plate
+    if (ix < 2 || ix >= w - 2 || iz >= h - 2) return col('metalDk', -0.1);
+    if (iz >= h - 12 && iz <= h - 8 && ix > 4 && ix < w - 5) return (ix + iz) % 3 === 0 ? col('paper', 0) : col('brass', -0.1);
+    if (ix >= w - 6 && ix <= w - 5 && iz >= h / 2 - 1 && iz <= h / 2) return col('brass', 0.1);
+    return col('doorLocked', 0.15);
+  },
+  corkboard: () => (ix, iz, w, h) => {       // a cork board with pinned cards and a few red strings
+    if (ix < 1 || ix >= w - 1 || iz < 1 || iz >= h - 1) return col('woodDk', 0);
+    const card = [[3, 4, 9, 6, 'paper'], [15, 3, 9, 7, 'yellow'], [28, 5, 8, 6, 'pink'], [6, 14, 10, 6, 'paper'], [21, 13, 9, 7, 'sky']];
+    for (const [cx, cz, cw, ch, k] of card) if (ix >= cx && ix < cx + cw && iz >= cz && iz < cz + ch) return (ix === cx + cw / 2 | 0) && iz === cz ? col('red', 0) : (iz === cz + 2 && ix > cx + 1 && ix < cx + cw - 1 ? col('ink', 0.5) : col(k, 0.1));
+    if ((ix + iz * 2) % 17 === 0 && ix > 8 && ix < 30) return col('red', 0);
+    return hash2(ix, iz) > 0.8 ? col('corkDk', 0) : col('corkBrown', 0);
+  },
+  timestrip: () => (ix, iz, w, h) => {       // a strip of masking tape along the wall, marked in minutes
+    if (iz < 3 || iz >= h - 3) return null;
+    if (iz === 3 || iz === h - 4) return col('tape', -0.2);
+    if (ix % 4 === 1 && iz < h / 2 + 1) return col('ink', 0.2);
+    if (ix % 24 === 2) return col('red', 0);
+    return col('tape', 0.05);
+  },
   mailboxes: () => (ix, iz, w, h) => (ix === 0 || ix === w - 1 || iz === 0 || iz === h - 1) ? col('metalDk', -0.3) : ((ix % 5 === 0 || iz % 6 === 0) ? col('metalDk', 0) : ((ix % 5 === 3 && iz % 6 === 3) ? col('ink', 0) : col('metal', 0))),
   panel: () => (ix, iz, w, h) => (ix < 1 || ix >= w - 1 || iz < 1 || iz >= h - 1) ? col('metalDk', -0.3) : ((ix % 4 === 1 && iz % 4 === 1) ? col(iz > h / 2 ? 'yellow' : 'red', 0.1) : col('metalDk', 0.1)),
   vent: () => (ix, iz, w, h) => (ix < 1 || ix >= w - 1 || iz < 1 || iz >= h - 1) ? col('metalDk', 0) : (iz % 3 === 0 ? col('ink', 0) : col('metal', -0.1)),
@@ -2169,6 +2444,7 @@ function makeSpace(type, opts) {
   const kinds = { L: [], R: [] }, taken = { L: [], R: [] };
   for (const d of doors) { const s = SL(d.slot); taken[s.wall].push([s.u0 - 0.3, s.u1 + 0.3]); }
   for (const w of Object.keys(stairSpan)) taken[w].push(stairSpan[w]);   // no windows or pictures behind the stairs
+  for (const wi of opts.wallItems || []) taken[wi.wall].push([wi.u0 - 0.2, wi.u1 + 0.2]);   // nor over a wall item the case placed
   const free = (wall, a, b) => !taken[wall].some((t) => a < t[1] && b > t[0]);
   const outdoor = OUTDOOR[type] != null, openAir = ['yard', 'garden', 'parking'].includes(type);
   const tallWall = { L: false, R: false };   // the wall of the house that a door leads through is as tall as the rooms inside
@@ -2180,7 +2456,7 @@ function makeSpace(type, opts) {
     const len = wall === 'R' ? nx : ny;
     for (let a = 0.8; a + 2 <= len - 0.4; a += 2.4) {
       const b = a + 2;
-      if (!free(wall, a, b) || (openAir && !tallWall[wall]) || onGlass(wall) || type === 'greenhouse' || type === 'traincar') continue;
+      if (!free(wall, a, b) || (openAir && !tallWall[wall]) || onGlass(wall) || type === 'greenhouse' || type === 'traincar' || opts.windows === false) continue;
       const roll = r();
       if (openAir) { if (roll < 0.8) kinds[wall].push({ name: 'window', u0: a, u1: b, z0: 24, z1: 48, paint: ITEM_PAINT.litwindow(day) }); continue; }
       if (type === 'bathroom') { if (roll < 0.5) kinds[wall].push({ name: 'mirror', u0: a + 0.3, u1: b - 0.5, z0: 24, z1: 46, paint: ITEM_PAINT.mirror() }); continue; }
@@ -2193,6 +2469,7 @@ function makeSpace(type, opts) {
   if (type === 'lobby') { const w = taken.R.length ? 'L' : 'R', len = w === 'R' ? nx : ny; if (free(w, len - 1.4, len - 0.2)) kinds[w].push({ name: 'mailboxes', u0: len - 1.4, u1: len - 0.2, z0: 20, z1: 44, paint: ITEM_PAINT.mailboxes() }); }
   if (type === 'basement') kinds.R.push({ name: 'vent', u0: nx - 1.8, u1: nx - 0.8, z0: 30, z1: 40, paint: ITEM_PAINT.vent() });
   if (type === 'elevator') kinds.L.push({ name: 'rail', u0: 0.2, u1: ny - 0.2, z0: 14, z1: 30, paint: ITEM_PAINT.rail() });
+  for (const wi of opts.wallItems || []) kinds[wi.wall].push({ name: wi.name, u0: wi.u0, u1: wi.u1, z0: wi.z0, z1: wi.z1, paint: ITEM_PAINT[wi.paint](...(wi.args || [])) });
   const doorItems = { L: [], R: [] };
   for (const d of doors) {
     const s = SL(d.slot), kind = d.kind || 'door';
