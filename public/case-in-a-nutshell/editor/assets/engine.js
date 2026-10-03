@@ -2604,7 +2604,7 @@ const NUT_LAYOUT = (() => {
 
   /* ---------- apply: lay a layout document over the rooms the generator built ---------- */
   const report = { conflicts: [], dropped: [], unplaced: [], added: [], ignored: [] };
-  const state = { rooms: 0, shipped: null };          // rooms: how many rooms the loaded layout file covers (0: this case has none); shipped: the layout.json the case came with
+  const state = { rooms: 0, shipped: null, source: 'none' };          // rooms: how many rooms the loaded layout file covers (0: this case has none); shipped: the layout.json the case came with
   function decide(genRec, lo, tag) {      // true: take the layout record, false: keep the generator's
     const hG = fp(genRec), hL = fp(core(lo));
     if (lo.base === undefined || hG === lo.base) return true;
@@ -2665,6 +2665,56 @@ const NUT_LAYOUT = (() => {
       return it;
     });
   }
+  /* ---------- the layout at one moment (per-time overrides) ----------
+     Only the scene room has moments (the game draws the others one way). rooms.<scene>.times[momentId] holds what differs from the shared layout at that
+     moment: { objects: [{ id, cell?, footprint?, props?, look?, deleted? }], items: [{ id, offset }], added: [ new objects ] }. They are turned into the same
+     patches case.js writes by hand and put after them in the moment's list (the game, the linter and the "what changed" puzzle all read that list). */
+  function compileTimes(room, t, rid, lock, gone, caseAdds) {   // gone: ids the case's own patches take out at this moment (nothing can be set on them after that)
+    const base = new Map(room.objects.map((o) => [o.id, o])), baseItems = new Map((room.items || []).map((i) => [i.id, i])), out = [];
+    const objPatch = new Map((t.objects || []).map((p) => [p.id, p])), itemPatch = new Map((t.items || []).map((p) => [p.id, p]));
+    for (const p of t.objects || []) {
+      const g = base.get(p.id);
+      if (!g) { report.ignored.push(rid + ':' + p.id + ' (a moment changes an object the room does not have)'); continue; }
+      if (gone.has(p.id)) continue;
+      const locked = lock(rid, p.id, g.hot).length > 0;
+      if (p.deleted) { if (!locked) out.push({ id: p.id, remove: true }); continue; }
+      const set = {};
+      if (p.cell) { set.x = p.cell[0]; set.y = p.cell[1]; }
+      if (p.footprint) { const [w, d] = p.footprint; if (!locked || (w === g.w && d === g.d) || (w === g.d && d === g.w)) { set.w = w; set.d = d; } }
+      if (p.props) for (const [k, v] of Object.entries(p.props)) if (!locked || FACING.includes(k)) set[k] = v;
+      if (p.look && !locked) looks(set, p, g);
+      if (Object.keys(set).length) out.push({ id: p.id, set });
+    }
+    // small items follow a host that stands somewhere else at this moment (an item with its own place keeps it)
+    for (const [id, g] of baseItems) {
+      if (gone.has(id)) continue;
+      const host = base.get(g.on), hp = host && objPatch.get(host.id), ip = itemPatch.get(id);
+      const hx = hp && hp.cell ? hp.cell[0] : host && host.x, hy = hp && hp.cell ? hp.cell[1] : host && host.y;
+      if (ip && ip.offset && host) out.push({ id, set: { x: r3(hx + ip.offset[0]), y: r3(hy + ip.offset[1]) } });
+      else if (hp && hp.cell && !hp.deleted && host) out.push({ id, set: { x: r3(g.x - host.x + hx), y: r3(g.y - host.y + hy) } });
+    }
+    for (const a of caseAdds) {   // a small item the case's own patch puts on a host keeps its place on that host too
+      const host = base.get(a.on), hp = host && objPatch.get(host.id);
+      if (hp && hp.cell && !hp.deleted && !itemPatch.has(a.id)) out.push({ id: a.id, set: { x: r3(a.x - host.x + hp.cell[0]), y: r3(a.y - host.y + hp.cell[1]) } });
+    }
+    for (const a of t.items || []) if (!baseItems.has(a.id) && !caseAdds.some((c) => c.id === a.id)) report.ignored.push(rid + ':' + a.id + ' (a moment moves an item the room does not have)');
+    for (const a of t.added || []) {
+      if (typeof TYPES === 'undefined' || !TYPES[a.type]) { report.ignored.push(rid + ':' + a.id + ' (unknown type ' + a.type + ')'); continue; }
+      out.push({ add: looks(Object.assign({}, a.props || {}, { id: a.id, t: a.type, hot: a.hot, x: a.cell[0], y: a.cell[1], w: a.footprint[0], d: a.footprint[1] }), a, null) });
+    }
+    return out;
+  }
+  function applyTimes(rooms, doc, CASE) {
+    if (!CASE || !CASE.moments) return;
+    for (const m of CASE.moments) { if (!m.__patches) m.__patches = m.patches || []; m.patches = m.__patches; }   // the case's own patches, kept so a layout can be applied again
+    const sid = CASE.sceneRoom || 'bedroom', T = doc && doc.rooms && doc.rooms[sid] && doc.rooms[sid].times, room = rooms[sid];
+    for (const id of Object.keys((doc && doc.rooms) || {})) if (id !== sid && doc.rooms[id].times) report.ignored.push(id + ' (only the scene room has moments)');
+    if (!T || !room) return;
+    const lock = lockInfo(CASE);
+    for (const m of CASE.moments) if (T[m.id]) m.patches = m.__patches.concat(compileTimes(room, T[m.id], sid, lock, new Set(m.__patches.filter((p) => p.remove).map((p) => p.id)), m.__patches.filter((p) => p.add && p.item).map((p) => p.add)));
+    for (const k of Object.keys(T)) if (!CASE.moments.some((m) => m.id === k)) report.ignored.push(sid + ' (the layout has a moment "' + k + '" the case does not)');
+  }
+
   /* ---------- the look of the room itself: floor, walls, colours ---------- */
   const FLOORS = ['planks', 'tiles', 'concrete', 'asphalt', 'grass', 'runner', 'gh', 'trainfloor', 'carpet', 'checker'];
   const WALLS = ['plaster', 'tiles', 'brick', 'concrete', 'fence', 'glassrail', 'glasshouse', 'traincoach', 'facade', 'slat', 'shelves', 'metal'];
@@ -2753,15 +2803,19 @@ const NUT_LAYOUT = (() => {
       applyLook(room, gen, L[id].room);
       applyWall(room, gen, L[id]);
     }
+    applyTimes(rooms, doc, CASE);
     return report;
   }
   /* what a case bundle calls on load. Preview (?layout=draft) takes the editor's draft from this browser; ?room=<id> starts the case in that room. */
   function boot(rooms, CASE, slug, doc) {
     let use = doc;
-    state.shipped = doc;
+    state.shipped = doc; state.source = doc ? 'embedded' : 'none';
     try {
+      // the layout published from the editor: the site loads it as a script before the case (window.NUT_PUBLISHED[slug]); it replaces the one built in
+      const pub = typeof window !== 'undefined' && window.NUT_PUBLISHED && window.NUT_PUBLISHED[slug];
+      if (pub && pub.rooms) { use = pub; state.source = 'published'; }
       const q = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
-      if (q && q.get('layout') === 'draft') { const d = JSON.parse(localStorage.getItem('nutshell.draft.' + slug) || 'null'); if (d && d.rooms) use = d; }
+      if (q && q.get('layout') === 'draft') { const d = JSON.parse(localStorage.getItem('nutshell.draft.' + slug) || 'null'); if (d && d.rooms) { use = d; state.source = 'draft'; } }
       if (q && q.get('room') && rooms[q.get('room')] && CASE.map) CASE.map.start = q.get('room');
     } catch (e) { /* no storage, no preview: the shipped layout is used */ }
     return apply(rooms, use, CASE);
@@ -2801,6 +2855,12 @@ const NUT_LAYOUT = (() => {
     if (!scene) return out;
     const known = new Set(validate(scene).map((w) => w.code + w.ids.join()));
     for (const m of CASE.moments || []) for (const w of validate(resolveRoom(scene, m.patches || []))) if (!known.has(w.code + w.ids.join())) out.push(Object.assign({ moment: m.id }, w));
+    // the "what changed" puzzle between two moments must still be about the things the case says it is about
+    const D = CASE.diff, moment = (id) => (CASE.moments || []).find((m) => m.id === id);
+    if (D && moment(D.a) && moment(D.b)) {
+      const changed = changedBetween(resolveRoom(scene, moment(D.a).patches || []), resolveRoom(scene, moment(D.b).patches || [])).filter((n) => !(D.ignore || []).includes(n)).sort(), want = (D.items || []).slice().sort();
+      if (changed.join() !== want.join()) out.push({ moment: D.a + ' / ' + D.b, code: 'diff', ids: [], msg: 'the "what changed" puzzle expects the differences ' + want.join(', ') + ', but the two moments now differ in ' + (changed.join(', ') || 'nothing') });
+    }
     return out;
   }
 
@@ -2901,17 +2961,89 @@ const NUT_LAYOUT = (() => {
         }
         return true;
       },
+      /* the same operations, but only for one moment of the scene room: they write into rooms.<scene>.times[moment] and leave the shared layout alone */
+      at(mid) {
+        const sid = CASE.sceneRoom || 'bedroom';
+        const Lm = (rid) => { const L = R(rid); L.times = L.times || {}; return L.times[mid] || (L.times[mid] = {}); };
+        const part = (rid, kind, id) => { const t = Lm(rid); t[kind] = t[kind] || []; let p = t[kind].find((q) => q.id === id); if (!p) { p = { id }; t[kind].push(p); } return p; };
+        const tidy = (rid) => {
+          const L = R(rid), t = L.times && L.times[mid];
+          if (!t) { if (L.times && !Object.keys(L.times).length) delete L.times; return true; }
+          for (const k of ['objects', 'items']) if (t[k]) t[k] = t[k].filter((p) => Object.keys(p).length > 1);
+          for (const k of ['objects', 'items', 'added']) if (t[k] && !t[k].length) delete t[k];
+          if (!Object.keys(t).length) delete L.times[mid];
+          if (!Object.keys(L.times).length) delete L.times;
+          return true;
+        };
+        const baseObj = (rid, id) => rooms[rid].objects.find((o) => o.id === id);
+        const eff = (rid, id) => { const g = baseObj(rid, id), t = (R(rid).times || {})[mid], p = t && (t.objects || []).find((q) => q.id === id) || {}; return g && { g, cell: p.cell || [g.x, g.y], fp: p.footprint || [g.w, g.d], props: Object.assign({ face: g.face, dir: g.dir, back: g.back }, p.props || {}) }; };
+        const added = (rid, id) => { const t = (R(rid).times || {})[mid]; return t && (t.added || []).find((a) => a.id === id); };
+        const ops = {
+          move(rid, id, cell, k) { const a = added(rid, id); const c = [snap(cell[0], k || 0.25), snap(cell[1], k || 0.25)]; if (a) a.cell = c; else if (baseObj(rid, id)) part(rid, 'objects', id).cell = c; else return false; return tidy(rid); },
+          moveItem(rid, id, off, k) { const g = (rooms[rid].items || []).find((i) => i.id === id); if (!g || !g.on) return false; part(rid, 'items', id).offset = [snap(off[0], k || 0.05), snap(off[1], k || 0.05)]; return tidy(rid); },
+          rotate(rid, id) {
+            const a = added(rid, id), e = a ? { g: { t: a.type }, cell: a.cell, fp: a.footprint, props: a.props || {} } : eff(rid, id); if (!e) return false;
+            const info = NUT_LIBRARY.rotInfo(e.g.was || e.g.t, e.fp); if (!info) return false;
+            const props = Object.assign({}, e.props); let cell = e.cell, fp = e.fp;
+            if (info.kind === 'back') { const c = ['y', 'x', 'Y', 'X']; props.back = c[(c.indexOf(props.back || info.def) + 1) % 4]; }
+            else { if (info.kind !== 'swap') props[info.kind] = (props[info.kind] || info.def) === 'x' ? 'y' : 'x'; cell = [snap(cell[0] + (fp[0] - fp[1]) / 2, 0.05), snap(cell[1] + (fp[1] - fp[0]) / 2, 0.05)]; fp = [fp[1], fp[0]]; }
+            const clean = Object.fromEntries(Object.entries(props).filter(([, v]) => v !== undefined));
+            if (a) { a.cell = cell; a.footprint = fp; a.props = Object.assign({}, a.props, clean); } else { const p = part(rid, 'objects', id); p.cell = cell; p.footprint = fp; p.props = Object.assign({}, p.props, clean); }
+            return tidy(rid);
+          },
+          resize(rid, id, fp) { if (!(fp[0] > 0 && fp[1] > 0)) return false; const a = added(rid, id), g = baseObj(rid, id); if (a) a.footprint = fp.map((v) => snap(v, 0.05)); else if (g && !lock(rid, id, g.hot).length) part(rid, 'objects', id).footprint = fp.map((v) => snap(v, 0.05)); else return false; return tidy(rid); },
+          remove(rid, id) {
+            const t = (R(rid).times || {})[mid], a = added(rid, id);
+            if (a) { t.added.splice(t.added.indexOf(a), 1); return tidy(rid); }
+            const g = baseObj(rid, id); if (!g || lock(rid, id, g.hot).length) return false;
+            part(rid, 'objects', id).deleted = true; return tidy(rid);
+          },
+          restore(rid, id) { const t = (R(rid).times || {})[mid], p = t && (t.objects || []).find((q) => q.id === id); if (!p || !p.deleted) return false; delete p.deleted; return tidy(rid); },
+          look(rid, id, look) {
+            const a = added(rid, id), g = baseObj(rid, id); if (a) { if (look) a.look = look; else delete a.look; return tidy(rid); }
+            if (!g || lock(rid, id, g.hot).length) return false;
+            const p = part(rid, 'objects', id); if (look) p.look = look; else delete p.look; return tidy(rid);
+          },
+          add(rid, spec) {
+            const t = Lm(rid), used = new Set(rooms[rid].objects.map((o) => o.id).concat(Object.values(R(rid).times || {}).flatMap((x) => (x.added || []).map((a) => a.id))));
+            const b = spec.look && spec.look.sprite ? 'sprite' : spec.type; let n = 1; while (used.has(b + n)) n++;
+            const r = { id: b + n, type: spec.type, hot: spec.hot == null ? null : spec.hot, cell: [snap(spec.cell[0], 0.25), snap(spec.cell[1], 0.25)], footprint: spec.footprint.map(r3) };
+            if (spec.props && Object.keys(spec.props).length) r.props = spec.props;
+            if (spec.look) r.look = spec.look;
+            (t.added = t.added || []).push(r); tidy(rid); return r.id;
+          },
+          /* take away what this moment changes: one object (id) or everything */
+          clear(rid, id) {
+            const L = R(rid), t = L.times && L.times[mid]; if (!t) return false;
+            if (!id) { delete L.times[mid]; return tidy(rid) || true; }
+            for (const k of ['objects', 'items']) if (t[k]) t[k] = t[k].filter((p) => p.id !== id);
+            if (t.added) t.added = t.added.filter((a) => a.id !== id);
+            return tidy(rid);
+          },
+          has(rid, id) { const t = (R(rid).times || {})[mid]; return !!t && ((t.objects || []).some((p) => p.id === id) || (t.items || []).some((p) => p.id === id) || (t.added || []).some((p) => p.id === id)); },
+          count(rid) { const t = (R(rid).times || {})[mid]; return t ? (t.objects || []).length + (t.items || []).length + (t.added || []).length : 0; },
+          isLocked: (rid, id, hot) => lock(rid, id, hot).length > 0
+        };
+        return ops;
+      },
       isLocked: (rid, id, hot) => lock(rid, id, hot).length > 0
     };
   }
 
+  /* the sprites a layout document uses: for objects, wall items, floors and walls, at any moment */
+  function spritesUsed(doc) {
+    const used = new Set(), look = (r) => { if (r && r.look && r.look.sprite) used.add(r.look.sprite); if (r && r.props && r.props.sprite && !r.deleted) used.add(r.props.sprite); };
+    for (const R of Object.values(doc.rooms || {})) {
+      for (const r of (R.objects || []).concat(R.wall || [])) look(r);
+      for (const k of ['floor', 'wallL', 'wallR']) if (R.room && R.room[k] && R.room[k].sprite) used.add(R.room[k].sprite);
+      for (const t of Object.values(R.times || {})) for (const r of (t.objects || []).concat(t.added || [])) look(r);
+    }
+    return used;
+  }
   /* the file format: one record per line, so a diff of layout.json shows exactly which object moved */
   function format(doc) {
     const L = ['{', `  "version": ${doc.version},`, `  "case": ${JSON.stringify(doc.case || null)},`];
-    const used = new Set();
-    for (const R of Object.values(doc.rooms || {})) for (const r of (R.objects || []).concat(R.wall || [])) if (r.look && r.look.sprite) used.add(r.look.sprite);
-    for (const R of Object.values(doc.rooms || {})) for (const r of R.objects || []) if (r.props && r.props.sprite) used.add(r.props.sprite);
-    for (const R of Object.values(doc.rooms || {})) for (const k of ['floor', 'wallL', 'wallR']) if (R.room && R.room[k] && R.room[k].sprite) used.add(R.room[k].sprite);
+    const used = spritesUsed(doc);
     const sp = Object.keys(doc.sprites || {}).filter((k) => used.has(k));
     if (sp.length) { L.push('  "sprites": {'); sp.forEach((k, i) => L.push(`    ${JSON.stringify(k)}: ${JSON.stringify(doc.sprites[k])}${i < sp.length - 1 ? ',' : ''}`)); L.push('  },'); }
     L.push('  "rooms": {');
@@ -2920,6 +3052,7 @@ const NUT_LAYOUT = (() => {
       const R = doc.rooms[id];
       L.push(`    ${JSON.stringify(id)}: {`, `      "size": ${JSON.stringify(R.size || [N, N])},`);
       if (R.room && Object.keys(R.room).length) L.push(`      "room": ${JSON.stringify(R.room)},`);
+      if (R.times && Object.keys(R.times).length) { L.push('      "times": {'); const ks = Object.keys(R.times); ks.forEach((k, i) => L.push(`        ${JSON.stringify(k)}: ${JSON.stringify(R.times[k])}${i < ks.length - 1 ? ',' : ''}`)); L.push('      },'); }
       ['objects', 'items', 'wall'].forEach((sec, j) => {
         L.push(`      "${sec}": [`);
         (R[sec] || []).forEach((r, k, arr) => L.push('        ' + JSON.stringify(r) + (k < arr.length - 1 ? ',' : '')));
@@ -2995,7 +3128,7 @@ const NUT_LAYOUT = (() => {
     return { w, h, buf };
   }
 
-  return { VERSION, FLAT, FACING, exportLayout, apply, boot, editor, format, roomSpec, validSize, MIN_SIDE, MAX_SIDE, MAX_SUM, FLOORS, WALLS, ROOM_COLOURS, report, state, lockInfo, validate, validateMoments, geometry, rasterOverlay, fp, core, objRec, itemRec, wallRecs };
+  return { VERSION, FLAT, FACING, exportLayout, apply, boot, editor, format, spritesUsed, roomSpec, validSize, MIN_SIDE, MAX_SIDE, MAX_SUM, FLOORS, WALLS, ROOM_COLOURS, report, state, lockInfo, validate, validateMoments, geometry, rasterOverlay, fp, core, objRec, itemRec, wallRecs };
 })();
 
 /* ============================================================

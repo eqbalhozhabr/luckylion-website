@@ -13,7 +13,8 @@
     "sync-worker-engine": "node scripts/sync-worker-engine.mjs",
     "worker:dev": "npm run sync-worker-engine && npm run build && wrangler dev",
     "worker:migrate:local": "wrangler d1 migrations apply pixels-of-the-mist --local",
-    "worker:migrate:remote": "wrangler d1 migrations apply pixels-of-the-mist --remote"
+    "worker:migrate:remote": "wrangler d1 migrations apply pixels-of-the-mist --remote",
+    "test:nutshell-editor": "node --test worker/tests/nutshell-editor.test.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",

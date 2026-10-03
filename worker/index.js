@@ -3,6 +3,7 @@ import { getLevel, submit } from './routes/game.js';
 import { dubikoEvent, dubikoStats, dubikoSolve, dubikoLeaderboard, dubikoReport, pruneDubikoEvents } from './routes/dubiko.js';
 import { getProgress, saveProgress, getLeaderboard, setVisibility } from './routes/blindeye.js';
 import { blindEyeEvent, blindEyeReport, blindEyeStats } from './routes/blindeye-stats.js';
+import { nutshellEditor } from './routes/nutshell-editor.js';
 import { json } from './lib/http.js';
 import { runDailyBackup } from './lib/backup.js';
 
@@ -35,6 +36,15 @@ const ROUTES = [
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith('/case-in-a-nutshell/')) {   // the layout editor and the layouts it publishes (routes/nutshell-editor.js); anything else there is a static file
+      try {
+        const r = await nutshellEditor(request, env);
+        if (r) return r;
+      } catch (err) {
+        console.error(err);
+        return json({ error: 'internal_error' }, { status: 500 });
+      }
+    }
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
 
     for (const [method, path, handler] of ROUTES) {

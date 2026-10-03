@@ -19,7 +19,11 @@
   "main": "worker/index.js",
   "assets": {
     "directory": "./dist",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    // The Case in a Nutshell layout editor (public/case-in-a-nutshell/editor/) must not be reachable by anyone who is not signed in: these two
+    // patterns make the Worker answer first (worker/routes/nutshell-editor.js checks the session, then hands the file over). Everything else in
+    // the site is still served straight from dist/ as the comment above says.
+    "run_worker_first": ["/case-in-a-nutshell/editor", "/case-in-a-nutshell/editor/*"]
   },
   "d1_databases": [
     {

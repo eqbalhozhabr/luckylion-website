@@ -36,6 +36,16 @@
   const S = { room: null, moment: '', time: '', sel: null, scale: 5, snap: 0.25, tab: 'insp', libKind: 'objects', libQ: '' };
   let publishOther = () => {}, publish = () => {};
 
+  /* ---------- the server (phase 4): signed-in users, drafts and published layouts kept online ---------- */
+  let API = null;   // from editor-config.json: { "api": "/case-in-a-nutshell/api/editor" }; without it the editor keeps everything in this browser
+  const server = async (method, path, body, keepalive) => {
+    const r = await fetch(API + '/' + path, { method, credentials: 'same-origin', keepalive: !!keepalive, headers: Object.assign({ 'x-editor': '1' }, body !== undefined ? { 'content-type': 'application/json' } : {}), body: body === undefined ? undefined : JSON.stringify(body) });
+    if (r.status === 401) { alert('Your session has ended. The page will ask you to sign in again.'); location.reload(); throw new Error('signed out'); }
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || r.status);
+    return data;
+  };
+
   const getManifest = async () => {
     for (const base of ['assets/', '../assets/']) {
       try { const r = await fetch(base + 'editor-manifest.json', { cache: 'no-cache' }); if (r.ok) { ASSETS = base; return await r.json(); } } catch (e) { /* try the next place */ }
@@ -50,19 +60,28 @@
     await loadScript(ASSETS + man.engine.file + '?v=' + man.engine.v);
     await loadScript(ASSETS + entry.file + '?v=' + entry.v);
     let shared = null; try { const r = await fetch('library/sprites.json', { cache: 'no-cache' }); if (r.ok) shared = await r.json(); } catch (e) { /* the shared library is optional */ }
-    start(entry, shared);
+    try { const r = await fetch('editor-config.json', { cache: 'no-cache' }); if (r.ok) { const c = await r.json(); API = c.api ? String(c.api).replace(/\/$/, '') : null; } } catch (e) { /* no server configured */ }
+    let srv = null;
+    if (API) { try { const [layout, library, me] = await Promise.all([server('GET', 'layout/' + entry.slug), server('GET', 'library'), server('GET', 'me')]); srv = { layout, library: library.sprites || {}, user: me.user }; } catch (e) { if (e.message !== 'signed out') srv = { down: String(e.message || e) }; } }
+    start(entry, shared, srv);
   }).catch((e) => { const el = $('err'); el.hidden = false; el.textContent = String(e.message || e); });
 
-  function start(entry, shared) {
+  function start(entry, shared, srv) {
     const slug = entry.slug, ids = Object.keys(ROOMS), sceneId = CASE.sceneRoom || 'bedroom', cat = MAN.catalog;
     NUT_LIBRARY.setCatalog(cat);
     $('caseName').textContent = `${entry.no ? entry.no + '. ' : ''}${entry.title}`;
     /* the document: this browser's draft, else the layout the case shipped with, else an empty one (records are made from the generator as you edit) */
-    const lib = NutStore.library(); lib.sprites = Object.assign({}, shared && shared.sprites, lib.sprites);
+    const online = !!(srv && srv.layout);
+    const lib = NutStore.library(); lib.sprites = Object.assign({}, shared && shared.sprites, lib.sprites, online ? srv.library : {});
+    const libSync = (id, spec) => { if (online) server(spec ? 'PUT' : 'DELETE', 'library/' + id, spec ? { spec } : undefined).catch(() => { /* the picture stays in this browser */ }); };
+    if (online) { for (const [id, spec] of Object.entries(NutStore.library().sprites)) if (!(id in srv.library)) libSync(id, spec); $('who').textContent = srv.user; $('bOut').hidden = false; $('bOut').onclick = () => server('POST', 'logout', {}).then(() => location.reload()).catch(() => location.reload()); }
+    else if (srv && srv.down) { $('who').textContent = 'server unreachable: working in this browser'; }
     NUT_SPRITES.add(lib.sprites);
-    let doc = NutStore.draft(slug) || (NUT_LAYOUT.state.shipped ? clone(NUT_LAYOUT.state.shipped) : { version: 1, case: slug, rooms: {} });
-    const shippedKey = JSON.stringify(NUT_LAYOUT.state.shipped || { version: 1, case: slug, rooms: {} });
-    let undo = [], redo = [], saveT = null, savedAt = NutStore.draft(slug) ? 'draft kept in this browser' : '';
+    const empty = { version: 1, case: slug, rooms: {} };
+    const sv = online ? srv.layout : null, newest = sv && [sv.draft, sv.published].filter(Boolean).sort((a, b) => b.id - a.id)[0];
+    let doc = (newest && clone(newest.doc)) || NutStore.draft(slug) || (NUT_LAYOUT.state.shipped ? clone(NUT_LAYOUT.state.shipped) : empty);
+    const shippedKey = JSON.stringify((sv && sv.published && sv.published.doc) || NUT_LAYOUT.state.shipped || empty);   // "no changes" means: the same as what the players have
+    let undo = [], redo = [], saveT = null, srvT = null, savedAt = online ? (newest ? (newest.status === 'draft' ? 'draft from the server' : 'as published') : '') : (NutStore.draft(slug) ? 'draft kept in this browser' : '');
     const ed = () => NUT_LAYOUT.editor(doc, ROOMS, CASE);
     const reapply = () => NUT_LAYOUT.apply(ROOMS, doc, CASE);
     reapply();
@@ -129,7 +148,7 @@
       const c = checks(cur.r);
       drawRoom(); drawOver(); drawRef();
       if (fullPanels !== false) { renderInsp(); renderChecks(c); renderState(); }
-      $('momentL').hidden = !(S.room === sceneId && (CASE.moments || []).length);
+      $('momentL').hidden = !(S.room === sceneId && (CASE.moments || []).length); $('onlyL').hidden = $('momentL').hidden; if ($('onlyL').hidden) S.only = false;
       const u = new URLSearchParams({ case: slug, room: S.room }); history.replaceState(null, '', '?' + u);
       if (fullPanels !== false) { renderCases(slug); if (S.tab === 'lib') fillLib(); if (S.tab === 'room') renderRoomTab(); }
     }
@@ -141,9 +160,13 @@
 
     /* ---------- editing ---------- */
     const key = () => JSON.stringify(doc);
-    function mutate(fn) {
+    // edits to objects go to the shared layout, or to the moment on screen when "only this moment" is ticked; walls, floors and size are the same at every time
+    const momentMode = () => !!(S.only && S.room === sceneId && (CASE.moments || []).some((m) => m.id === S.moment));
+    const scoped = (base) => (!base && momentMode() ? ed().at(S.moment) : ed());
+    const baseObj = (id) => ROOMS[S.room].objects.find((o) => o.id === id), baseItem = (id) => (ROOMS[S.room].items || []).find((o) => o.id === id);
+    function mutate(fn, base) {
       const before = key();
-      const ok = fn(ed());
+      const ok = fn(scoped(base));
       if (ok === false) return false;
       if (key() === before) return false;
       undo.push(before); if (undo.length > 200) undo.shift(); redo = [];
@@ -151,17 +174,26 @@
     }
     function afterChange() { reapply(); render(); queueSave(); }
     const queueSave = () => { clearTimeout(saveT); saveT = setTimeout(saveDraft, 400); renderState(true); };
-    function usedSprites() { const used = new Set(); for (const R of Object.values(doc.rooms)) { for (const r of (R.objects || []).concat(R.wall || [])) { if (r.look && r.look.sprite) used.add(r.look.sprite); if (r.props && r.props.sprite && !r.deleted) used.add(r.props.sprite); } for (const k of ['floor', 'wallL', 'wallR']) if (R.room && R.room[k] && R.room[k].sprite) used.add(R.room[k].sprite); } return used; }
+    const usedSprites = () => NUT_LAYOUT.spritesUsed(doc);
     function fileDoc() {
       const d = clone(doc); d.sprites = {}; for (const id of usedSprites()) { const sp = NUT_SPRITES.get(id); if (sp) { const c = Object.assign({}, sp); delete c.id; d.sprites[id] = c; } }
       if (!Object.keys(d.sprites).length) delete d.sprites;
       return d;
     }
-    function saveDraft() { clearTimeout(saveT); doc.sprites = fileDoc().sprites; if (!doc.sprites) delete doc.sprites; const ok = NutStore.saveDraft(slug, doc); const nw = allChecks().length; savedAt = ok ? 'draft saved ' + new Date().toLocaleTimeString() + (nw ? ` · ${nw} warning${nw === 1 ? '' : 's'}` : '') : 'could not save: browser storage is blocked'; renderState(); }
+    function saveDraft(now) {
+      clearTimeout(saveT); doc.sprites = fileDoc().sprites; if (!doc.sprites) delete doc.sprites;
+      const ok = NutStore.saveDraft(slug, doc), nw = allChecks().length, warn = nw ? ` · ${nw} warning${nw === 1 ? '' : 's'}` : '';
+      savedAt = ok ? 'draft saved ' + new Date().toLocaleTimeString() + warn : 'could not save: browser storage is blocked';
+      if (online) { clearTimeout(srvT); if (now === true) pushDraft(warn); else srvT = setTimeout(() => pushDraft(warn), 1200); }
+      renderState();
+    }
+    function pushDraft(warn, keepalive) {
+      return server('PUT', 'layout/' + slug + '/draft', { doc: fileDoc() }, keepalive).then(() => { savedAt = 'saved to the server ' + new Date().toLocaleTimeString() + (warn || ''); renderState(); }).catch((e) => { if (e.message === 'signed out') return; savedAt = 'could not reach the server (kept in this browser): ' + e.message; renderState(); });
+    }
     function renderState() {
       const same = key() === shippedKey, el = $('state');
       el.textContent = same && !NutStore.draft(slug) ? 'no changes' : (savedAt || 'unsaved changes');
-      el.className = 'chip ' + (same ? '' : (savedAt.startsWith('draft saved') ? 'ok' : 'dirty'));
+      el.className = 'chip ' + (same ? '' : (/^(draft saved|saved to the server|published|draft from the server)/.test(savedAt) ? 'ok' : 'dirty'));
       $('bUndo').disabled = !undo.length; $('bRedo').disabled = !redo.length;
       const sel = S.sel && S.sel.kind === 'obj' ? cur && cur.r.objects.find((o) => o.id === S.sel.id) : null;
       $('bRot').disabled = !sel || !NUT_LIBRARY.rotInfo(origType(sel), [sel.w, sel.d]); $('bDel').disabled = !sel || ed().isLocked(S.room, sel.id, sel.hot);
@@ -208,8 +240,8 @@
       S.sel = hit; hover = 0;
       if (hit) {
         const f = floorAt(p);
-        if (hit.kind === 'obj') { const o = selObj(); drag = { kind: 'obj', f, cell: [o.x, o.y], moved: false, before: key() }; }
-        else if (hit.kind === 'item') { const it = cur.r.items.find((i) => i.id === hit.id), host = cur.r.objects.find((o) => o.id === it.on); drag = host ? { kind: 'item', f, off: [it.x - host.x, it.y - host.y], moved: false, before: key() } : null; }
+        if (hit.kind === 'obj') { const o = momentMode() ? selObj() : (baseObj(hit.id) || selObj()); drag = { kind: 'obj', f, cell: [o.x, o.y], moved: false, before: key() }; }
+        else if (hit.kind === 'item') { const it = momentMode() ? cur.r.items.find((i) => i.id === hit.id) : (baseItem(hit.id) || cur.r.items.find((i) => i.id === hit.id)), host = momentMode() ? cur.r.objects.find((o) => o.id === it.on) : (baseObj(it.on) || cur.r.objects.find((o) => o.id === it.on)); drag = host ? { kind: 'item', f, off: [it.x - host.x, it.y - host.y], moved: false, before: key() } : null; }
         else { const w = wallList.find((i) => i.key === hit.id); drag = { kind: 'wall', u: wallU(w, p), span: [w.u0, w.u1], moved: false, before: key() }; }
         if (drag) { $('stage').setPointerCapture(e.pointerId); $('stage').classList.add('drag'); }
       }
@@ -221,8 +253,9 @@
       if (drag) {
         const sel = S.sel, snap = e.shiftKey ? 0.05 : S.snap; let did = false;
         const run = () => {
-          if (sel.kind === 'obj') { const f = floorAt(p); did = ed().move(S.room, sel.id, [drag.cell[0] + f[0] - drag.f[0], drag.cell[1] + f[1] - drag.f[1]], snap); }
-          else if (sel.kind === 'item') { const f = floorAt(p); did = ed().moveItem(S.room, sel.id, [drag.off[0] + f[0] - drag.f[0], drag.off[1] + f[1] - drag.f[1]], 0.05); }
+          const E = sel.kind !== 'wall' && momentMode() ? ed().at(S.moment) : ed();
+          if (sel.kind === 'obj') { const f = floorAt(p); did = E.move(S.room, sel.id, [drag.cell[0] + f[0] - drag.f[0], drag.cell[1] + f[1] - drag.f[1]], snap); }
+          else if (sel.kind === 'item') { const f = floorAt(p); did = E.moveItem(S.room, sel.id, [drag.off[0] + f[0] - drag.f[0], drag.off[1] + f[1] - drag.f[1]], 0.05); }
           else { const w = wallList.find((i) => i.key === sel.id), d = wallU(w, p) - drag.u; did = ed().moveWall(S.room, sel.id, [Math.round((drag.span[0] + d) * 4) / 4, Math.round((drag.span[1] + d) * 4) / 4]); }
         };
         run();
@@ -247,11 +280,14 @@
       const sel = S.sel;
       if (!sel) h += '<p class="note">Nothing selected. Click an object, a small item or a wall item in the picture, or pick one from the lists below.</p>';
       if (sel && sel.kind === 'obj') {
-        const o = selObj();
+        const o = momentMode() ? selObj() : (baseObj(sel.id) || selObj());
         if (o) {
           const why = lockWhy(S.room, o.id, o.hot), locked = why.length > 0, flat = NUT_LAYOUT.FLAT.has(o.t);
+          const mm = S.room === sceneId && (CASE.moments || []).length ? ed().at(S.moment) : null, others = Object.keys(((doc.rooms[S.room] || {}).times) || {}).filter((k) => k !== S.moment && ed().at(k).has(S.room, o.id));
+          const scope = !mm ? '' : momentMode() ? `<div class="note">Editing <b>only at ${esc(S.moment)}</b>: the change is kept for this moment, every other time keeps the shared layout.${mm.has(S.room, o.id) ? ` <b>&#9733; This moment has its own change for it.</b> <button data-a="takeback" data-id="${esc(o.id)}">Take it back</button>` : ''}</div>` : `<div class="note">Editing the shared layout (every time).${mm.has(S.room, o.id) ? ` At ${esc(S.moment)} it has a change of its own, so edits here will not show at that moment.` : ''}${others.length ? ` Moments with their own change for it: ${esc(others.join(', '))}.` : ''}</div>`;
           h += `<h3>Object</h3><div class="row"><b>${esc(o.id)}</b><span class="badge ${locked ? 'locked' : 'free'}">${locked ? 'locked' : 'free'}</span>${flat ? '<span class="badge flat">flat</span>' : ''}</div>
             <div class="note">type ${esc(origType(o))}${o.t === 'sprite' ? ' &rarr; drawn as sprite ' + esc(o.sprite) : (o.was ? ' &rarr; drawn as ' + esc(o.t) : '')}${o.hot ? ' &middot; tap name "' + esc(o.hot) + '"' : ' &middot; not tappable'}</div>
+            ${scope}
             ${locked ? `<div class="note">Locked because: ${esc(why.map((w) => ({ puzzle: 'a puzzle or lock depends on it', zoom: 'it has a zoom view the game draws', patched: 'a moment of the case changes it' }[w] || w)).join('; '))}. Place and facing can change; what it is cannot.</div>` : ''}
             <div class="row"><label>cell x,y</label><input type="number" step="0.05" data-f="cx" value="${+o.x.toFixed(3)}"><input type="number" step="0.05" data-f="cy" value="${+o.y.toFixed(3)}"></div>
             <div class="row"><label>size</label><input type="number" step="0.05" min="0.1" data-f="fw" value="${+o.w.toFixed(3)}" ${locked ? 'disabled' : ''}><input type="number" step="0.05" min="0.1" data-f="fd" value="${+o.d.toFixed(3)}" ${locked ? 'disabled' : ''}></div>
@@ -286,8 +322,13 @@
             <h3>Look</h3>${why.length ? '<div class="note">Locked: a door or board the game uses.</div>' : `<div class="row"><button data-a="tolib">Pick from the library</button><button data-a="upload">Replace with my image&hellip;</button><button data-a="reset">Back to original</button></div><div class="note">A sprite is stretched to the item's size (1 pixel = 1/10 tile wide).</div>`}`;
         }
       }
+      if (S.room === sceneId && (CASE.moments || []).length) {
+        const t = (((doc.rooms[S.room] || {}).times) || {})[S.moment], ids2 = t ? (t.objects || []).map((p) => p.id + (p.deleted ? ' (taken out)' : '')).concat((t.items || []).map((p) => p.id), (t.added || []).map((p) => p.id + ' (new)')) : [];
+        const raw = t ? (t.objects || []).map((p) => p.id).concat((t.items || []).map((p) => p.id), (t.added || []).map((p) => p.id)) : [];
+        h += `<h3>At ${esc(S.moment)}</h3>` + (ids2.length ? ids2.map((label, i) => `<div class="row"><span>&#9733; ${esc(label)}</span><button data-a="takeback" data-id="${esc(raw[i])}">Take back</button></div>`).join('') + '<div class="row"><button data-a="resetmoment">Take back all</button></div>' : '<div class="note">This moment adds nothing to the shared layout, apart from what the case itself changes. Tick "only this moment" and edit to give it differences of its own.</div>');
+      }
       const gone = (rm.objects || []).filter((x) => x.deleted);
-      h += '<h3>Objects in this room</h3><table>' + cur.r.objects.map((o, i) => `<tr class="row2${S.sel && S.sel.kind === 'obj' && S.sel.id === o.id ? ' on' : ''}" data-k="obj" data-id="${esc(o.id)}"><td>${NUT_LAYOUT.FLAT.has(o.t) ? '' : i + 1}</td><td>${esc(o.id)}</td><td><span class="badge ${lockWhy(S.room, o.id, o.hot).length ? 'locked' : 'free'}">${lockWhy(S.room, o.id, o.hot).length ? 'locked' : 'free'}</span></td></tr>`).join('') + '</table>';
+      h += '<h3>Objects in this room</h3><table>' + cur.r.objects.map((o, i) => `<tr class="row2${S.sel && S.sel.kind === 'obj' && S.sel.id === o.id ? ' on' : ''}" data-k="obj" data-id="${esc(o.id)}"><td>${NUT_LAYOUT.FLAT.has(o.t) ? '' : i + 1}</td><td>${S.room === sceneId && (CASE.moments || []).length && ed().at(S.moment).has(S.room, o.id) ? '&#9733; ' : ''}${esc(o.id)}</td><td><span class="badge ${lockWhy(S.room, o.id, o.hot).length ? 'locked' : 'free'}">${lockWhy(S.room, o.id, o.hot).length ? 'locked' : 'free'}</span></td></tr>`).join('') + '</table>';
       if (r.items.length) h += '<h3>Small items</h3><table>' + r.items.map((o) => `<tr class="row2${S.sel && S.sel.kind === 'item' && S.sel.id === o.id ? ' on' : ''}" data-k="item" data-id="${esc(o.id)}"><td>${esc(o.id)}</td><td>${esc(o.on || '-')}</td></tr>`).join('') + '</table>';
       h += '<h3>Wall items</h3><table>' + wallList.map((w) => `<tr class="row2${S.sel && S.sel.kind === 'wall' && S.sel.id === w.key ? ' on' : ''}" data-k="wall" data-id="${esc(w.key)}"><td>${esc(w.name)}</td><td>${w.wall}</td></tr>`).join('') + '</table>';
       if (gone.length) h += '<h3>Removed from this room</h3>' + gone.map((g) => `<div class="row"><span>${esc(g.id)}</span><button data-a="restore" data-id="${esc(g.id)}">Put back</button></div>`).join('');
@@ -303,14 +344,16 @@
         if (f === 'fw' || f === 'fd') return E.resize(S.room, sel.id, [v('fw'), v('fd')]);
         if (f === 'ix' || f === 'iy') return E.moveItem(S.room, sel.id, [v('ix'), v('iy')], 0.05);
         if (f === 'wu') { const w = wallList.find((i) => i.key === sel.id), d = v('wu') - w.u0; return E.moveWall(S.room, sel.id, [w.u0 + d, w.u1 + d]); }
-      });
+      }, f === 'wu');
     }
     function act(a, data) {
       const sel = S.sel;
       if (a === 'rot') mutate((E) => E.rotate(S.room, sel.id));
       else if (a === 'del') { mutate((E) => E.remove(S.room, sel.id)); S.sel = null; render(); }
       else if (a === 'restore') mutate((E) => E.restore(S.room, data.id));
-      else if (a === 'reset') mutate((E) => (sel.kind === 'wall' ? E.lookWall(S.room, sel.id, null) : E.look(S.room, sel.id, null)));
+      else if (a === 'reset') mutate((E) => (sel.kind === 'wall' ? E.lookWall(S.room, sel.id, null) : E.look(S.room, sel.id, null)), sel.kind === 'wall');
+      else if (a === 'takeback') mutate(() => ed().at(S.moment).clear(S.room, data.id), true);
+      else if (a === 'resetmoment') { if (confirm('Take back everything this moment changes? The shared layout stays.')) mutate(() => ed().at(S.moment).clear(S.room), true); }
       else if (a === 'tolib') setTab('lib');
       else if (a === 'upload') pickFile((f) => importDialog(f, true));
       else if (a === 'png') { const o = selObj(); const t = NUT_LIBRARY.thumb(origType(o), { w: o.w, d: o.d, props: { face: o.face, dir: o.dir, back: o.back } }); if (t) downloadPng(`${origType(o)}-${o.w}x${o.d}-anchor${t.ax}_${t.ay}.png`, t.rgba, t.w, t.h, 8); }
@@ -319,7 +362,7 @@
     /* ---------- the Room tab: floor, walls, colours ---------- */
     function setRoomLook(patch, spriteId) {
       if (spriteId) { doc.sprites = doc.sprites || {}; doc.sprites[spriteId] = lib.sprites[spriteId]; }
-      mutate((E) => E.setRoom(S.room, patch));
+      mutate((E) => E.setRoom(S.room, patch), true);
     }
     const pv = (v) => (!v ? '' : typeof v === 'string' ? v : 'sprite:' + v.sprite), unpv = (v) => (!v ? null : v.startsWith('sprite:') ? { sprite: v.slice(7) } : v);
     function renderRoomTab() {
@@ -336,6 +379,7 @@
         <h3>Colours</h3><div class="note">Every colour the room is made of. A changed one is marked; the arrow takes it back.</div>
         <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(100px, 1fr))">${(spec.custom ? Object.keys(gen.pal) : NUT_LAYOUT.ROOM_COLOURS).map((k) => { const mine = rs.pal && rs.pal[k], cur = mine || gen.pal[k]; return `<div class="row" style="margin:2px 0"><input type="color" data-c="${k}" value="${hex(cur)}"><span title="${k}">${k}${mine ? ' *' : ''}</span>${mine ? `<button data-cr="${k}" title="back to the colour the kit chose">&larr;</button>` : ''}</div>`; }).join('')}</div>
         <div class="row"><button data-a="resetroom" ${doc.rooms[S.room] && doc.rooms[S.room].room ? '' : 'disabled'}>Back to the kit's floor, walls and colours</button></div>
+        ${S.room === sceneId && (CASE.moments || []).length ? '<div class="note">Floor, walls, colours and size are the same at every moment.</div>' : ''}
         <h3>Size</h3>
         <div class="row"><label>right wall</label><input type="number" min="${NUT_LAYOUT.MIN_SIDE}" max="${NUT_LAYOUT.MAX_SIDE}" step="1" id="szX" value="${room.nx || 8}"><span>tiles</span><label>left wall</label><input type="number" min="${NUT_LAYOUT.MIN_SIDE}" max="${NUT_LAYOUT.MAX_SIDE}" step="1" id="szY" value="${room.ny || 8}"><span>tiles</span><button data-a="size">Resize</button></div>
         <div class="row"><label><input type="checkbox" id="szF" ${S.follow === false ? '' : 'checked'}> move what stands by the far walls along with them</label></div>
@@ -343,11 +387,11 @@
       el.querySelector('[data-a=size]').onclick = () => {
         const x = Number($('szX').value), y = Number($('szY').value); S.follow = $('szF').checked;
         if (!NUT_LAYOUT.validSize(x, y)) { $('szNote').style.color = '#ff4a3c'; $('szNote').textContent = `${x} x ${y} does not fit: whole tiles, ${NUT_LAYOUT.MIN_SIDE} to ${NUT_LAYOUT.MAX_SIDE} a side and ${NUT_LAYOUT.MAX_SUM} or less in all.`; return; }
-        mutate((E) => E.resizeRoom(S.room, [x, y], { follow: S.follow }));
+        mutate((E) => E.resizeRoom(S.room, [x, y], { follow: S.follow }), true);
       };
       for (const s2 of el.querySelectorAll('select[data-r]')) s2.onchange = () => { const v = unpv(s2.value); setRoomLook({ [s2.dataset.r]: v }, v && v.sprite); };
-      for (const c of el.querySelectorAll('input[data-c]')) c.onchange = () => mutate((E) => E.setRoom(S.room, { pal: { [c.dataset.c]: c.value } }));
-      for (const b of el.querySelectorAll('button[data-cr]')) b.onclick = () => mutate((E) => E.setRoom(S.room, { pal: { [b.dataset.cr]: null } }));
+      for (const c of el.querySelectorAll('input[data-c]')) c.onchange = () => mutate((E) => E.setRoom(S.room, { pal: { [c.dataset.c]: c.value } }), true);
+      for (const b of el.querySelectorAll('button[data-cr]')) b.onclick = () => mutate((E) => E.setRoom(S.room, { pal: { [b.dataset.cr]: null } }), true);
       el.querySelector('[data-a=resetroom]').onclick = () => mutate((E) => { const r = (doc.rooms[S.room] || {}).room || {}; return E.setRoom(S.room, { floor: null, wallL: null, wallR: null, pal: Object.fromEntries(Object.keys(r.pal || {}).map((k) => [k, null])) }); });   // (the size has its own button)
     }
 
@@ -388,22 +432,22 @@
           if (s.tile) { card((s.name || id) + ' (tile)', cardCanvas('s:' + id + s.px.length, () => spriteThumb(id)), [
             ['Floor', () => setRoomLook({ floor: { sprite: id } }, id), false, 'Use as the floor of this room'], ['Wall L', () => setRoomLook({ wallL: { sprite: id } }, id)], ['Wall R', () => setRoomLook({ wallR: { sprite: id } }, id)],
             ['PNG', () => downloadPng(id + '.png', NUT_SPRITES.toRGBA(s), s.w, s.h, 8)],
-            ['Delete', () => { if (confirm('Remove this tile from the library? Layouts that use it keep their own copy.')) { delete lib.sprites[id]; NutStore.saveLibrary(lib); renderLib(); } }]]); continue; }
+            ['Delete', () => { if (confirm('Remove this tile from the library? Layouts that use it keep their own copy.')) { delete lib.sprites[id]; NutStore.saveLibrary(lib); libSync(id, null); renderLib(); } }]]); continue; }
           card(s.name || id, cardCanvas('s:' + id + s.px.length, () => spriteThumb(id)), [
             ['Add', () => addObject({ type: 'sprite', footprint: s.fp, hot: null, props: { sprite: id }, look: null, sprite: id })],
             ['Use', () => useSprite(id), !(canObj || canWall), 'Give the selected object or wall item this picture'],
             ['PNG', () => downloadPng(id + '.png', NUT_SPRITES.toRGBA(s), s.w, s.h, 8)],
-            ['Delete', () => { if (confirm('Remove this sprite from the library? Layouts that use it keep their own copy.')) { delete lib.sprites[id]; NutStore.saveLibrary(lib); renderLib(); } }]]);
+            ['Delete', () => { if (confirm('Remove this sprite from the library? Layouts that use it keep their own copy.')) { delete lib.sprites[id]; NutStore.saveLibrary(lib); libSync(id, null); renderLib(); } }]]);
         }
       }
       if (k === 'paints') for (const p of cat.paints) {
         if (qq && !p.includes(qq)) continue;
-        card(p, cardCanvas('p:' + p, () => { try { return NUT_LIBRARY.paintThumb(ITEM_PAINT[p](), 24, 40); } catch (e) { return null; } }), [['Use', () => mutate((E) => E.lookWall(S.room, S.sel.id, { paint: p })), !canWall, 'Repaint the selected wall item']]);
+        card(p, cardCanvas('p:' + p, () => { try { return NUT_LIBRARY.paintThumb(ITEM_PAINT[p](), 24, 40); } catch (e) { return null; } }), [['Use', () => mutate((E) => E.lookWall(S.room, S.sel.id, { paint: p }), true), !canWall, 'Repaint the selected wall item']]);
       }
     }
     function useSprite(id) {
       doc.sprites = doc.sprites || {}; doc.sprites[id] = lib.sprites[id];
-      mutate((E) => (S.sel.kind === 'wall' ? E.lookWall(S.room, S.sel.id, { sprite: id }) : E.look(S.room, S.sel.id, { sprite: id })));
+      mutate((E) => (S.sel.kind === 'wall' ? E.lookWall(S.room, S.sel.id, { sprite: id }) : E.look(S.room, S.sel.id, { sprite: id })), S.sel.kind === 'wall');
     }
     function addObject(spec) {
       const { r } = cur, nx = r.nx || 8, ny = r.ny || 8, fp = spec.footprint;
@@ -473,7 +517,7 @@
         const name = $('ivName').value.trim() || nm; let id = name.replace(/[^a-z0-9-]/gi, '-').toLowerCase(), n = 1; while (lib.sprites[id]) id = name.replace(/[^a-z0-9-]/gi, '-').toLowerCase() + '-' + (++n);
         let spec;
         try { spec = NUT_SPRITES.fromRGBA(res.rgba, res.w, res.h, kind === 'tile' ? { name, ax: 0, ay: 0, fp: [Number($('ivW').value) || 1, Number($('ivD').value) || 1], tile: true, outline: false, tags: ['uploaded', 'tile'], ...(lock ? {} : { offPalette: true }) } : { name, ax: Number($('ivAx').value), ay: Number($('ivAy').value), fp: [Number($('ivW').value) || 1, Number($('ivD').value) || 1], outline: !$('ivOut').checked, tags: ['uploaded'], ...(lock ? {} : { offPalette: true }) }); } catch (e) { alert(e.message); return; }
-        lib.sprites[id] = spec; NUT_SPRITES.add({ [id]: spec }); NutStore.saveLibrary(lib);
+        lib.sprites[id] = spec; NUT_SPRITES.add({ [id]: spec }); NutStore.saveLibrary(lib); libSync(id, spec);
         dlg.close(); delete thumbCache['s:' + id + spec.px.length];
         if (use && kind !== 'tile') useSprite(id); else { S.libKind = 'sprites'; setTab('lib'); }
         renderLib();
@@ -498,31 +542,48 @@
       el.innerHTML = h;
     }
     function renderHist() {
-      const v = NutStore.versions(slug), el = $('p-hist');
-      el.innerHTML = `<div class="row"><input type="text" id="vLabel" placeholder="label (optional)"><button id="vSave">Save a version</button></div>` + (v.length ? '<table>' + v.map((x, i) => `<tr><td>${new Date(x.t).toLocaleString()}</td><td>${esc(x.label || '')}</td><td><button data-r="${i}">Restore</button></td></tr>`).join('') + '</table>' : '<p class="note">No saved versions. Publishing saves one; so does the button above.</p>') + '<p class="note">Versions are kept in this browser (the last 20). The online store comes with phase 4.</p>';
+      const el = $('p-hist');
+      if (online) {
+        el.innerHTML = '<p class="note">Loading&hellip;</p>';
+        server('GET', 'layout/' + slug).then((l) => {
+          const rows = l.versions;
+          el.innerHTML = (rows.length ? '<table>' + rows.map((x) => `<tr><td>${new Date(x.created_at).toLocaleString()}</td><td><span class="badge ${x.status === 'published' ? 'pub' : 'draft'}">${x.status}</span></td><td>${esc(x.author)}${x.label ? ' &middot; ' + esc(x.label) : ''}</td><td><button data-id="${x.id}">Restore</button></td></tr>`).join('') + '</table>' : '<p class="note">Nothing saved on the server yet.</p>') + '<p class="note">Every publish is kept; drafts keep the last 25. Restoring puts that version in the editor as a draft (Undo brings the current one back).</p>';
+          for (const b of el.querySelectorAll('[data-id]')) b.onclick = () => server('GET', 'layout/' + slug + '/version/' + b.dataset.id).then((v) => { if (confirm('Replace the current layout with this version?')) { undo.push(key()); redo = []; doc = clone(v.doc); afterChange(); } }).catch((e) => alert('Could not load it: ' + e.message));
+        }).catch((e) => { if (e.message !== 'signed out') el.innerHTML = `<p class="note">The server did not answer (${esc(e.message)}).</p>`; });
+        return;
+      }
+      const v = NutStore.versions(slug);
+      el.innerHTML = `<div class="row"><input type="text" id="vLabel" placeholder="label (optional)"><button id="vSave">Save a version</button></div>` + (v.length ? '<table>' + v.map((x, i) => `<tr><td>${new Date(x.t).toLocaleString()}</td><td>${esc(x.label || '')}</td><td><button data-r="${i}">Restore</button></td></tr>`).join('') + '</table>' : '<p class="note">No saved versions. Publishing saves one; so does the button above.</p>') + '<p class="note">Versions are kept in this browser (the last 20). Without a publishing server this is all there is.</p>';
       $('vSave').onclick = () => { NutStore.addVersion(slug, $('vLabel').value || 'saved by hand', fileDoc()); renderHist(); };
       for (const b of el.querySelectorAll('[data-r]')) b.onclick = () => { if (confirm('Replace the current layout with this version? (Undo brings the current one back.)')) { undo.push(key()); redo = []; doc = clone(v[Number(b.dataset.r)].doc); afterChange(); } };
     }
-    const changeCount = () => { let n = 0; for (const R of Object.values(doc.rooms)) for (const r of [].concat(R.objects || [], R.items || [], R.wall || [])) { if (r.base === undefined || r.deleted || r.look || NUT_LAYOUT.fp(NUT_LAYOUT.core(r)) !== r.base) n++; } return n; };
+    const changeCount = () => { let n = 0; for (const R of Object.values(doc.rooms)) for (const t of Object.values(R.times || {})) n += (t.objects || []).length + (t.items || []).length + (t.added || []).length; for (const R of Object.values(doc.rooms)) for (const r of [].concat(R.objects || [], R.items || [], R.wall || [])) { if (r.base === undefined || r.deleted || r.look || NUT_LAYOUT.fp(NUT_LAYOUT.core(r)) !== r.base) n++; } return n; };
     publish = async function () {
       saveDraft();
-      const list = allChecks(), n = changeCount(), dlg = $('dlg');
-      let api = null; try { const r = await fetch('editor-config.json', { cache: 'no-cache' }); if (r.ok) api = (await r.json()).api || null; } catch (e) { /* no server configured */ }
-      dlg.innerHTML = `<h2>Publish ${esc(entry.title)}</h2><p>${n} changed record${n === 1 ? '' : 's'} against rooms.js. The game shows the layout once it is published.</p>
+      const list = allChecks(), n = changeCount(), dlg = $('dlg'), api = online;
+      dlg.innerHTML = `<h2>Publish ${esc(entry.title)}</h2><p>${n} changed record${n === 1 ? '' : 's'} against rooms.js. ${api ? 'Players see this layout as soon as it is published (the page they already have open updates when they reload).' : 'The game shows the layout once it is published.'}</p>
         ${list.length ? `<p><b>${list.length} warning${list.length === 1 ? '' : 's'}</b> (they do not stop publishing):</p><ul class="w">${list.map((m) => `<li class="warn">${esc(m)}</li>`).join('')}</ul>` : '<p class="note">No warnings in any room.</p>'}
-        ${api ? `<p class="note">This will send the layout to ${esc(api)}.</p>` : `<p class="note">This build has no publishing server yet (phase 4). "Publish" saves a version here and downloads <code>layout.json</code>; put it at <code>src/cases/${esc(slug)}/layout.json</code> in the game repo and deploy.</p>`}
+        ${api ? '<div class="row"><label>note</label><input type="text" id="pLabel" placeholder="what changed (optional)" style="flex:1"></div><p class="note">Every published version is kept, so an earlier one can be put back from the Versions tab.</p>' : `<p class="note">This build has no publishing server (or it did not answer). "Publish" saves a version here and downloads <code>layout.json</code>; put it at <code>src/cases/${esc(slug)}/layout.json</code> in the game repo and deploy.</p>`}
         <div class="foot"><button id="pCancel">Cancel</button><button id="pGo" class="primary">${api ? 'Publish' : 'Save version and download'}</button></div>`;
       dlg.showModal();
       $('pCancel').onclick = () => dlg.close();
       $('pGo').onclick = async () => {
-        const text = NUT_LAYOUT.format(fileDoc());
-        NutStore.addVersion(slug, api ? 'published' : 'exported for publishing', fileDoc());
-        if (api) { try { const r = await fetch(api.replace(/\/$/, '') + '/layout/' + encodeURIComponent(slug), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(fileDoc()) }); if (!r.ok) throw new Error(r.status); savedAt = 'published ' + new Date().toLocaleTimeString(); } catch (e) { alert('Publishing failed (' + e.message + '). Nothing changed online.'); return; } }
-        else { download('layout.json', text); savedAt = 'exported ' + new Date().toLocaleTimeString(); }
+        if (api) {
+          try { clearTimeout(srvT); await server('POST', 'layout/' + slug + '/publish', { doc: fileDoc(), label: $('pLabel').value || null }); savedAt = 'published ' + new Date().toLocaleTimeString(); }
+          catch (e) { if (e.message !== 'signed out') alert('Publishing failed (' + e.message + '). Nothing changed online.'); return; }
+        } else { NutStore.addVersion(slug, 'exported for publishing', fileDoc()); download('layout.json', NUT_LAYOUT.format(fileDoc())); savedAt = 'exported ' + new Date().toLocaleTimeString(); }
         dlg.close(); renderState(); renderHist();
       };
     };
-    publishOther = (other) => {
+    publishOther = async (other) => {
+      if (online) {
+        try {
+          const l = await server('GET', 'layout/' + other), d = l.draft;
+          if (!d || (l.published && l.published.id > d.id)) { alert('This case has no unpublished draft on the server: open it and make a change first.'); return; }
+          if (confirm('Publish the saved draft of this case as it is? (Open the case to see the checks first.)')) { await server('POST', 'layout/' + other + '/publish', { doc: d.doc, label: 'published from the case list' }); alert('Published.'); }
+        } catch (e) { if (e.message !== 'signed out') alert('Failed: ' + e.message); }
+        return;
+      }
       const d = NutStore.draft(other);
       if (!d) { alert('This case has no draft in this browser: open it and make a change first.'); return; }
       if (confirm('Download the draft layout of this case? (Open the case to see the checks before publishing.)')) download(`layout-${other}.json`, JSON.stringify(d, null, 1));
@@ -534,13 +595,14 @@
     $('bUndo').onclick = doUndo; $('bRedo').onclick = doRedo;
     $('bRot').onclick = () => { const o = selObj(); if (o) mutate((E) => E.rotate(S.room, o.id)); };
     $('bDel').onclick = () => { const o = selObj(); if (o) { mutate((E) => E.remove(S.room, o.id)); S.sel = null; render(); } };
-    $('bSave').onclick = () => { saveDraft(); };
+    $('bSave').onclick = () => { saveDraft(true); };
     $('bExport').onclick = () => download('layout.json', NUT_LAYOUT.format(fileDoc()));
     $('bPub').onclick = () => publish();
     const game = (room) => { if (!entry.published) { alert('This case has no game page yet (it is not in index.json). Preview works once it is added.'); return; } saveDraft(); window.open(`../${slug}/?layout=draft${room ? '&room=' + encodeURIComponent(S.room) : ''}`, '_blank'); };
     $('bPrev').onclick = () => game(false); $('bPlay').onclick = () => game(true);
     $('room').onchange = () => { S.room = $('room').value; S.sel = null; render(); };
     $('moment').onchange = () => { S.moment = $('moment').value; render(); };
+    $('onlyM').onchange = () => { S.only = $('onlyM').checked; render(); };
     $('time').onchange = () => { S.time = $('time').value; render(); };
     $('snap').onchange = () => { S.snap = Number($('snap').value); };
     for (const id of ['lamp', 'oGrid', 'oFoot', 'oNum', 'oItems']) $(id).onchange = () => render(false);
@@ -549,7 +611,7 @@
     $('ref').onchange = (e) => { const f = e.target.files[0]; if (!f) return; const img = new Image(); img.onload = () => { refImg = img; if ($('rOp').value === '100') $('rOp').value = 60; drawRef(); cRoom.style.opacity = Number($('rOp').value) / 100; }; img.src = URL.createObjectURL(f); };
     $('rClear').onclick = () => { refImg = null; $('ref').value = ''; $('rOp').value = 100; drawRef(); cRoom.style.opacity = 1; };
     window.addEventListener('keydown', (e) => {
-      if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName) || $('dlg').open) return;
+      const ae = document.activeElement; if ((ae && /^(SELECT|TEXTAREA)$/.test(ae.tagName)) || (ae && ae.tagName === 'INPUT' && !/^(checkbox|radio|button)$/.test(ae.type)) || $('dlg').open) return;   // typing in a box is not a shortcut; a ticked box is not typing
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); }
       else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); doRedo(); }
@@ -561,10 +623,10 @@
       else if (e.key.startsWith('Arrow')) {
         e.preventDefault(); const k = e.shiftKey ? 0.05 : 0.25, dx = { ArrowLeft: -1, ArrowRight: 1 }[e.key] || 0, dy = { ArrowUp: -1, ArrowDown: 1 }[e.key] || 0, o = selObj();
         // the arrows move on the screen: right/down = +x/+y of the room's isometric axes
-        if (o) mutate((E) => E.move(S.room, o.id, [o.x + (dx + dy) * k, o.y + (dy - dx) * k], 0.05));
+        if (o) { const c = momentMode() ? o : (baseObj(o.id) || o); mutate((E) => E.move(S.room, o.id, [c.x + (dx + dy) * k, c.y + (dy - dx) * k], 0.05)); }
       }
     });
-    window.addEventListener('beforeunload', () => { if (saveT) saveDraft(); });
+    window.addEventListener('beforeunload', () => { if (saveT || srvT) { saveDraft(); if (online) { clearTimeout(srvT); pushDraft('', true); } } });
     sizeStage(); render(); renderLib();
     window.NUT_EDITOR_API = { get doc() { return doc; }, S, mutate, render, pick, get geo() { return geo; }, get cur() { return cur; }, importDialog, lib, ed };
   }
