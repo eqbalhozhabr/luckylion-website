@@ -2592,7 +2592,7 @@ const NUT_LAYOUT = (() => {
     const lock = lockInfo(CASE), doc = { version: VERSION, case: slug || null, rooms: {} };
     for (const id of Object.keys(rooms)) {
       const room = rooms[id], gen = room.__gen || room, byId = new Map(gen.objects.map((o) => [o.id, o]));
-      const R = { size: [room.nx || N, room.ny || N], objects: [], items: [], wall: [] };
+      const R = { size: [gen.nx || N, gen.ny || N], objects: [], items: [], wall: [] };
       const fin = (rec, why) => Object.assign({}, rec, { class: why.length ? 'locked' : 'free' }, why.length ? { why } : {}, { base: fp(core(rec)) });
       for (const o of gen.objects) R.objects.push(fin(objRec(o), lock(id, o.id, o.hot)));
       for (const it of gen.items || []) R.items.push(fin(itemRec(it, byId.get(it.on)), lock(id, it.id, it.hot)));
@@ -2683,8 +2683,19 @@ const NUT_LAYOUT = (() => {
   /* a tile sprite (spec.tile) as a floor: its picture repeats every fp tiles on the ground; as a wall: 1 pixel of picture = 1 screen pixel, repeating */
   const tileFloor = (s) => { const d = NUT_SPRITES.decode(s), fw = (s.fp && s.fp[0]) || 1, fd = (s.fp && s.fp[1]) || 1; return () => (x, y) => { const u = ((x / fw) % 1 + 1) % 1, v = ((y / fd) % 1 + 1) % 1, k = d.idx[Math.floor(v * s.h) * s.w + Math.floor(u * s.w)]; return k ? col(s.pal[k - 1], 0) : null; }; };
   const tileWall = (s) => { const d = NUT_SPRITES.decode(s); return (u, z) => { const k = d.idx[(s.h - 1 - (Math.floor(z) % s.h)) * s.w + (((Math.floor(u * HW) % s.w) + s.w) % s.w)]; return k ? col(s.pal[k - 1], 0) : col('wallTop', 0); }; };
+  /* the room has to fit the 176 x 164 picture: its two walls together are at most 17 tiles long */
+  const MIN_SIDE = 4, MAX_SIDE = 13, MAX_SUM = 17;
+  const validSize = (a, b) => Number.isInteger(a) && Number.isInteger(b) && a >= MIN_SIDE && b >= MIN_SIDE && a <= MAX_SIDE && b <= MAX_SIDE && a + b <= MAX_SUM;
   function applyLook(room, gen, rs) {
     room.pal = rs && rs.pal && Object.keys(rs.pal).length ? Object.assign({}, gen.pal, rs.pal) : gen.pal;
+    room.nx = gen.nx; room.ny = gen.ny; room.light = gen.light;
+    if (rs && rs.size) {
+      if (validSize(rs.size[0], rs.size[1])) {
+        room.nx = rs.size[0]; room.ny = rs.size[1];
+        // the kit's light hangs over the middle of the room it was built for: hang it over the middle of this one
+        if (room.type && gen.light) room.light = (st, t, rm) => { const l = gen.light(st, t, rm); if (l.lights && l.lights[0]) { const cp = P(room.nx / 2, room.ny / 2, room.wallH || WH); l.lights[0].sx = cp[0]; l.lights[0].sy = cp[1]; } return l; };
+      } else report.ignored.push(room.id + ' (size ' + rs.size.join(' x ') + ' does not fit)');
+    }
     room.floor = gen.floor;
     const f = rs && rs.floor;
     if (!f) return;
@@ -2734,9 +2745,9 @@ const NUT_LAYOUT = (() => {
     for (const id of Object.keys(L)) if (!rooms[id]) report.dropped.push(id + ' (room)');
     for (const id of Object.keys(rooms)) {
       const room = rooms[id];
-      const gen = room.__gen || (room.__gen = { objects: room.objects, items: room.items, walls: room.walls, floor: room.floor, pal: room.pal });   // the generator's own rooms, kept so a layout can be applied again
+      const gen = room.__gen || (room.__gen = { objects: room.objects, items: room.items, walls: room.walls, floor: room.floor, pal: room.pal, nx: room.nx, ny: room.ny, light: room.light });   // the generator's own rooms, kept so a layout can be applied again
       room.__lock = lock;
-      if (!L[id]) { room.objects = gen.objects; room.items = gen.items; room.walls = gen.walls; room.floor = gen.floor; room.pal = gen.pal; continue; }
+      if (!L[id]) { room.objects = gen.objects; room.items = gen.items; room.walls = gen.walls; room.floor = gen.floor; room.pal = gen.pal; room.nx = gen.nx; room.ny = gen.ny; room.light = gen.light; continue; }
       const objs = applyObjects(room, gen, L[id]);
       room.objects = objs; room.items = applyItems(room, gen, L[id], objs);
       applyLook(room, gen, L[id].room);
@@ -2865,6 +2876,31 @@ const NUT_LAYOUT = (() => {
         if (!Object.keys(rs).length) delete L.room;
         return true;
       },
+      /* the size of the room in tiles (right wall x left wall). With follow (the default) whatever stands in the far half moves with the far walls:
+         objects, wall items, and pieces that span a wall's whole length stretch with it. Nothing is deleted: what no longer fits is flagged by the checks. */
+      resizeRoom(rid, size, opts) {
+        const [a, b] = size; if (!validSize(a, b)) return false;
+        const room = rooms[rid], gen = genOf(rid), oa = room.nx || N, ob = room.ny || N, dx = a - oa, dy = b - ob, follow = !opts || opts.follow !== false;
+        const rs = R(rid).room || (R(rid).room = {});
+        if (a === (gen.nx || N) && b === (gen.ny || N)) delete rs.size; else rs.size = [a, b];
+        if (!Object.keys(rs).length) delete R(rid).room;
+        if (follow && (dx || dy)) {
+          for (const o of room.objects) {
+            const fullX = o.x <= 0.01 && o.x + o.w >= oa - 0.01, fullY = o.y <= 0.01 && o.y + o.d >= ob - 0.01, locked = lock(rid, o.id, o.hot).length > 0;
+            let x = o.x, y = o.y, w = o.w, d = o.d;
+            if (fullX && !locked) w = r3(w + dx); else if (!fullX && o.x + o.w / 2 > oa / 2) x = r3(x + dx);
+            if (fullY && !locked) d = r3(d + dy); else if (!fullY && o.y + o.d / 2 > ob / 2) y = r3(y + dy);
+            if (x === o.x && y === o.y && w === o.w && d === o.d) continue;
+            const r = obj(rid, o.id); if (!r) continue;
+            r.cell = [x, y]; if (w !== o.w || d !== o.d) r.footprint = [w, d];
+          }
+          for (const w of wallRecs(Object.assign({}, room, { __gen: null }))) {   // the walls as they are now
+            const len = w.wall === 'R' ? oa : ob, delta = w.wall === 'R' ? dx : dy;
+            if (delta && (w.span[0] + w.span[1]) / 2 > len / 2) { const r = wall(rid, w.key); if (r) r.span = [r3(r.span[0] + delta), r3(r.span[1] + delta)]; }
+          }
+        }
+        return true;
+      },
       isLocked: (rid, id, hot) => lock(rid, id, hot).length > 0
     };
   }
@@ -2959,7 +2995,7 @@ const NUT_LAYOUT = (() => {
     return { w, h, buf };
   }
 
-  return { VERSION, FLAT, FACING, exportLayout, apply, boot, editor, format, roomSpec, FLOORS, WALLS, ROOM_COLOURS, report, state, lockInfo, validate, validateMoments, geometry, rasterOverlay, fp, core, objRec, itemRec, wallRecs };
+  return { VERSION, FLAT, FACING, exportLayout, apply, boot, editor, format, roomSpec, validSize, MIN_SIDE, MAX_SIDE, MAX_SUM, FLOORS, WALLS, ROOM_COLOURS, report, state, lockInfo, validate, validateMoments, geometry, rasterOverlay, fp, core, objRec, itemRec, wallRecs };
 })();
 
 /* ============================================================
