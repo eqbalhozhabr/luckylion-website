@@ -2665,13 +2665,45 @@ const NUT_LAYOUT = (() => {
       return it;
     });
   }
+  /* ---------- the look of the room itself: floor, walls, colours ---------- */
+  const FLOORS = ['planks', 'tiles', 'concrete', 'asphalt', 'grass', 'runner', 'gh', 'trainfloor', 'carpet', 'checker'];
+  const WALLS = ['plaster', 'tiles', 'brick', 'concrete', 'fence', 'glassrail', 'glasshouse', 'traincoach', 'facade', 'slat', 'shelves', 'metal'];
+  const ROOM_COLOURS = ['floorA', 'floorB', 'grout', 'wallTop', 'wallLow', 'trim', 'wood', 'woodDk', 'rugA', 'rugB', 'brick', 'brickDk', 'tile', 'tileDk', 'concrete', 'slab', 'rim'];
+  /* what the kit built for a room (null for a room written by hand: its floor and walls are code of their own) */
+  function roomSpec(room) {
+    const t = room.type, so = t && typeof STYLE_OF !== 'undefined' ? STYLE_OF[t] : null;
+    const spec = { floor: t && typeof FLOOR_OF !== 'undefined' ? FLOOR_OF[t] || null : null, wallL: null, wallR: null, custom: !t };
+    if (so) {
+      const st = typeof so === 'string' ? { L: so, R: so } : (room.spec && room.spec.mirror ? { L: so.R, R: so.L } : so);
+      spec.wallL = st.L; spec.wallR = st.R;
+      if (typeof OUTDOOR !== 'undefined' && OUTDOOR[t] != null) { if (room.wallHL > OUTDOOR[t]) spec.wallL = 'facade'; if (room.wallHR > OUTDOOR[t]) spec.wallR = 'facade'; }
+    }
+    return spec;
+  }
+  /* a tile sprite (spec.tile) as a floor: its picture repeats every fp tiles on the ground; as a wall: 1 pixel of picture = 1 screen pixel, repeating */
+  const tileFloor = (s) => { const d = NUT_SPRITES.decode(s), fw = (s.fp && s.fp[0]) || 1, fd = (s.fp && s.fp[1]) || 1; return () => (x, y) => { const u = ((x / fw) % 1 + 1) % 1, v = ((y / fd) % 1 + 1) % 1, k = d.idx[Math.floor(v * s.h) * s.w + Math.floor(u * s.w)]; return k ? col(s.pal[k - 1], 0) : null; }; };
+  const tileWall = (s) => { const d = NUT_SPRITES.decode(s); return (u, z) => { const k = d.idx[(s.h - 1 - (Math.floor(z) % s.h)) * s.w + (((Math.floor(u * HW) % s.w) + s.w) % s.w)]; return k ? col(s.pal[k - 1], 0) : col('wallTop', 0); }; };
+  function applyLook(room, gen, rs) {
+    room.pal = rs && rs.pal && Object.keys(rs.pal).length ? Object.assign({}, gen.pal, rs.pal) : gen.pal;
+    room.floor = gen.floor;
+    const f = rs && rs.floor;
+    if (!f) return;
+    const alt = typeof f === 'string' ? (FLOORS.includes(f) ? floorFn(f, null) : null) : (f.sprite && NUT_SPRITES.get(f.sprite) ? tileFloor(NUT_SPRITES.get(f.sprite)) : null);
+    if (!alt) { report.ignored.push(room.id + ' (unknown floor)'); return; }
+    // the rug (a hotspot the case may depend on) stays: only the floor around it changes
+    room.floor = (st, rm) => { const o = gen.floor(st, rm), a = alt(st, rm); return (x, y) => { const r = o(x, y); if (Array.isArray(r)) return r; const c = a(x, y); return c == null ? r : c; }; };
+  }
+  function wallBaseOf(room, v, side) {
+    if (typeof v === 'string') return WALLS.includes(v) ? wallBase(v, side, { stripe: room.type === 'parking' }) : null;
+    return v && v.sprite && NUT_SPRITES.get(v.sprite) ? tileWall(NUT_SPRITES.get(v.sprite)) : null;
+  }
   function applyWall(room, gen, L) {
     const orig = gen.walls, byKey = new Map((L.wall || []).map((r) => [r.key, r])), lock = room.__lock;
     room.walls = (st, rm) => {
-      const w = orig(st, rm), res = {};
+      const w = orig(st, rm), res = {}, rs = L.room || {};
       for (const side of Object.keys(w)) {
-        const seen = {};
-        res[side] = Object.assign({}, w[side], { items: (w[side].items || []).map((it) => {
+        const seen = {}, mine = wallBaseOf(room, side === 'L' ? rs.wallL : rs.wallR, side);
+        res[side] = Object.assign({}, w[side], mine ? { base: mine } : {}, { items: (w[side].items || []).map((it) => {
           const n = seen[it.name] = (seen[it.name] || 0) + 1, key = side + ':' + it.name + (n > 1 ? '#' + n : ''), lo = byKey.get(key);
           if (!lo) return it;
           const genRec = { key, wall: side, name: it.name, span: [r3(it.u0), r3(it.u1)], z: [r3(it.z0), r3(it.z1)] };
@@ -2702,11 +2734,12 @@ const NUT_LAYOUT = (() => {
     for (const id of Object.keys(L)) if (!rooms[id]) report.dropped.push(id + ' (room)');
     for (const id of Object.keys(rooms)) {
       const room = rooms[id];
-      const gen = room.__gen || (room.__gen = { objects: room.objects, items: room.items, walls: room.walls });   // the generator's own rooms, kept so a layout can be applied again
+      const gen = room.__gen || (room.__gen = { objects: room.objects, items: room.items, walls: room.walls, floor: room.floor, pal: room.pal });   // the generator's own rooms, kept so a layout can be applied again
       room.__lock = lock;
-      if (!L[id]) { room.objects = gen.objects; room.items = gen.items; room.walls = gen.walls; continue; }
+      if (!L[id]) { room.objects = gen.objects; room.items = gen.items; room.walls = gen.walls; room.floor = gen.floor; room.pal = gen.pal; continue; }
       const objs = applyObjects(room, gen, L[id]);
       room.objects = objs; room.items = applyItems(room, gen, L[id], objs);
+      applyLook(room, gen, L[id].room);
       applyWall(room, gen, L[id]);
     }
     return report;
@@ -2824,6 +2857,14 @@ const NUT_LAYOUT = (() => {
         if (spec.look) r.look = spec.look;
         R(rid).objects.push(r); return r.id;
       },
+      /* the look of the room: patch = { floor, wallL, wallR } (a name, { sprite }, or null to go back to what the kit built) and/or { pal: { key: '#rrggbb' | null } } */
+      setRoom(rid, patch) {
+        const L = R(rid), rs = L.room || (L.room = {});
+        for (const k of ['floor', 'wallL', 'wallR']) if (k in patch) { if (patch[k]) rs[k] = patch[k]; else delete rs[k]; }
+        if (patch.pal) { rs.pal = rs.pal || {}; for (const [k, v] of Object.entries(patch.pal)) { if (v) rs.pal[k] = v; else delete rs.pal[k]; } if (!Object.keys(rs.pal).length) delete rs.pal; }
+        if (!Object.keys(rs).length) delete L.room;
+        return true;
+      },
       isLocked: (rid, id, hot) => lock(rid, id, hot).length > 0
     };
   }
@@ -2834,6 +2875,7 @@ const NUT_LAYOUT = (() => {
     const used = new Set();
     for (const R of Object.values(doc.rooms || {})) for (const r of (R.objects || []).concat(R.wall || [])) if (r.look && r.look.sprite) used.add(r.look.sprite);
     for (const R of Object.values(doc.rooms || {})) for (const r of R.objects || []) if (r.props && r.props.sprite) used.add(r.props.sprite);
+    for (const R of Object.values(doc.rooms || {})) for (const k of ['floor', 'wallL', 'wallR']) if (R.room && R.room[k] && R.room[k].sprite) used.add(R.room[k].sprite);
     const sp = Object.keys(doc.sprites || {}).filter((k) => used.has(k));
     if (sp.length) { L.push('  "sprites": {'); sp.forEach((k, i) => L.push(`    ${JSON.stringify(k)}: ${JSON.stringify(doc.sprites[k])}${i < sp.length - 1 ? ',' : ''}`)); L.push('  },'); }
     L.push('  "rooms": {');
@@ -2841,6 +2883,7 @@ const NUT_LAYOUT = (() => {
     ids.forEach((id, i) => {
       const R = doc.rooms[id];
       L.push(`    ${JSON.stringify(id)}: {`, `      "size": ${JSON.stringify(R.size || [N, N])},`);
+      if (R.room && Object.keys(R.room).length) L.push(`      "room": ${JSON.stringify(R.room)},`);
       ['objects', 'items', 'wall'].forEach((sec, j) => {
         L.push(`      "${sec}": [`);
         (R[sec] || []).forEach((r, k, arr) => L.push('        ' + JSON.stringify(r) + (k < arr.length - 1 ? ',' : '')));
@@ -2916,7 +2959,7 @@ const NUT_LAYOUT = (() => {
     return { w, h, buf };
   }
 
-  return { VERSION, FLAT, FACING, exportLayout, apply, boot, editor, format, report, state, lockInfo, validate, validateMoments, geometry, rasterOverlay, fp, core, objRec, itemRec, wallRecs };
+  return { VERSION, FLAT, FACING, exportLayout, apply, boot, editor, format, roomSpec, FLOORS, WALLS, ROOM_COLOURS, report, state, lockInfo, validate, validateMoments, geometry, rasterOverlay, fp, core, objRec, itemRec, wallRecs };
 })();
 
 /* ============================================================
