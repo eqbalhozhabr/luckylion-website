@@ -480,7 +480,7 @@ html[data-motion="reduce"] * { animation: none !important; transition: none !imp
 .tstage { position: relative; width: 100%; aspect-ratio: 16 / 10; min-height: 240px; background: #14121c; border: 3px solid #111; overflow: hidden; }
 .talk .tbg { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; object-fit: cover; }
 .talk .tfig { position: absolute; inset-inline-end: 8%; inset-block-end: 0; height: 88%; aspect-ratio: 48 / 72; image-rendering: pixelated; filter: drop-shadow(3px 4px 0 rgba(0, 0, 0, .35)); }
-.talk .tstamp { position: absolute; inset-block-start: 8px; inset-inline-start: 8px; background: rgba(20, 18, 30, .85); color: var(--amber); border: 2px solid var(--amber); padding: 0 8px; font: 700 .72rem/1.7 var(--f-px); letter-spacing: .06em; text-transform: uppercase; transform: rotate(-3deg); }
+.talk .tstamp { position: absolute; inset-block-end: 8px; inset-inline-start: 8px; background: rgba(20, 18, 30, .85); color: var(--amber); border: 2px solid var(--amber); padding: 0 8px; font: 700 .72rem/1.7 var(--f-px); letter-spacing: .06em; text-transform: uppercase; transform: rotate(-3deg); }
 .bubble { position: absolute; inset-inline-start: 3%; inset-inline-end: 34%; inset-block-start: 16%; background: #f6efd8; color: #2a2132; border: 3px solid #2a2132; padding: 10px 14px; box-shadow: 4px 4px 0 rgba(0, 0, 0, .4); cursor: pointer; z-index: 2; max-height: 58%; overflow-y: auto; }
 .bubble p { color: #2a2132 !important; font-size: .98rem; line-height: 1.7; margin: 0; }
 .bubble::after { content: ''; position: absolute; inset-block-end: -16px; inset-inline-end: 22px; border: 8px solid transparent; border-block-start: 10px solid #2a2132; border-block-end: 0; }
